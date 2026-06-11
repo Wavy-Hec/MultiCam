@@ -1,0 +1,305 @@
+{
+  "by_num_videos": {
+    "qwen3vl": {
+      "2": {
+        "correct": 8,
+        "total": 15,
+        "acc": 53.333333333333336
+      },
+      "3": {
+        "correct": 11,
+        "total": 16,
+        "acc": 68.75
+      },
+      "4": {
+        "correct": 9,
+        "total": 14,
+        "acc": 64.28571428571429
+      }
+    },
+    "internvl3": {
+      "2": {
+        "correct": 6,
+        "total": 15,
+        "acc": 40.0
+      },
+      "3": {
+        "correct": 10,
+        "total": 16,
+        "acc": 62.5
+      },
+      "4": {
+        "correct": 9,
+        "total": 14,
+        "acc": 64.28571428571429
+      }
+    },
+    "qwen3vl_blind": {
+      "2": {
+        "correct": 7,
+        "total": 15,
+        "acc": 46.666666666666664
+      },
+      "3": {
+        "correct": 6,
+        "total": 16,
+        "acc": 37.5
+      },
+      "4": {
+        "correct": 5,
+        "total": 14,
+        "acc": 35.714285714285715
+      }
+    }
+  },
+  "by_task_type": {
+    "qwen3vl": {
+      "Cross-video Anomaly Detection": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Cross-video Counterfactual Reasoning": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Cross-video Entity Matching": {
+        "correct": 2,
+        "total": 4,
+        "acc": 50.0
+      },
+      "Cross-video Event Retrieval": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Cross-video Object Recognition": {
+        "correct": 1,
+        "total": 3,
+        "acc": 33.333333333333336
+      },
+      "Cross-video Procedural Transfer": {
+        "correct": 1,
+        "total": 3,
+        "acc": 33.333333333333336
+      },
+      "Cross-video Scene Recognition": {
+        "correct": 2,
+        "total": 4,
+        "acc": 50.0
+      },
+      "Joint-video Counting": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Joint-video Spatial Navigating": {
+        "correct": 2,
+        "total": 4,
+        "acc": 50.0
+      },
+      "Joint-video Summarization": {
+        "correct": 3,
+        "total": 3,
+        "acc": 100.0
+      },
+      "Multi-video Attribute Recognition": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Multi-video Key-Action Recognition": {
+        "correct": 1,
+        "total": 2,
+        "acc": 50.0
+      },
+      "Multi-video Temporal Reasoning": {
+        "correct": 3,
+        "total": 3,
+        "acc": 100.0
+      },
+      "Multi-view Scene Understanding": {
+        "correct": 1,
+        "total": 2,
+        "acc": 50.0
+      },
+      "Video Difference Caption": {
+        "correct": 2,
+        "total": 2,
+        "acc": 100.0
+      }
+    },
+    "internvl3": {
+      "Cross-video Anomaly Detection": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Cross-video Counterfactual Reasoning": {
+        "correct": 3,
+        "total": 3,
+        "acc": 100.0
+      },
+      "Cross-video Entity Matching": {
+        "correct": 2,
+        "total": 4,
+        "acc": 50.0
+      },
+      "Cross-video Event Retrieval": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Cross-video Object Recognition": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Cross-video Procedural Transfer": {
+        "correct": 1,
+        "total": 3,
+        "acc": 33.333333333333336
+      },
+      "Cross-video Scene Recognition": {
+        "correct": 2,
+        "total": 4,
+        "acc": 50.0
+      },
+      "Joint-video Counting": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Joint-video Spatial Navigating": {
+        "correct": 1,
+        "total": 4,
+        "acc": 25.0
+      },
+      "Joint-video Summarization": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Multi-video Attribute Recognition": {
+        "correct": 3,
+        "total": 3,
+        "acc": 100.0
+      },
+      "Multi-video Key-Action Recognition": {
+        "correct": 1,
+        "total": 2,
+        "acc": 50.0
+      },
+      "Multi-video Temporal Reasoning": {
+        "correct": 0,
+        "total": 3,
+        "acc": 0.0
+      },
+      "Multi-view Scene Understanding": {
+        "correct": 1,
+        "total": 2,
+        "acc": 50.0
+      },
+      "Video Difference Caption": {
+        "correct": 1,
+        "total": 2,
+        "acc": 50.0
+      }
+    },
+    "qwen3vl_blind": {
+      "Cross-video Anomaly Detection": {
+        "correct": 0,
+        "total": 3,
+        "acc": 0.0
+      },
+      "Cross-video Counterfactual Reasoning": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Cross-video Entity Matching": {
+        "correct": 1,
+        "total": 4,
+        "acc": 25.0
+      },
+      "Cross-video Event Retrieval": {
+        "correct": 0,
+        "total": 3,
+        "acc": 0.0
+      },
+      "Cross-video Object Recognition": {
+        "correct": 1,
+        "total": 3,
+        "acc": 33.333333333333336
+      },
+      "Cross-video Procedural Transfer": {
+        "correct": 1,
+        "total": 3,
+        "acc": 33.333333333333336
+      },
+      "Cross-video Scene Recognition": {
+        "correct": 0,
+        "total": 4,
+        "acc": 0.0
+      },
+      "Joint-video Counting": {
+        "correct": 1,
+        "total": 3,
+        "acc": 33.333333333333336
+      },
+      "Joint-video Spatial Navigating": {
+        "correct": 2,
+        "total": 4,
+        "acc": 50.0
+      },
+      "Joint-video Summarization": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "Multi-video Attribute Recognition": {
+        "correct": 3,
+        "total": 3,
+        "acc": 100.0
+      },
+      "Multi-video Key-Action Recognition": {
+        "correct": 2,
+        "total": 2,
+        "acc": 100.0
+      },
+      "Multi-video Temporal Reasoning": {
+        "correct": 1,
+        "total": 3,
+        "acc": 33.333333333333336
+      },
+      "Multi-view Scene Understanding": {
+        "correct": 0,
+        "total": 2,
+        "acc": 0.0
+      },
+      "Video Difference Caption": {
+        "correct": 2,
+        "total": 2,
+        "acc": 100.0
+      }
+    }
+  },
+  "overall": {
+    "qwen3vl": {
+      "correct": 28,
+      "total": 45,
+      "acc": 62.22222222222222
+    },
+    "internvl3": {
+      "correct": 25,
+      "total": 45,
+      "acc": 55.55555555555556
+    },
+    "qwen3vl_blind": {
+      "correct": 18,
+      "total": 45,
+      "acc": 40.0
+    }
+  }
+}

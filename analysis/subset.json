@@ -1,0 +1,710 @@
+[
+  {
+    "id": 8,
+    "task_type": "Cross-video Anomaly Detection",
+    "video_1": "101/mKVjVlKMgTo.mp4",
+    "video_2": "101/Qw6ShmgLyHQ.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Which video does the skier fall down to emphasize the exciting atmosphere of the skiing event?",
+    "options": [
+      "A. Video 1.",
+      "B. Video 2.",
+      "C. Both.",
+      "D. None of them."
+    ],
+    "answer": "D"
+  },
+  {
+    "id": 142,
+    "task_type": "Cross-video Anomaly Detection",
+    "video_1": "16/3mpXvW2Tj64.mp4",
+    "video_2": "16/3pwyd_n_glY.mp4",
+    "video_3": "16/cA-GbqcDzpE.mp4",
+    "video_4": null,
+    "question": "Which of the following videos reports content theme that is different from the other two?",
+    "options": [
+      "A. Video 1.",
+      "B. Video 2.",
+      "C. Video 3.",
+      "D. They are the same theme."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 5,
+    "task_type": "Cross-video Anomaly Detection",
+    "video_1": "100/gl2i6cvJTBA.mp4",
+    "video_2": "100/k2Q_3eTAPU0.mp4",
+    "video_3": "100/uN82nBAfJzY.mp4",
+    "video_4": "100/wNImzhG6DSU.mp4",
+    "question": "Which video features individuals directly engaged in construction work rather than showcasing materials or interior design?",
+    "options": [
+      "A. Video 1",
+      "B. Video 2",
+      "C. Video 3",
+      "D. Video 4"
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 163,
+    "task_type": "Cross-video Counterfactual Reasoning",
+    "video_1": "167/niIwZP9VWoE_seg1.mp4",
+    "video_2": "167/niIwZP9VWoE_seg2.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "If the grilling had started indoors like in video 2, would the outdoor setting still contribute to flavor enhancement?",
+    "options": [
+      "Yes.",
+      "No."
+    ],
+    "answer": "Yes"
+  },
+  {
+    "id": 52,
+    "task_type": "Cross-video Counterfactual Reasoning",
+    "video_1": "118/b_g3pEF2VJc.mp4",
+    "video_2": "118/cebh5nHzBrI.mp4",
+    "video_3": "118/fk6YqcNoFqo.mp4",
+    "video_4": null,
+    "question": "What wouldn’t have been emphasized if functional backpacks had not been shown in Video 2?",
+    "options": [
+      "A. The portability of planners and pens.",
+      "B. The design aesthetics of stationery items.",
+      "C. Enhancing academic efficiency.",
+      "D. The possibility of worldwide technology trends."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 19,
+    "task_type": "Cross-video Counterfactual Reasoning",
+    "video_1": "105/3nsWXX0zkEM_seg1.mp4",
+    "video_2": "105/3nsWXX0zkEM_seg3.mp4",
+    "video_3": "105/kSt4kWaRCzk_seg2.mp4",
+    "video_4": "105/T6i8LpH9JcY_seg4.mp4",
+    "question": "If the construction activities had not involved a helicopter or a staged vertical vehicle climb, what would have been least likely to happen?",
+    "options": [
+      "A. Connection to cinematic production.",
+      "B. Stacking of outdoor props.",
+      "C. Completion of construction site.",
+      "D. Utilization of scaffolding structures."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 80,
+    "task_type": "Cross-video Entity Matching",
+    "video_1": "13/EP73qH-g_Ks.mp4",
+    "video_2": "13/uez0d2U8s6k.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "In both videos, which trait is shared by the individuals involved?",
+    "options": [
+      "A. Both individuals focus on grand piano techniques.",
+      "B. Both individuals emphasize playful illustrations on sheet music.",
+      "C. Both individuals wear light-colored shorts.",
+      "D. Both individuals demonstrate coordinated hand and foot movements."
+    ],
+    "answer": "D"
+  },
+  {
+    "id": 94,
+    "task_type": "Cross-video Entity Matching",
+    "video_1": "134/3aihgwTwWHg.mp4",
+    "video_2": "134/GugFw56ohi4.mp4",
+    "video_3": "134/kO0u03hcifs.mp4",
+    "video_4": null,
+    "question": "Which aspect shows a consistency of themes between all three videos?",
+    "options": [
+      "A. Focus on background colors.",
+      "B. Involvement of dogs.",
+      "C. Emphasis on product assembly.",
+      "D. The use of cardboard boxes."
+    ],
+    "answer": "D"
+  },
+  {
+    "id": 236,
+    "task_type": "Cross-video Entity Matching",
+    "video_1": "20/9N5Qqhb2eJg.mp4",
+    "video_2": "20/K61W_Q8nHMQ.mp4",
+    "video_3": "20/VuOO31edOEU.mp4",
+    "video_4": "20/YbUrEiBiT4s.mp4",
+    "question": "Which video has the most unique checkout scene compared to other videos?",
+    "options": [
+      "A. Video 1.",
+      "B. Video 2.",
+      "C. Video 3.",
+      "D. Video 4."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 247,
+    "task_type": "Cross-video Entity Matching",
+    "video_1": "205/W4KjYC51B-c_seg1.mp4",
+    "video_2": "205/W4KjYC51B-c_seg2.mp4",
+    "video_3": "205/W4KjYC51B-c_seg3.mp4",
+    "video_4": "205/W4KjYC51B-c_seg4.mp4",
+    "question": "Did the player with number 19 receive emergency assistance in all the relevant videos?",
+    "options": [
+      "Yes.",
+      "No."
+    ],
+    "answer": "Yes"
+  },
+  {
+    "id": 2,
+    "task_type": "Cross-video Event Retrieval",
+    "video_1": "0/0Hd95ulYOT8.mp4",
+    "video_2": "0/XW-lrijc1oQ.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Which video shows the celebration of a team after successfully leading or winning in the match?",
+    "options": [
+      "A. Video 1.",
+      "B. Video 2.",
+      "C. Both of them.",
+      "D. None of them."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 59,
+    "task_type": "Cross-video Event Retrieval",
+    "video_1": "121/2Mg65bJ0qhw.mp4",
+    "video_2": "121/4GUzJvS-ivA.mp4",
+    "video_3": "121/OTT8xP88tNQ.mp4",
+    "video_4": null,
+    "question": "Which video primarily focuses on a living room setup, emphasizing strategic placements for practical living?",
+    "options": [
+      "A. Video 1.",
+      "B. Video 2.",
+      "C. Video 3.",
+      "D. None of them."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 3,
+    "task_type": "Cross-video Event Retrieval",
+    "video_1": "1/5DHFEzdgtxE.mp4",
+    "video_2": "1/7J3X3cbpFAI.mp4",
+    "video_3": "1/9aF1qmty6AU.mp4",
+    "video_4": "1/N9PVw7G32F4.mp4",
+    "question": "Which video features players wearing shirts labeled with country names?",
+    "options": [
+      "A. VideoID 1",
+      "B. VideoID 2",
+      "C. VideoID 3",
+      "D. VideoID 4"
+    ],
+    "answer": "D"
+  },
+  {
+    "id": 34,
+    "task_type": "Cross-video Object Recognition",
+    "video_1": "110/L-gixzvUN1A.mp4",
+    "video_2": "110/ZN23xy8sY-8.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Are the main characters in the two videos the same person?",
+    "options": [
+      "Yes.",
+      "No."
+    ],
+    "answer": "Yes"
+  },
+  {
+    "id": 50,
+    "task_type": "Cross-video Object Recognition",
+    "video_1": "118/b_g3pEF2VJc.mp4",
+    "video_2": "118/cebh5nHzBrI.mp4",
+    "video_3": "118/fk6YqcNoFqo.mp4",
+    "video_4": null,
+    "question": "What object appears in all three videos as a utility for professionals or students?",
+    "options": [
+      "A. Backpack.",
+      "B. Notebook.",
+      "C. Pen.",
+      "D. Smartphone."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 12,
+    "task_type": "Cross-video Object Recognition",
+    "video_1": "102/0CGvGlXV9EI.mp4",
+    "video_2": "102/DQq6HGVI2JA.mp4",
+    "video_3": "102/pLEBEeEShiY.mp4",
+    "video_4": "102/rBGGzMfGFhw.mp4",
+    "question": "What kind of thing appears in multiple videos as an essential part of baking?",
+    "options": [
+      "A. Oven.",
+      "B. Digital thermometer.",
+      "C. Ingredients Flour.",
+      "D. Digital kitchen scale."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 67,
+    "task_type": "Cross-video Procedural Transfer",
+    "video_1": "126/AHSqiRzhFHk.mp4",
+    "video_2": "126/BGTsyYQq0xs.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Based on the clinical knowledge in Video 1, what should a person in Video 2 do to address a sore throat?",
+    "options": [
+      "A. Use a Neti Pot.",
+      "B. Rest and drink warm fluids.",
+      "C. Consult a healthcare professional.",
+      "D. Take nasal spray."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 45,
+    "task_type": "Cross-video Procedural Transfer",
+    "video_1": "116/gRNDLfewNf0.mp4",
+    "video_2": "116/pezaLo8pgzw.mp4",
+    "video_3": "116/WwC9f6KNwaE.mp4",
+    "video_4": null,
+    "question": "Based on the synchronization function detailed in Video 1, what should be considered when managing system data in Video 2?",
+    "options": [
+      "A. Enable syncing for all apps to reduce individual data size.",
+      "B. Regularly check system data details and free space for improvements.",
+      "C. Purchase additional iCloud storage to prevent insufficient space.",
+      "D. Use automatic settings adjustments for ongoing device management."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 65,
+    "task_type": "Cross-video Procedural Transfer",
+    "video_1": "125/5jtAo70cVgo.mp4",
+    "video_2": "125/RQorrnJIc2Q.mp4",
+    "video_3": "125/SpKhElmbyrU_seg1.mp4",
+    "video_4": "125/SpKhElmbyrU_seg4.mp4",
+    "question": "What decor themes from Video 2 can be transferred to Video 4 to enhance the bar’s elegance?",
+    "options": [
+      "A. Floral arches and greenery.",
+      "B. Heart motifs on walls.",
+      "C. Outdoor nature-inspired pieces.",
+      "D. Grand tents and fairy lights."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 0,
+    "task_type": "Cross-video Scene Recognition",
+    "video_1": "0/0Hd95ulYOT8.mp4",
+    "video_2": "0/XW-lrijc1oQ.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Did both videos feature a team successfully scoring a decisive goal or point during the match's closing moments?",
+    "options": [
+      "Yes.",
+      "No."
+    ],
+    "answer": "No"
+  },
+  {
+    "id": 47,
+    "task_type": "Cross-video Scene Recognition",
+    "video_1": "117/AlKFGPXpIbU.mp4",
+    "video_2": "117/zLB4rHIVTyY.mp4",
+    "video_3": "117/ZqK1JEFdbuk.mp4",
+    "video_4": null,
+    "question": "Which shared scenario is present in all three videos?",
+    "options": [
+      "A. A collapsed building.",
+      "B. Rescue workers in action.",
+      "C. Explosions and fires.",
+      "D. Crowds fleeing from the scene."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 6,
+    "task_type": "Cross-video Scene Recognition",
+    "video_1": "100/gl2i6cvJTBA.mp4",
+    "video_2": "100/k2Q_3eTAPU0.mp4",
+    "video_3": "100/uN82nBAfJzY.mp4",
+    "video_4": "100/wNImzhG6DSU.mp4",
+    "question": "Do any of the videos display a room featuring both rustic scaffolding and a four-poster bed?",
+    "options": [
+      "Yes.",
+      "No."
+    ],
+    "answer": "No"
+  },
+  {
+    "id": 10,
+    "task_type": "Cross-video Scene Recognition",
+    "video_1": "102/0CGvGlXV9EI.mp4",
+    "video_2": "102/DQq6HGVI2JA.mp4",
+    "video_3": "102/pLEBEeEShiY.mp4",
+    "video_4": "102/rBGGzMfGFhw.mp4",
+    "question": "Which scene is depicted as a critical part of baking across all videos?",
+    "options": [
+      "A. Cookie spreading.",
+      "B. Temperature measuring.",
+      "C. Dough kneading.",
+      "D. Ingredient weighing."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 387,
+    "task_type": "Joint-video Counting",
+    "video_1": "265/mzQqu-PXNuo.mp4",
+    "video_2": "265/wXS59uBkAbM.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "How many kinds of handicrafts are highlighted in both of these videos?",
+    "options": [
+      "A. 2",
+      "B. 3",
+      "C. 4",
+      "D. 5"
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 4,
+    "task_type": "Joint-video Counting",
+    "video_1": "10/6KPeYiObWHs.mp4",
+    "video_2": "10/QvWk-HbwdSA.mp4",
+    "video_3": "10/sleeMRoccOo.mp4",
+    "video_4": null,
+    "question": "How many key stages of the parcel lifecycle are depicted across all three videos?",
+    "options": [
+      "A. 2 stages.",
+      "B. 3 stages.",
+      "C. 4 stages.",
+      "D. 5 stages."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 57,
+    "task_type": "Joint-video Counting",
+    "video_1": "12/G9XyEyGMKy4.mp4",
+    "video_2": "12/jRpK-eRZNYQ.mp4",
+    "video_3": "12/RbYLVNWXW4E.mp4",
+    "video_4": "12/WnAWr7FMfoM.mp4",
+    "question": "How many videos prominently show beverages among their displayed products?",
+    "options": [
+      "A. 1.",
+      "B. 2.",
+      "C. 3.",
+      "D. 4."
+    ],
+    "answer": "D"
+  },
+  {
+    "id": 197,
+    "task_type": "Joint-video Spatial Navigating",
+    "video_1": "181/4YSK7AVMdhU_seg1.mp4",
+    "video_2": "181/4YSK7AVMdhU_seg2.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Where is the glowing candle holder placed, based on the videos?",
+    "options": [
+      "A. On the marble table beside the living room window.",
+      "B. On the kitchen counter next to the silver refrigerator.",
+      "C. On the wooden cabinet next to the bed on the ground floor.",
+      "D. On the glass shelf above the television in the hallway."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 31,
+    "task_type": "Joint-video Spatial Navigating",
+    "video_1": "11/-W1dpRkthrI.mp4",
+    "video_2": "11/kKa9gTLCit4.mp4",
+    "video_3": "11/yhLF5m_qZno.mp4",
+    "video_4": null,
+    "question": "If an egg is stored in a refrigerator organizer based on Video 2, how can it be accessed for cooking in Video 1 or baking in Video 3?",
+    "options": [
+      "A. Retrieve the egg from the front row of the organizer, and use directly after cracking.",
+      "B. Remove the eggs from the carton within the organizer, and whisk directly.",
+      "C. Open organizer lid, retrieve eggs, and transport to nearby stovetop or kitchen counter.",
+      "D. Remove organizer tray entirely, bring to kitchen island, and extract eggs from holder."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 270,
+    "task_type": "Joint-video Spatial Navigating",
+    "video_1": "213/TFxRJu45jv8_seg1.mp4",
+    "video_2": "213/TFxRJu45jv8_seg2.mp4",
+    "video_3": "213/TFxRJu45jv8_seg3.mp4",
+    "video_4": null,
+    "question": "If sitting on a large chair close to the television, how to get to the stove?",
+    "options": [
+      "A. Head to the top-right corner to enter the kitchen and stove is located in the top-right corner of the kitchen.",
+      "B. Head to the top-left corner to enter the kitchen and stove is located in the top-left corner of the kitchen.",
+      "C. Head to the top-right corner to enter the kitchen and stove is located in the top-left corner of the kitchen.",
+      "D. Head to the top-left corner to enter the kitchen and stove is located in the top-right corner of the kitchen."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 189,
+    "task_type": "Joint-video Spatial Navigating",
+    "video_1": "178/_e5kdmrcEDU_seg1.mp4",
+    "video_2": "178/_e5kdmrcEDU_seg2.mp4",
+    "video_3": "178/_e5kdmrcEDU_seg3.mp4",
+    "video_4": "178/_e5kdmrcEDU_seg4.mp4",
+    "question": "Considering the workspace setup, where are the most critical tasks likely performed within the garage settings in the videos?",
+    "options": [
+      "A. Near the entrance for natural light.",
+      "B. By the hydraulic lift for assembly and modification.",
+      "C. At the back next to the storage for inventory checks.",
+      "D. By the exit for easier access to resources."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 36,
+    "task_type": "Joint-video Summarization",
+    "video_1": "110/L-gixzvUN1A.mp4",
+    "video_2": "110/ZN23xy8sY-8.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Which theme matches the philosophical undertone found in both videos?",
+    "options": [
+      "A. Emotions drive success.",
+      "B. Negative emotions hinder growth.",
+      "C. Innovation leads to status.",
+      "D. Branding aligns with wisdom."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 44,
+    "task_type": "Joint-video Summarization",
+    "video_1": "116/gRNDLfewNf0.mp4",
+    "video_2": "116/pezaLo8pgzw.mp4",
+    "video_3": "116/WwC9f6KNwaE.mp4",
+    "video_4": null,
+    "question": "What is the common theme across the listed videos that ties together the showcased tech adjustments and enhancements?",
+    "options": [
+      "A. Managing and expanding storage capacities in Apple devices.",
+      "B. Introducing new features in less popular Apple devices.",
+      "C. Streaming media across different operating systems.",
+      "D. Offering discounts on Apple peripherals."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 14,
+    "task_type": "Joint-video Summarization",
+    "video_1": "102/0CGvGlXV9EI.mp4",
+    "video_2": "102/DQq6HGVI2JA.mp4",
+    "video_3": "102/pLEBEeEShiY.mp4",
+    "video_4": "102/rBGGzMfGFhw.mp4",
+    "question": "Summarize the comprehensive theme presented across all videos.",
+    "options": [
+      "A. Extensive guide to preparing baked goods using precision baking.",
+      "B. Exploration of different baking textures from cookies to bread.",
+      "C. Step-by-step guide for efficient equipment use in baking.",
+      "D. Detailed analysis of baking temperature control techniques."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 1,
+    "task_type": "Multi-video Attribute Recognition",
+    "video_1": "0/0Hd95ulYOT8.mp4",
+    "video_2": "0/XW-lrijc1oQ.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "What color predominantly features in the attire of winning players across both sporting events?",
+    "options": [
+      "A. White.",
+      "B. Red.",
+      "C. Blue.",
+      "D. Green."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 79,
+    "task_type": "Multi-video Attribute Recognition",
+    "video_1": "129/iys_pmJSp9M_seg1.mp4",
+    "video_2": "129/iys_pmJSp9M_seg2.mp4",
+    "video_3": "129/iys_pmJSp9M_seg3.mp4",
+    "video_4": null,
+    "question": "What attributes define the individual's attire across all videos for adapting to the snowy environment?",
+    "options": [
+      "A. Light fabric and sneakers.",
+      "B. Insulated jackets, gloves, and boots.",
+      "C. Short sleeves and sandals.",
+      "D. Thin raincoat and casual shoes."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 23,
+    "task_type": "Multi-video Attribute Recognition",
+    "video_1": "107/2EuFMzJ3qlw.mp4",
+    "video_2": "107/EVRC08nqME8.mp4",
+    "video_3": "107/TNdEDMXzYrU.mp4",
+    "video_4": "107/y-p7sRD9i1U.mp4",
+    "question": "What shared characteristic can be observed accross all videos?",
+    "options": [
+      "A. Efforts for babies.",
+      "B. Use of colorful toys.",
+      "C. Intimate interactions.",
+      "D. Outdoor environment."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 32,
+    "task_type": "Multi-video Key-Action Recognition",
+    "video_1": "110/L-gixzvUN1A.mp4",
+    "video_2": "110/ZN23xy8sY-8.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "What is the key action difference between the presenter in Video 1 and the presenter in Video 2?",
+    "options": [
+      "A. In Video 1, holding products is key, while in Video 2, gesturing with hands dominates.",
+      "B. In Video 1, gesturing is emphasized more, while in Video 2, interacting with products is dominant.",
+      "C. In both, sitting is a primary action, but outdoor walking is unique to Video 2.",
+      "D. Video 2 uses textual prompts for interactions, while Video 1 does not."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 81,
+    "task_type": "Multi-video Key-Action Recognition",
+    "video_1": "130/kRb-Nj63l4E.mp4",
+    "video_2": "130/V-oGAGocxTs.mp4",
+    "video_3": "130/YdKSGsQs7zA.mp4",
+    "video_4": null,
+    "question": "How is the importance of electronic prescriptions emphasized differently in videos 1 and 2?",
+    "options": [
+      "A. Through patient interaction in Video 1 and studio demonstration in Video 2.",
+      "B. Only through legislative text in Video 1 and animation in Video 2.",
+      "C. Video 1 uses a patient-nurse dialogue and Video 2 uses host explanation.",
+      "D. Through on-screen statistics in Video 1 and narrative storytelling in Video 2."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 27,
+    "task_type": "Multi-video Temporal Reasoning",
+    "video_1": "108/EcmunVPLGyQ_seg1.mp4",
+    "video_2": "108/EcmunVPLGyQ_seg2.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "Following the flow of the trial, did video 1 happen before video 2?",
+    "options": [
+      "Yes. ",
+      "No. "
+    ],
+    "answer": "No"
+  },
+  {
+    "id": 18,
+    "task_type": "Multi-video Temporal Reasoning",
+    "video_1": "104/PB-3DQ4NuVM_seg1.mp4",
+    "video_2": "104/PB-3DQ4NuVM_seg2.mp4",
+    "video_3": "104/PB-3DQ4NuVM_seg3.mp4",
+    "video_4": null,
+    "question": "What is the correct video sequence for processing artifacts?",
+    "options": [
+      "A. 3-1-2.",
+      "B. 2-3-1.",
+      "C. 2-1-3.",
+      "D. 1-2-3."
+    ],
+    "answer": "C"
+  },
+  {
+    "id": 248,
+    "task_type": "Multi-video Temporal Reasoning",
+    "video_1": "205/W4KjYC51B-c_seg1.mp4",
+    "video_2": "205/W4KjYC51B-c_seg2.mp4",
+    "video_3": "205/W4KjYC51B-c_seg3.mp4",
+    "video_4": "205/W4KjYC51B-c_seg4.mp4",
+    "question": "Based on the interconnections, what is the correct chronological order of the rescue process depicted across the videos?",
+    "options": [
+      "A. 3-4-1-2.",
+      "B. 4-1-2-3.",
+      "C. 1-2-3-4.",
+      "D. 2-4-3-1."
+    ],
+    "answer": "D"
+  },
+  {
+    "id": 174,
+    "task_type": "Multi-view Scene Understanding",
+    "video_1": "171/a2gRIS01XnQ_seg1.mp4",
+    "video_2": "171/a2gRIS01XnQ_seg2.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "What indicates the early spring in both videos?",
+    "options": [
+      "A. Flowers blooming brightly.",
+      "B. Bare trees with some foliage.",
+      "C. Snow-covered ground.",
+      "D. Crowded streets outside the park."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 17,
+    "task_type": "Multi-view Scene Understanding",
+    "video_1": "104/PB-3DQ4NuVM_seg1.mp4",
+    "video_2": "104/PB-3DQ4NuVM_seg2.mp4",
+    "video_3": "104/PB-3DQ4NuVM_seg3.mp4",
+    "video_4": null,
+    "question": "What notable connections is present across the videos?",
+    "options": [
+      "A. All depict construction work.",
+      "B. All involve handling historical artifacts.",
+      "C. The scientist discovers a new species.",
+      "D. The historical artifacts in the videos are shown to be from different periods."
+    ],
+    "answer": "B"
+  },
+  {
+    "id": 126,
+    "task_type": "Video Difference Caption",
+    "video_1": "15/2tmw67TaHEE.mp4",
+    "video_2": "15/rp0yZapEKAw.mp4",
+    "video_3": null,
+    "video_4": null,
+    "question": "What is a key visual difference between the matches shown in both videos?",
+    "options": [
+      "A. The jersey colors of Sport players.",
+      "B. Announcement styles of player goals.",
+      "C. Stadium crowd sizes.",
+      "D. Presence of dynamic promotional segments."
+    ],
+    "answer": "A"
+  },
+  {
+    "id": 71,
+    "task_type": "Video Difference Caption",
+    "video_1": "127/JGAPn37hS7M.mp4",
+    "video_2": "127/jP07GXSIKaE.mp4",
+    "video_3": "127/WNOHzvq-eR0.mp4",
+    "video_4": null,
+    "question": "What differentiates Video 1's organization method from Video 2 and Video 3?",
+    "options": [
+      "A. Uses a rotating tray.",
+      "B. Combines different gadgets.",
+      "C. Focuses on vertical space.",
+      "D. Emphasizes utensil storage."
+    ],
+    "answer": "A"
+  }
+]
