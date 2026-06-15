@@ -1,0 +1,22 @@
+# Python bytecode / build metadata
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Incomplete downloads
+*.part
+
+# Built HF datasets (regenerable from analysis/*subset*.json)
+/mvr_dataset/
+/crossview_dataset/
+*.tmp/
+*.tmp
+
+# Generated converter output (full pool; the eval subset is tracked)
+/analysis/crossview_qa.json
+
+# Large fetched media — licensed, do not commit
+/crossview-release-annotations/crossview-release/videos/
+
+# Claude runtime lock
+.claude/scheduled_tasks.lock
