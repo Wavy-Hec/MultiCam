@@ -1,0 +1,31 @@
+dataset_path: ../crossview_dataset
+dataset_kwargs:
+  token: True
+  # utils.py joins this onto HF_HOME, so it must be absolute
+  cache_dir: /home/hectorlugo02/CVBench/crossview-release-annotations/crossview-release
+  video: True
+  load_from_disk: True
+task: "crossview_think"
+test_split: test
+output_type: generate_until
+doc_to_visual: !function utils.mvr_doc_to_visual
+doc_to_text: !function utils.mvr_doc_to_text_think
+doc_to_target: "answer"
+generation_kwargs:
+  max_new_tokens: 2048
+  temperature: 0
+  top_p: 1.0
+  num_beams: 1
+  do_sample: false
+process_results: !function utils.mvr_process_results_think
+metric_list:
+  - metric: mvr_think_score
+    aggregation: !function utils.mvr_aggregate_results_think
+    higher_is_better: true
+lmms_eval_specific_kwargs:
+  default:
+    pre_prompt: ""
+    post_prompt1: ""
+    post_prompt2: ""
+metadata:
+  - version: 0.0

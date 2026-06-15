@@ -1,0 +1,445 @@
+[
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-01.11-05-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-00.11-05-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-01.11-05-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-00.11-05-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-05.admin/2018-03-07.11-05-00.11-10-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-05.admin/2018-03-07.11-05-01.11-10-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-10.admin/2018-03-07.11-10-00.11-15-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-10.admin/2018-03-07.11-10-01.11-15-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-00.admin/2018-03-07.17-00-01.17-05-01.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-00.admin/2018-03-07.17-00-00.17-05-00.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-25.admin/2018-03-07.17-25-01.17-30-01.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-25.admin/2018-03-07.17-25-00.17-30-00.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-30.admin/2018-03-07.17-30-01.17-35-01.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-30.admin/2018-03-07.17-30-00.17-35-00.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.hospital/2018-03-05.13-15-00.13-20-00.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.hospital/2018-03-05.13-15-00.13-20-00.hospital.G436.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.hospital/2018-03-05.13-15-00.13-20-00.hospital.G301.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.hospital/2018-03-05.13-15-00.13-20-00.hospital.G476.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G436.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G301.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G476.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.bus/2018-03-05.13-10-01.13-15-01.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.bus/2018-03-05.13-10-00.13-15-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.bus/2018-03-05.13-10-00.13-15-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.bus/2018-03-05.13-10-00.13-15-00.bus.G505.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-01.13-20-01.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G475.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-01.13-25-01.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-01.13-25-00.bus.G505.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G506.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-01.13-25-01.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-01.13-25-00.bus.G505.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G506.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-01.11-05-01.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G508.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-01.11-05-01.bus.G509.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-01.13-15-01.school.G328.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-01.13-15-01.school.G420.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G424.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-01.13-20-01.school.G328.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G336.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-01.13-20-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G424.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-01.13-25-01.school.G328.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G336.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-01.13-25-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G424.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-01.14-05-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G421.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G424.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G299.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-01.14-10-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-00.14-10-00.school.G421.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-00.14-10-00.school.G424.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-00.14-10-00.school.G299.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-01.14-10-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-00.14-10-00.school.G421.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-00.14-10-00.school.G424.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-05.school/2018-03-05.14-05-00.14-10-00.school.G299.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.hospital/2018-03-11.16-10-08.16-15-08.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.hospital/2018-03-11.16-10-08.16-15-08.hospital.G301.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.hospital/2018-03-11.16-10-08.16-15-08.hospital.G301.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.hospital/2018-03-11.16-10-08.16-15-08.hospital.G341.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.hospital/2018-03-11.16-10-08.16-15-08.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.hospital/2018-03-11.16-10-08.16-15-08.hospital.G301.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-01.16-15-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-00.16-15-00.school.G639.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-01.16-15-01.school.G423.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-01.16-15-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-00.16-15-00.school.G639.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-01.16-15-01.school.G423.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-01.16-15-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-00.16-15-00.school.G639.r13.avi",
+      "videos/meva/mp4_resized/2018-03-11/16/2018-03-11.16-10.school/2018-03-11.16-10-01.16-15-01.school.G423.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G301.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G436.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G476.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G505.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G506.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G505.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G506.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G505.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G506.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-01.13-25-00.bus.G505.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-01.13-25-00.bus.G505.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-00.13-25-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.bus/2018-03-05.13-20-01.13-25-00.bus.G505.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G424.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-01.13-25-01.school.G328.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-01.13-25-01.school.G328.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-01.13-25-01.school.G328.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-01.14-05-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-01.14-05-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-01.14-05-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/14/2018-03-05.14-00.school/2018-03-05.14-00-00.14-05-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-01.11-05-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-00.11-05-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-01.11-05-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.admin/2018-03-07.11-00-00.11-05-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-05.admin/2018-03-07.11-05-00.11-10-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-05.admin/2018-03-07.11-05-01.11-10-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-05.admin/2018-03-07.11-05-00.11-10-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-05.admin/2018-03-07.11-05-01.11-10-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-10.admin/2018-03-07.11-10-00.11-15-00.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-10.admin/2018-03-07.11-10-01.11-15-01.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/16/2018-03-07.16-50.admin/2018-03-07.16-50-01.16-55-01.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/16/2018-03-07.16-50.admin/2018-03-07.16-50-00.16-55-00.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-05.admin/2018-03-07.17-05-01.17-10-01.admin.G326.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/17/2018-03-07.17-05.admin/2018-03-07.17-05-00.17-10-00.admin.G329.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G436.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G301.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.hospital/2018-03-05.13-20-00.13-25-00.hospital.G476.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-04.11-05-04.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-00.11-05-00.hospital.G436.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-00.11-05-00.hospital.G479.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-01.11-05-00.hospital.G476.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-04.11-05-04.hospital.G341.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-00.11-05-00.hospital.G436.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-00.11-05-00.hospital.G479.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.hospital/2018-03-07.11-00-01.11-05-00.hospital.G476.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-01.13-20-01.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G475.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-01.13-20-01.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.bus/2018-03-05.13-15-00.13-20-00.bus.G475.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-01.11-05-01.bus.G506.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G508.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G331.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-06.11-05-06.bus.G340.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G475.r13.avi",
+      "videos/meva/mp4_resized/2018-03-07/11/2018-03-07.11-00.bus/2018-03-07.11-00-00.11-05-00.bus.G508.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-01.13-15-01.school.G419.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-01.13-15-01.school.G420.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-10.school/2018-03-05.13-10-00.13-15-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-01.13-20-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G424.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G300.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-01.13-20-01.school.G339.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G424.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-15.school/2018-03-05.13-15-00.13-20-00.school.G300.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G424.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G330.r13.avi"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G300.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-01.13-25-01.school.G419.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G299.r13.avi",
+      "videos/meva/mp4_resized/2018-03-05/13/2018-03-05.13-20.school/2018-03-05.13-20-00.13-25-00.school.G330.r13.avi"
+    ]
+  }
+]

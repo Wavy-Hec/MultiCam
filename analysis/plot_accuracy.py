@@ -21,6 +21,7 @@ def main():
     ap.add_argument("--in", dest="inp", default=os.path.join(HERE, "accuracy_by_cameras.json"))
     ap.add_argument("--out-cameras", default=os.path.join(HERE, "accuracy_vs_cameras.png"))
     ap.add_argument("--out-tasks", default=os.path.join(HERE, "accuracy_by_task.png"))
+    ap.add_argument("--title", default="CVBench", help="benchmark name used in plot titles")
     args = ap.parse_args()
 
     import matplotlib
@@ -46,7 +47,7 @@ def main():
     plt.xticks(cams)
     plt.xlabel("Number of videos per question (\"cameras\")")
     plt.ylabel("Accuracy (%)")
-    plt.title("CVBench: accuracy vs. number of videos")
+    plt.title(f"{args.title}: accuracy vs. number of videos")
     plt.ylim(0, 100)
     plt.grid(True, alpha=0.3)
     plt.legend()
@@ -66,7 +67,7 @@ def main():
     plt.xticks(x + w * (len(models) - 1) / 2, tasks, rotation=60, ha="right", fontsize=8)
     plt.ylabel("Accuracy (%)")
     plt.ylim(0, 100)
-    plt.title("CVBench: accuracy by task type")
+    plt.title(f"{args.title}: accuracy by task type")
     plt.legend()
     plt.tight_layout()
     plt.savefig(args.out_tasks, dpi=150)
