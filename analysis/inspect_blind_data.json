@@ -1,0 +1,38 @@
+{
+ "sample_prompts": {
+  "0": "<|im_start|>user\nSelect the best answer to the following yes-no question based on all the listed videos.\nDid both videos feature a team successfully scoring a decisive goal or point during the match's closing moments?\nYes.\nNo.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single word (Yes or No) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+  "4": "<|im_start|>user\nSelect the best answer to the following multiple-choice question based on all the listed videos.\nHow many key stages of the parcel lifecycle are depicted across all three videos?\nA. 2 stages.\nB. 3 stages.\nC. 4 stages.\nD. 5 stages.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+  "3": "<|im_start|>user\nSelect the best answer to the following multiple-choice question based on all the listed videos.\nWhich video features players wearing shirts labeled with country names?\nA. VideoID 1\nB. VideoID 2\nC. VideoID 3\nD. VideoID 4\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+  "17": "<|im_start|>user\nSelect the best answer to the following multiple-choice question based on all the listed videos.\nWhat notable connections is present across the videos?\nA. All depict construction work.\nB. All involve handling historical artifacts.\nC. The scientist discovers a new species.\nD. The historical artifacts in the videos are shown to be from different periods.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+  "19": "<|im_start|>user\nSelect the best answer to the following multiple-choice question based on all the listed videos.\nIf the construction activities had not involved a helicopter or a staged vertical vehicle climb, what would have been least likely to happen?\nA. Connection to cinematic production.\nB. Stacking of outdoor props.\nC. Completion of construction site.\nD. Utilization of scaffolding structures.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n"
+ },
+ "vision_tokens_checked": [
+  "<|box_end|>",
+  "<|box_start|>",
+  "<|image_pad|>",
+  "<|quad_end|>",
+  "<|quad_start|>",
+  "<|video_pad|>",
+  "<|vision_end|>",
+  "<|vision_pad|>",
+  "<|vision_start|>"
+ ],
+ "leakage_findings": [],
+ "recount_blind": {
+  "n": 45,
+  "stored_correct": 18,
+  "rederived_correct": 18,
+  "flag_mismatches": [],
+  "error_sentinels": 0,
+  "summary_acc": 40.0
+ },
+ "recount_with_video": {
+  "n": 45,
+  "stored_correct": 28,
+  "rederived_correct": 28,
+  "flag_mismatches": [],
+  "error_sentinels": 0,
+  "summary_acc": 62.22222222222222
+ },
+ "slurm_line": "Overall: 18/45 = 40.0%"
+}
