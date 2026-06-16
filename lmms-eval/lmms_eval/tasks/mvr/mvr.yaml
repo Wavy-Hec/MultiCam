@@ -1,7 +1,8 @@
 dataset_path: ../mvr_dataset
 dataset_kwargs:
   token: True
-  cache_dir: ../Video-R1/src/r1-v/Evaluation/CVBench
+  # utils.py joins this onto HF_HOME, so it must be absolute
+  cache_dir: /home/hectorlugo02/CVBench/Video-R1/src/r1-v/Evaluation/CVBench
   video: True
   load_from_disk: True
   #data_dir: ../../../dataset/dataset.csv

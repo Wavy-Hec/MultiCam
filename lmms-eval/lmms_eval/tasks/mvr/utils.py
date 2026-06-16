@@ -209,7 +209,7 @@ def extract_characters_regex(s):
     if len(s.split()) > 10 and not re.search("[ABCDYESNO]", s):
         return ""
 
-    matches = re.search(r"(?i)([ABCD]|YES|NO)", s)
+    matches = re.search(r"(?i)\b([ABCD]|YES|NO)\b", s)
     if matches is None:
         return ""
     return matches[0].upper()
@@ -272,3 +272,75 @@ def mvr_aggregate_results(results):
         total_answered += v["answered"]
     eval_logger.info(f"Overall Performance: {100 * total_correct / total_answered if total_answered > 0 else 0 : .1f}%")
     return 100 * total_correct / total_answered if total_answered > 0 else 0
+
+
+# ---------------------------------------------------------------------------
+# Thinking-enabled variant (used by mvr_think.yaml).
+# Prompts the model for a visible <think>..</think> reasoning trace followed by
+# the choice in <answer>..</answer>, parses the answer tag first (falling back
+# to the plain regex), and tracks accuracy by number of videos ("cameras").
+# Run with --log_samples to keep the full reasoning trace in the *_samples_*.jsonl
+# `resps` field for qualitative failure analysis.
+# ---------------------------------------------------------------------------
+
+THINK_INSTRUCTION = (
+    "Reason step by step over ALL the listed videos and how they relate to each other. "
+    "Put your detailed reasoning between <think> and </think>, then give your final answer "
+    "between <answer> and </answer>."
+)
+
+
+def mvr_num_videos(doc):
+    return sum(1 for i in range(1, 5) if doc.get(f"video_{i}") is not None)
+
+
+def mvr_doc_to_text_think(doc, lmms_eval_specific_kwargs=None):
+    question = doc["question"]
+    option = doc["options"]
+    is_yesno = all(opt.strip(".").lower() in ["yes", "no"] for opt in option)
+    if is_yesno:
+        option_prompt = "Answer the following yes-no question based on all the listed videos."
+        post_prompt = "Provide only the word (Yes or No) within the <answer> </answer> tags."
+    else:
+        option_prompt = "Answer the following multiple-choice question based on all the listed videos."
+        post_prompt = "Provide only the option letter (A, B, C, or D) within the <answer> </answer> tags."
+    option_str = "\n".join(option)
+    return option_prompt + "\n" + question + "\n" + option_str + "\n" + THINK_INSTRUCTION + "\n" + post_prompt
+
+
+def extract_answer_tag(s):
+    m = re.search(r"<answer>\s*(.*?)\s*</answer>", s, re.DOTALL)
+    return m.group(1).strip() if m else ""
+
+
+def mvr_process_results_think(doc, results):
+    pred = results[0]
+    ans_text = extract_answer_tag(pred)
+    pred_ans = extract_characters_regex(ans_text if ans_text else pred).strip().upper()
+    gt_ans = doc["answer"].strip().upper()
+    data_dict = {
+        "id": doc["id"],
+        "task_type": doc["task_type"],
+        "num_videos": mvr_num_videos(doc),
+        "pred_answer": pred_ans,
+        "answer": gt_ans,
+    }
+    return {"mvr_think_score": data_dict}
+
+
+def mvr_aggregate_results_think(results):
+    total = len(results)
+    correct = sum(1 for r in results if r["pred_answer"] == r["answer"])
+
+    for task_cate in TASK_CATEGORIES:
+        tt = [r for r in results if r["task_type"] == task_cate]
+        tc = sum(1 for r in tt if r["pred_answer"] == r["answer"])
+        eval_logger.info(f"Task Type: {task_cate} ({tc}/{len(tt)}): {100 * tc / len(tt) if tt else 0:.1f}%")
+
+    for nv in sorted({r["num_videos"] for r in results}):
+        nn = [r for r in results if r["num_videos"] == nv]
+        nc = sum(1 for r in nn if r["pred_answer"] == r["answer"])
+        eval_logger.info(f"#videos={nv} ({nc}/{len(nn)}): {100 * nc / len(nn) if nn else 0:.1f}%")
+
+    eval_logger.info(f"Overall Performance: {100 * correct / total if total else 0:.1f}%")
+    return 100 * correct / total if total else 0

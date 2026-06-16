@@ -40,6 +40,9 @@ VIDEO_ROOT=${VIDEO_ROOT:-$REPO/crossview-release-annotations/crossview-release}
 OUTDIR=${OUTDIR:-analysis/crossview_out}
 LIMIT_ARG=${LIMIT_ARG:-}          # e.g. "--limit 3" for a smoke run
 RUN_BLIND=${RUN_BLIND:-0}         # set 1 to also run the no-video language-prior baseline
+RUN_QWEN=${RUN_QWEN:-1}           # set 0 to skip the Qwen leg (e.g. already done)
+RUN_INTERNVL=${RUN_INTERNVL:-1}   # set 0 to skip the InternVL leg
+QOUT=Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json
 mkdir -p "$OUTDIR"
 
 echo "RUN STARTED @ $(date '+%F %T')  | Qwen=$QWEN_CKPT  InternVL=$INTERNVL_CKPT  subset=$SUBSET $LIMIT_ARG"
@@ -58,13 +61,15 @@ print(f"crossview_dataset rebuilt: {len(recs)} rows")
 PY
 rm -rf crossview_dataset && mv crossview_dataset.tmp crossview_dataset
 
-echo "=== 1/3  Qwen3-VL thinking eval (video_root = CrossView release root) ==="
-python Video-R1/src/eval_thinking.py \
-    --model_path "$QWEN_CKPT" \
-    --input_json "$SUBSET" \
-    --output Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json \
-    --video_root "$VIDEO_ROOT" \
-    --nframes 8 --max_new_tokens 2048 $LIMIT_ARG
+if [ "$RUN_QWEN" = "1" ]; then
+  echo "=== 1/3  Qwen3-VL thinking eval (video_root = CrossView release root) ==="
+  python Video-R1/src/eval_thinking.py \
+      --model_path "$QWEN_CKPT" \
+      --input_json "$SUBSET" \
+      --output "$QOUT" \
+      --video_root "$VIDEO_ROOT" \
+      --nframes 8 --max_new_tokens 2048 $LIMIT_ARG
+fi
 
 if [ "$RUN_BLIND" = "1" ]; then
     echo "=== 1b   Qwen3-VL blind (no-video) baseline ==="
@@ -76,38 +81,40 @@ if [ "$RUN_BLIND" = "1" ]; then
         --nframes 8 --max_new_tokens 2048 $LIMIT_ARG
 fi
 
-echo "=== 2/3  InternVL3 thinking eval (conda env: $INTERNVL_ENV; from lmms-eval/ so ./res markers resolve) ==="
-# Use a CONDA env (never a python venv). Default cvbench; internvl2.py carries a
-# transformers>=5 patch so try it first. If model load errors on transformers 5,
-# make a conda clone with transformers 4.48.3 and set INTERNVL_ENV to it:
-#   conda create -y -n internvl --clone cvbench && \
-#   conda run -n internvl pip install 'transformers==4.48.3'
-( cd lmms-eval && conda activate "$INTERNVL_ENV" && python -m lmms_eval \
-    --model internvl2 \
-    --model_args "pretrained=${INTERNVL_CKPT},num_frame=8" \
-    --tasks crossview_think --batch_size 1 --log_samples \
-    --verbosity=DEBUG \
-    --output_path ./logs/ ${LIMIT_ARG} )
+if [ "$RUN_INTERNVL" = "1" ]; then
+  echo "=== 2/3  InternVL3 thinking eval (conda env: $INTERNVL_ENV; from lmms-eval/ so ./res markers resolve) ==="
+  # Use a CONDA env (never a python venv). InternVL3 needs transformers<5; the
+  # default cvbench has transformers 5 and FAILS (all_tied_weights_keys), so run
+  # this leg in a clone:
+  #   conda create -y -n internvl --clone cvbench
+  #   ~/anaconda3/envs/internvl/bin/pip install 'transformers==4.48.3'
+  #   then submit with: INTERNVL_ENV=internvl
+  ( cd lmms-eval && conda activate "$INTERNVL_ENV" && python -m lmms_eval \
+      --model internvl2 \
+      --model_args "pretrained=${INTERNVL_CKPT},num_frame=8" \
+      --tasks crossview_think --batch_size 1 --log_samples \
+      --verbosity=DEBUG \
+      --output_path ./logs/ ${LIMIT_ARG} ) \
+      || echo "WARN: InternVL leg failed (transformers compat in env '$INTERNVL_ENV'?); continuing to analysis."
+fi
 
-echo "=== 3/3  analyze ==="
+echo "=== 3/3  analyze (over whatever result files exist) ==="
+ARGS=""
+[ -f "$QOUT" ] && ARGS="qwen3vl=$QOUT"
 SAMPLES=$(ls -t lmms-eval/logs/*nternVL*/*_samples_crossview_think.jsonl 2>/dev/null | head -1)
-[ -n "$SAMPLES" ] || { echo "FATAL: InternVL produced no samples jsonl"; exit 1; }
-python analysis/parse_lmms_samples.py \
-    --samples "$SAMPLES" \
-    --out analysis/crossview_internvl3_normalized.json
-python analysis/analyze_failures.py \
-    qwen3vl=Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json \
-    internvl3=analysis/crossview_internvl3_normalized.json \
-    --out-dir "$OUTDIR"
+if [ -n "$SAMPLES" ]; then
+    python analysis/parse_lmms_samples.py --samples "$SAMPLES" \
+        --out analysis/crossview_internvl3_normalized.json
+    ARGS="$ARGS internvl3=analysis/crossview_internvl3_normalized.json"
+fi
+[ -n "$ARGS" ] || { echo "FATAL: no result files to analyze"; exit 1; }
+python analysis/analyze_failures.py $ARGS --out-dir "$OUTDIR"
 python analysis/plot_accuracy.py \
     --in "$OUTDIR/accuracy_by_cameras.json" \
     --out-cameras "$OUTDIR/accuracy_vs_cameras.png" \
     --out-tasks "$OUTDIR/accuracy_by_task.png" \
     --title CrossView
-python analysis/crossview_camera_curve.py \
-    qwen3vl=Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json \
-    internvl3=analysis/crossview_internvl3_normalized.json \
-    --subset "$SUBSET" --out-dir "$OUTDIR"
+python analysis/crossview_camera_curve.py $ARGS --subset "$SUBSET" --out-dir "$OUTDIR"
 python analysis/crossview_vs_cvbench.py \
     --cvbench analysis/accuracy_by_cameras.json \
     --crossview "$OUTDIR/accuracy_by_cameras.json" \
