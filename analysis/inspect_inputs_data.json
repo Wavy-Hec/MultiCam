@@ -1,0 +1,1346 @@
+{
+ "env": {
+  "qwen_vl_utils_file": "/home/hectorlugo02/anaconda3/envs/cvbench/lib/python3.10/site-packages/qwen_vl_utils/__init__.py",
+  "qwen_vl_utils_version": "0.0.14",
+  "lmms_eval_file": "/home/hectorlugo02/CVBench/lmms-eval/lmms_eval/__init__.py",
+  "transformers_version": "5.2.0",
+  "decord_version": "0.6.0",
+  "torchcodec_present": false,
+  "decord_backend_log_line": "eval:   0%|          | 0/45 [00:00<?, ?it/s]qwen-vl-utils using decord to read video."
+ },
+ "picks": [
+  0,
+  4,
+  3,
+  17,
+  19
+ ],
+ "questions": {
+  "0": {
+   "videos": [
+    {
+     "video_n": 1,
+     "rel": "0/0Hd95ulYOT8.mp4",
+     "qwen": {
+      "total_frames": 7328,
+      "fps": 50.0,
+      "frame_indices": [
+       0,
+       1047,
+       2093,
+       3140,
+       4187,
+       5234,
+       6280,
+       7327
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       457,
+       1373,
+       2289,
+       3205,
+       4121,
+       5036,
+       5952,
+       6868
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 2,
+     "rel": "0/XW-lrijc1oQ.mp4",
+     "qwen": {
+      "total_frames": 6453,
+      "fps": 25.0,
+      "frame_indices": [
+       0,
+       922,
+       1843,
+       2765,
+       3687,
+       4609,
+       5530,
+       6452
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       403,
+       1209,
+       2016,
+       2823,
+       3629,
+       4435,
+       5242,
+       6049
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    }
+   ],
+   "qwen_layout": {
+    "n_videos": 2,
+    "template_text": "<|im_start|>user\nVideo 1:<|vision_start|><|video_pad|><|vision_end|>Video 2:<|vision_start|><|video_pad|><|vision_end|>Select the best answer to the following yes-no question based on all the listed videos.\nDid both videos feature a team successfully scoring a decisive goal or point during the match's closing moments?\nYes.\nNo.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single word (Yes or No) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+    "is_yesno": true,
+    "token_stream": {
+     "total_tokens": 6015,
+     "blocks_per_video": [
+      {
+       "video_n": 1,
+       "timestamps_s": [
+        10.5,
+        52.3,
+        94.2,
+        136.1
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 2,
+       "timestamps_s": [
+        18.4,
+        92.2,
+        165.9,
+        239.6
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      }
+     ]
+    }
+   },
+   "internvl_layout": {
+    "contexts": "Answer the following yes-no question based on all the listed videos.\nDid both videos feature a team successfully scoring a decisive goal or point during the match's closing moments?\nYes.\nNo.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the word (Yes or No) within the <answer> </answer> tags.",
+    "stored_input_matches": true,
+    "n_image_slots": 20,
+    "layout": [
+     {
+      "video_pos": 1,
+      "frame_slots": "Frame1 (marker 'This is video 1'), Frame2-Frame9 (8 sampled frames), Frame10 (marker 'Video 1 End')",
+      "slot_range": [
+       1,
+       10
+      ]
+     },
+     {
+      "video_pos": 2,
+      "frame_slots": "Frame11 (marker 'This is video 2'), Frame12-Frame19 (8 sampled frames), Frame20 (marker 'Video 2 End')",
+      "slot_range": [
+       11,
+       20
+      ]
+     }
+    ],
+    "final_question_string": "Frame1: <image>\nFrame2: <image>\nFrame3: <image>\nFrame4: <image>\nFrame5: <image>\nFrame6: <image>\nFrame7: <image>\nFrame8: <image>\nFrame9: <image>\nFrame10: <image>\nFrame11: <image>\nFrame12: <image>\nFrame13: <image>\nFrame14: <image>\nFrame15: <image>\nFrame16: <image>\nFrame17: <image>\nFrame18: <image>\nFrame19: <image>\nFrame20: <image>\nPlease pay close attention to the video frames with special cues that are interspersed at the beginning and end of a video's content. For example, frames with the words \"The video X\" represent the beginning of the video called video X, and frames with the words \"Video X End\" represent the end of the video called video X.Answer the following yes-no question based on all the listed videos.\nDid both videos feature a team successfully scoring a decisive goal or point during the match's closing moments?\nYes.\nNo.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the word (Yes or No) within the <answer> </answer> tags."
+   }
+  },
+  "4": {
+   "videos": [
+    {
+     "video_n": 1,
+     "rel": "10/6KPeYiObWHs.mp4",
+     "qwen": {
+      "total_frames": 3500,
+      "fps": 30.0,
+      "frame_indices": [
+       0,
+       500,
+       1000,
+       1500,
+       1999,
+       2499,
+       2999,
+       3499
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       218,
+       655,
+       1093,
+       1530,
+       1968,
+       2405,
+       2842,
+       3280
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 2,
+     "rel": "10/QvWk-HbwdSA.mp4",
+     "qwen": {
+      "total_frames": 998,
+      "fps": 30.0,
+      "frame_indices": [
+       0,
+       142,
+       285,
+       427,
+       570,
+       712,
+       855,
+       997
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       704,
+       704
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       62,
+       187,
+       311,
+       436,
+       560,
+       685,
+       810,
+       934
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 3,
+     "rel": "10/sleeMRoccOo.mp4",
+     "qwen": {
+      "total_frames": 343,
+      "fps": 29.861,
+      "frame_indices": [
+       0,
+       49,
+       98,
+       147,
+       195,
+       244,
+       293,
+       342
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       704,
+       320
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       21,
+       64,
+       107,
+       149,
+       192,
+       235,
+       277,
+       320
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    }
+   ],
+   "qwen_layout": {
+    "n_videos": 3,
+    "template_text": "<|im_start|>user\nVideo 1:<|vision_start|><|video_pad|><|vision_end|>Video 2:<|vision_start|><|video_pad|><|vision_end|>Video 3:<|vision_start|><|video_pad|><|vision_end|>Select the best answer to the following multiple-choice question based on all the listed videos.\nHow many key stages of the parcel lifecycle are depicted across all three videos?\nA. 2 stages.\nB. 3 stages.\nC. 4 stages.\nD. 5 stages.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+    "is_yesno": false,
+    "token_stream": {
+     "total_tokens": 6004,
+     "blocks_per_video": [
+      {
+       "video_n": 1,
+       "timestamps_s": [
+        8.3,
+        41.7,
+        75.0,
+        108.3
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 2,
+       "timestamps_s": [
+        2.4,
+        11.9,
+        21.4,
+        30.9
+       ],
+       "video_pad_per_block": [
+        484,
+        484,
+        484,
+        484
+       ]
+      },
+      {
+       "video_n": 3,
+       "timestamps_s": [
+        0.8,
+        4.1,
+        7.4,
+        10.6
+       ],
+       "video_pad_per_block": [
+        220,
+        220,
+        220,
+        220
+       ]
+      }
+     ]
+    }
+   },
+   "internvl_layout": {
+    "contexts": "Answer the following multiple-choice question based on all the listed videos.\nHow many key stages of the parcel lifecycle are depicted across all three videos?\nA. 2 stages.\nB. 3 stages.\nC. 4 stages.\nD. 5 stages.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags.",
+    "stored_input_matches": true,
+    "n_image_slots": 30,
+    "layout": [
+     {
+      "video_pos": 1,
+      "frame_slots": "Frame1 (marker 'This is video 1'), Frame2-Frame9 (8 sampled frames), Frame10 (marker 'Video 1 End')",
+      "slot_range": [
+       1,
+       10
+      ]
+     },
+     {
+      "video_pos": 2,
+      "frame_slots": "Frame11 (marker 'This is video 2'), Frame12-Frame19 (8 sampled frames), Frame20 (marker 'Video 2 End')",
+      "slot_range": [
+       11,
+       20
+      ]
+     },
+     {
+      "video_pos": 3,
+      "frame_slots": "Frame21 (marker 'This is video 3'), Frame22-Frame29 (8 sampled frames), Frame30 (marker 'Video 3 End')",
+      "slot_range": [
+       21,
+       30
+      ]
+     }
+    ],
+    "final_question_string": "Frame1: <image>\nFrame2: <image>\nFrame3: <image>\nFrame4: <image>\nFrame5: <image>\nFrame6: <image>\nFrame7: <image>\nFrame8: <image>\nFrame9: <image>\nFrame10: <image>\nFrame11: <image>\nFrame12: <image>\nFrame13: <image>\nFrame14: <image>\nFrame15: <image>\nFrame16: <image>\nFrame17: <image>\nFrame18: <image>\nFrame19: <image>\nFrame20: <image>\nFrame21: <image>\nFrame22: <image>\nFrame23: <image>\nFrame24: <image>\nFrame25: <image>\nFrame26: <image>\nFrame27: <image>\nFrame28: <image>\nFrame29: <image>\nFrame30: <image>\nPlease pay close attention to the video frames with special cues that are interspersed at the beginning and end of a video's content. For example, frames with the words \"The video X\" represent the beginning of the video called video X, and frames with the words \"Video X End\" represent the end of the video called video X.Answer the following multiple-choice question based on all the listed videos.\nHow many key stages of the parcel lifecycle are depicted across all three videos?\nA. 2 stages.\nB. 3 stages.\nC. 4 stages.\nD. 5 stages.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags."
+   }
+  },
+  "3": {
+   "videos": [
+    {
+     "video_n": 1,
+     "rel": "1/5DHFEzdgtxE.mp4",
+     "qwen": {
+      "total_frames": 243,
+      "fps": 30.0,
+      "frame_indices": [
+       0,
+       35,
+       69,
+       104,
+       138,
+       173,
+       207,
+       242
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       1152,
+       640
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       15,
+       45,
+       75,
+       106,
+       136,
+       166,
+       197,
+       227
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 2,
+     "rel": "1/7J3X3cbpFAI.mp4",
+     "qwen": {
+      "total_frames": 268,
+      "fps": 30.0,
+      "frame_indices": [
+       0,
+       38,
+       76,
+       114,
+       153,
+       191,
+       229,
+       267
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       1152,
+       640
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       16,
+       49,
+       83,
+       116,
+       150,
+       183,
+       216,
+       250
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 3,
+     "rel": "1/9aF1qmty6AU.mp4",
+     "qwen": {
+      "total_frames": 212,
+      "fps": 30.0,
+      "frame_indices": [
+       0,
+       30,
+       60,
+       90,
+       121,
+       151,
+       181,
+       211
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       1152,
+       640
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       13,
+       39,
+       66,
+       92,
+       119,
+       145,
+       171,
+       198
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 4,
+     "rel": "1/N9PVw7G32F4.mp4",
+     "qwen": {
+      "total_frames": 290,
+      "fps": 30.0,
+      "frame_indices": [
+       0,
+       41,
+       83,
+       124,
+       165,
+       206,
+       248,
+       289
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       1152,
+       640
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       18,
+       54,
+       90,
+       126,
+       162,
+       199,
+       235,
+       271
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    }
+   ],
+   "qwen_layout": {
+    "n_videos": 4,
+    "template_text": "<|im_start|>user\nVideo 1:<|vision_start|><|video_pad|><|vision_end|>Video 2:<|vision_start|><|video_pad|><|vision_end|>Video 3:<|vision_start|><|video_pad|><|vision_end|>Video 4:<|vision_start|><|video_pad|><|vision_end|>Select the best answer to the following multiple-choice question based on all the listed videos.\nWhich video features players wearing shirts labeled with country names?\nA. VideoID 1\nB. VideoID 2\nC. VideoID 3\nD. VideoID 4\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+    "is_yesno": false,
+    "token_stream": {
+     "total_tokens": 11855,
+     "blocks_per_video": [
+      {
+       "video_n": 1,
+       "timestamps_s": [
+        0.6,
+        2.9,
+        5.2,
+        7.5
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 2,
+       "timestamps_s": [
+        0.6,
+        3.2,
+        5.7,
+        8.3
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 3,
+       "timestamps_s": [
+        0.5,
+        2.5,
+        4.5,
+        6.5
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 4,
+       "timestamps_s": [
+        0.7,
+        3.5,
+        6.2,
+        8.9
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      }
+     ]
+    }
+   },
+   "internvl_layout": {
+    "contexts": "Answer the following multiple-choice question based on all the listed videos.\nWhich video features players wearing shirts labeled with country names?\nA. VideoID 1\nB. VideoID 2\nC. VideoID 3\nD. VideoID 4\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags.",
+    "stored_input_matches": true,
+    "n_image_slots": 40,
+    "layout": [
+     {
+      "video_pos": 1,
+      "frame_slots": "Frame1 (marker 'This is video 1'), Frame2-Frame9 (8 sampled frames), Frame10 (marker 'Video 1 End')",
+      "slot_range": [
+       1,
+       10
+      ]
+     },
+     {
+      "video_pos": 2,
+      "frame_slots": "Frame11 (marker 'This is video 2'), Frame12-Frame19 (8 sampled frames), Frame20 (marker 'Video 2 End')",
+      "slot_range": [
+       11,
+       20
+      ]
+     },
+     {
+      "video_pos": 3,
+      "frame_slots": "Frame21 (marker 'This is video 3'), Frame22-Frame29 (8 sampled frames), Frame30 (marker 'Video 3 End')",
+      "slot_range": [
+       21,
+       30
+      ]
+     },
+     {
+      "video_pos": 4,
+      "frame_slots": "Frame31 (marker 'This is video 4'), Frame32-Frame39 (8 sampled frames), Frame40 (marker 'Video 4 End')",
+      "slot_range": [
+       31,
+       40
+      ]
+     }
+    ],
+    "final_question_string": "Frame1: <image>\nFrame2: <image>\nFrame3: <image>\nFrame4: <image>\nFrame5: <image>\nFrame6: <image>\nFrame7: <image>\nFrame8: <image>\nFrame9: <image>\nFrame10: <image>\nFrame11: <image>\nFrame12: <image>\nFrame13: <image>\nFrame14: <image>\nFrame15: <image>\nFrame16: <image>\nFrame17: <image>\nFrame18: <image>\nFrame19: <image>\nFrame20: <image>\nFrame21: <image>\nFrame22: <image>\nFrame23: <image>\nFrame24: <image>\nFrame25: <image>\nFrame26: <image>\nFrame27: <image>\nFrame28: <image>\nFrame29: <image>\nFrame30: <image>\nFrame31: <image>\nFrame32: <image>\nFrame33: <image>\nFrame34: <image>\nFrame35: <image>\nFrame36: <image>\nFrame37: <image>\nFrame38: <image>\nFrame39: <image>\nFrame40: <image>\nPlease pay close attention to the video frames with special cues that are interspersed at the beginning and end of a video's content. For example, frames with the words \"The video X\" represent the beginning of the video called video X, and frames with the words \"Video X End\" represent the end of the video called video X.Answer the following multiple-choice question based on all the listed videos.\nWhich video features players wearing shirts labeled with country names?\nA. VideoID 1\nB. VideoID 2\nC. VideoID 3\nD. VideoID 4\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags."
+   }
+  },
+  "17": {
+   "videos": [
+    {
+     "video_n": 1,
+     "rel": "104/PB-3DQ4NuVM_seg1.mp4",
+     "qwen": {
+      "total_frames": 133,
+      "fps": 25.0,
+      "frame_indices": [
+       0,
+       19,
+       38,
+       57,
+       75,
+       94,
+       113,
+       132
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       8,
+       24,
+       41,
+       58,
+       74,
+       90,
+       107,
+       124
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 2,
+     "rel": "104/PB-3DQ4NuVM_seg2.mp4",
+     "qwen": {
+      "total_frames": 276,
+      "fps": 25.0,
+      "frame_indices": [
+       0,
+       39,
+       79,
+       118,
+       157,
+       196,
+       236,
+       275
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       17,
+       51,
+       86,
+       120,
+       155,
+       189,
+       223,
+       258
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 3,
+     "rel": "104/PB-3DQ4NuVM_seg3.mp4",
+     "qwen": {
+      "total_frames": 329,
+      "fps": 24.993,
+      "frame_indices": [
+       0,
+       47,
+       94,
+       141,
+       187,
+       234,
+       281,
+       328
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       20,
+       61,
+       102,
+       143,
+       184,
+       225,
+       266,
+       307
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    }
+   ],
+   "qwen_layout": {
+    "n_videos": 3,
+    "template_text": "<|im_start|>user\nVideo 1:<|vision_start|><|video_pad|><|vision_end|>Video 2:<|vision_start|><|video_pad|><|vision_end|>Video 3:<|vision_start|><|video_pad|><|vision_end|>Select the best answer to the following multiple-choice question based on all the listed videos.\nWhat notable connections is present across the videos?\nA. All depict construction work.\nB. All involve handling historical artifacts.\nC. The scientist discovers a new species.\nD. The historical artifacts in the videos are shown to be from different periods.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+    "is_yesno": false,
+    "token_stream": {
+     "total_tokens": 8952,
+     "blocks_per_video": [
+      {
+       "video_n": 1,
+       "timestamps_s": [
+        0.4,
+        1.9,
+        3.4,
+        4.9
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 2,
+       "timestamps_s": [
+        0.8,
+        3.9,
+        7.1,
+        10.2
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 3,
+       "timestamps_s": [
+        0.9,
+        4.7,
+        8.4,
+        12.2
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      }
+     ]
+    }
+   },
+   "internvl_layout": {
+    "contexts": "Answer the following multiple-choice question based on all the listed videos.\nWhat notable connections is present across the videos?\nA. All depict construction work.\nB. All involve handling historical artifacts.\nC. The scientist discovers a new species.\nD. The historical artifacts in the videos are shown to be from different periods.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags.",
+    "stored_input_matches": true,
+    "n_image_slots": 30,
+    "layout": [
+     {
+      "video_pos": 1,
+      "frame_slots": "Frame1 (marker 'This is video 1'), Frame2-Frame9 (8 sampled frames), Frame10 (marker 'Video 1 End')",
+      "slot_range": [
+       1,
+       10
+      ]
+     },
+     {
+      "video_pos": 2,
+      "frame_slots": "Frame11 (marker 'This is video 2'), Frame12-Frame19 (8 sampled frames), Frame20 (marker 'Video 2 End')",
+      "slot_range": [
+       11,
+       20
+      ]
+     },
+     {
+      "video_pos": 3,
+      "frame_slots": "Frame21 (marker 'This is video 3'), Frame22-Frame29 (8 sampled frames), Frame30 (marker 'Video 3 End')",
+      "slot_range": [
+       21,
+       30
+      ]
+     }
+    ],
+    "final_question_string": "Frame1: <image>\nFrame2: <image>\nFrame3: <image>\nFrame4: <image>\nFrame5: <image>\nFrame6: <image>\nFrame7: <image>\nFrame8: <image>\nFrame9: <image>\nFrame10: <image>\nFrame11: <image>\nFrame12: <image>\nFrame13: <image>\nFrame14: <image>\nFrame15: <image>\nFrame16: <image>\nFrame17: <image>\nFrame18: <image>\nFrame19: <image>\nFrame20: <image>\nFrame21: <image>\nFrame22: <image>\nFrame23: <image>\nFrame24: <image>\nFrame25: <image>\nFrame26: <image>\nFrame27: <image>\nFrame28: <image>\nFrame29: <image>\nFrame30: <image>\nPlease pay close attention to the video frames with special cues that are interspersed at the beginning and end of a video's content. For example, frames with the words \"The video X\" represent the beginning of the video called video X, and frames with the words \"Video X End\" represent the end of the video called video X.Answer the following multiple-choice question based on all the listed videos.\nWhat notable connections is present across the videos?\nA. All depict construction work.\nB. All involve handling historical artifacts.\nC. The scientist discovers a new species.\nD. The historical artifacts in the videos are shown to be from different periods.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags."
+   }
+  },
+  "19": {
+   "videos": [
+    {
+     "video_n": 1,
+     "rel": "105/3nsWXX0zkEM_seg1.mp4",
+     "qwen": {
+      "total_frames": 360,
+      "fps": 23.976,
+      "frame_indices": [
+       0,
+       51,
+       103,
+       154,
+       205,
+       256,
+       308,
+       359
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       22,
+       67,
+       112,
+       157,
+       202,
+       246,
+       291,
+       336
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 2,
+     "rel": "105/3nsWXX0zkEM_seg3.mp4",
+     "qwen": {
+      "total_frames": 120,
+      "fps": 23.976,
+      "frame_indices": [
+       0,
+       17,
+       34,
+       51,
+       68,
+       85,
+       102,
+       119
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       7,
+       22,
+       37,
+       52,
+       67,
+       81,
+       96,
+       111
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 3,
+     "rel": "105/kSt4kWaRCzk_seg2.mp4",
+     "qwen": {
+      "total_frames": 1349,
+      "fps": 23.976,
+      "frame_indices": [
+       0,
+       193,
+       385,
+       578,
+       770,
+       963,
+       1155,
+       1348
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       84,
+       252,
+       421,
+       590,
+       758,
+       926,
+       1095,
+       1264
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    },
+    {
+     "video_n": 4,
+     "rel": "105/T6i8LpH9JcY_seg4.mp4",
+     "qwen": {
+      "total_frames": 1406,
+      "fps": 25.0,
+      "frame_indices": [
+       0,
+       201,
+       401,
+       602,
+       803,
+       1004,
+       1204,
+       1405
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       640,
+       1152
+      ],
+      "backend": "decord"
+     },
+     "internvl": {
+      "frame_indices": [
+       87,
+       263,
+       438,
+       614,
+       789,
+       965,
+       1141,
+       1316
+      ],
+      "num_patches_per_frame": [
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1,
+       1
+      ],
+      "tensor_shape": [
+       8,
+       3,
+       448,
+       448
+      ]
+     }
+    }
+   ],
+   "qwen_layout": {
+    "n_videos": 4,
+    "template_text": "<|im_start|>user\nVideo 1:<|vision_start|><|video_pad|><|vision_end|>Video 2:<|vision_start|><|video_pad|><|vision_end|>Video 3:<|vision_start|><|video_pad|><|vision_end|>Video 4:<|vision_start|><|video_pad|><|vision_end|>Select the best answer to the following multiple-choice question based on all the listed videos.\nIf the construction activities had not involved a helicopter or a staged vertical vehicle climb, what would have been least likely to happen?\nA. Connection to cinematic production.\nB. Stacking of outdoor props.\nC. Completion of construction site.\nD. Utilization of scaffolding structures.\nPlease think about this question as if you were a human pondering deeply. Engage in an internal dialogue using expressions such as 'let me think', 'wait', 'Hmm', 'oh, I see', 'let's break it down', etc, or other natural language thought expressions. It's encouraged to include self-reflection or verification in the reasoning process. Provide your detailed reasoning between the <think> and </think> tags, and then give your final answer between the <answer> and </answer> tags.\nProvide only the single option letter (A, B, C, or D) within the <answer> </answer> tags.<|im_end|>\n<|im_start|>assistant\n<think>\n",
+    "is_yesno": false,
+    "token_stream": {
+     "total_tokens": 11879,
+     "blocks_per_video": [
+      {
+       "video_n": 1,
+       "timestamps_s": [
+        1.1,
+        5.4,
+        9.6,
+        13.9
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 2,
+       "timestamps_s": [
+        0.4,
+        1.8,
+        3.2,
+        4.6
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 3,
+       "timestamps_s": [
+        4.0,
+        20.1,
+        36.1,
+        52.2
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      },
+      {
+       "video_n": 4,
+       "timestamps_s": [
+        4.0,
+        20.1,
+        36.1,
+        52.2
+       ],
+       "video_pad_per_block": [
+        720,
+        720,
+        720,
+        720
+       ]
+      }
+     ]
+    }
+   },
+   "internvl_layout": {
+    "contexts": "Answer the following multiple-choice question based on all the listed videos.\nIf the construction activities had not involved a helicopter or a staged vertical vehicle climb, what would have been least likely to happen?\nA. Connection to cinematic production.\nB. Stacking of outdoor props.\nC. Completion of construction site.\nD. Utilization of scaffolding structures.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags.",
+    "stored_input_matches": true,
+    "n_image_slots": 40,
+    "layout": [
+     {
+      "video_pos": 1,
+      "frame_slots": "Frame1 (marker 'This is video 1'), Frame2-Frame9 (8 sampled frames), Frame10 (marker 'Video 1 End')",
+      "slot_range": [
+       1,
+       10
+      ]
+     },
+     {
+      "video_pos": 2,
+      "frame_slots": "Frame11 (marker 'This is video 2'), Frame12-Frame19 (8 sampled frames), Frame20 (marker 'Video 2 End')",
+      "slot_range": [
+       11,
+       20
+      ]
+     },
+     {
+      "video_pos": 3,
+      "frame_slots": "Frame21 (marker 'This is video 3'), Frame22-Frame29 (8 sampled frames), Frame30 (marker 'Video 3 End')",
+      "slot_range": [
+       21,
+       30
+      ]
+     },
+     {
+      "video_pos": 4,
+      "frame_slots": "Frame31 (marker 'This is video 4'), Frame32-Frame39 (8 sampled frames), Frame40 (marker 'Video 4 End')",
+      "slot_range": [
+       31,
+       40
+      ]
+     }
+    ],
+    "final_question_string": "Frame1: <image>\nFrame2: <image>\nFrame3: <image>\nFrame4: <image>\nFrame5: <image>\nFrame6: <image>\nFrame7: <image>\nFrame8: <image>\nFrame9: <image>\nFrame10: <image>\nFrame11: <image>\nFrame12: <image>\nFrame13: <image>\nFrame14: <image>\nFrame15: <image>\nFrame16: <image>\nFrame17: <image>\nFrame18: <image>\nFrame19: <image>\nFrame20: <image>\nFrame21: <image>\nFrame22: <image>\nFrame23: <image>\nFrame24: <image>\nFrame25: <image>\nFrame26: <image>\nFrame27: <image>\nFrame28: <image>\nFrame29: <image>\nFrame30: <image>\nFrame31: <image>\nFrame32: <image>\nFrame33: <image>\nFrame34: <image>\nFrame35: <image>\nFrame36: <image>\nFrame37: <image>\nFrame38: <image>\nFrame39: <image>\nFrame40: <image>\nPlease pay close attention to the video frames with special cues that are interspersed at the beginning and end of a video's content. For example, frames with the words \"The video X\" represent the beginning of the video called video X, and frames with the words \"Video X End\" represent the end of the video called video X.Answer the following multiple-choice question based on all the listed videos.\nIf the construction activities had not involved a helicopter or a staged vertical vehicle climb, what would have been least likely to happen?\nA. Connection to cinematic production.\nB. Stacking of outdoor props.\nC. Completion of construction site.\nD. Utilization of scaffolding structures.\nReason step by step over ALL the listed videos and how they relate to each other. Put your detailed reasoning between <think> and </think>, then give your final answer between <answer> and </answer>.\nProvide only the option letter (A, B, C, or D) within the <answer> </answer> tags."
+   }
+  }
+ }
+}
