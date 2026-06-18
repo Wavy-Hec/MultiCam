@@ -64,16 +64,37 @@ def extract_answer(text):
     return m.group(1).strip() if m else ""
 
 
+# Explicit "the answer is X" style conclusions, used ONLY when the model never
+# emitted an <answer> tag (e.g. a truncated trace). We take the LAST such match
+# (closest to the model's conclusion). Scanning the whole trace for any bare
+# A/B/C/D is wrong: it grabs prose like "a vehicle" / "options A to D", which
+# fabricated a lucky 'A' on truncated runs and made 0/20 structural.
+_CONCLUDE_MC = re.compile(
+    r"(?i)(?:final\s+answer|best\s+answer|correct\s+answer|the\s+answer|answer)\s*"
+    r"(?:is|:|=|would\s+be)?\s*\(?([ABCD])\b"
+)
+_CONCLUDE_YN = re.compile(
+    r"(?i)(?:final\s+answer|the\s+answer|answer)\s*(?:is|:|=)?\s*\(?(yes|no)\b"
+)
+
+
 def parse_choice(text, is_yesno):
-    """Final answer = <answer>..</answer> if present, else fall back to a regex
-    over the tail of the output."""
+    """Final answer = <answer>..</answer> if present. If the tag is missing
+    (e.g. a truncated trace), fall back ONLY to an explicit "the answer is X"
+    conclusion (last match); otherwise abstain (return "") rather than grabbing
+    an incidental letter from the reasoning prose."""
     ans = extract_answer(text)
-    src = ans if ans else text
     if is_yesno:
-        m = re.search(r"(?i)\b(yes|no)\b", src)
-        return m.group(1).capitalize() if m else src.strip()
-    m = re.search(r"(?i)\b([ABCD])\b", src)
-    return m.group(1).upper() if m else src.strip()
+        if ans:
+            m = re.search(r"(?i)\b(yes|no)\b", ans)
+            return m.group(1).capitalize() if m else ans.strip()
+        ms = list(_CONCLUDE_YN.finditer(text))
+        return ms[-1].group(1).capitalize() if ms else ""
+    if ans:
+        m = re.search(r"(?i)\b([ABCD])\b", ans)
+        return m.group(1).upper() if m else ans.strip()
+    ms = list(_CONCLUDE_MC.finditer(text))
+    return ms[-1].group(1).upper() if ms else ""
 
 
 def gt_choice(answer, is_yesno):
@@ -181,6 +202,7 @@ def main():
     for rec in tqdm([r for r in data if r["id"] not in done_ids], desc="eval"):
         messages, is_yesno = build_messages(rec, args.video_root, args.nframes,
                                             no_video=args.no_video)
+        total_tokens = video_tokens = text_tokens = None
         try:
             text = processor.apply_chat_template(messages, tokenize=False,
                                                  add_generation_prompt=True)
@@ -198,6 +220,13 @@ def main():
                                video_metadata=video_metadata, do_resize=False,
                                padding=True, return_tensors="pt",
                                **video_kwargs).to(model.device)
+            # text-vs-video token accounting for the token benchmark: count the
+            # <|video_pad|> placeholders the processor expanded (one per vision
+            # token); the remainder is text/scaffold. video_tokens==0 when --no_video.
+            total_tokens = int(inputs.input_ids.shape[1])
+            vid_id = processor.tokenizer.convert_tokens_to_ids("<|video_pad|>")
+            video_tokens = int((inputs.input_ids[0] == vid_id).sum())
+            text_tokens = total_tokens - video_tokens
             with torch.no_grad():
                 # no do_sample override: Thinking models loop under greedy
                 # decoding, so use the checkpoint's own generation defaults.
@@ -213,6 +242,10 @@ def main():
         gt = gt_choice(rec["answer"], is_yesno)
         rec_out = dict(rec)
         rec_out["num_videos"] = num_videos(rec)
+        rec_out["num_frames"] = 0 if args.no_video else args.nframes * rec_out["num_videos"]
+        rec_out["total_input_tokens"] = total_tokens
+        rec_out["video_tokens"] = video_tokens
+        rec_out["text_tokens"] = text_tokens
         rec_out["output"] = output
         rec_out["think"] = extract_think(output)
         rec_out["prediction"] = pred

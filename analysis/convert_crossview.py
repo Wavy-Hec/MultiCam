@@ -2,7 +2,7 @@
 """Convert UT Austin CrossView (Multi-Camera VQA) annotations into the CVBench
 record schema so the existing eval harness can benchmark them side-by-side.
 
-v1 scope (see analysis plan): sources MEVA + ego-exo4d, MCQ only, question types
+Scope: sources MEVA + ego-exo4d + agibot, MCQ only, question types
 temporal / event_ordering / spatial. Each question is capped to <=4 cameras
 because both eval legs hard-code video_1..video_4:
   * MEVA   - the answer-bearing cameras are listed in metadata.requires_cameras
@@ -11,6 +11,10 @@ because both eval legs hard-code video_1..video_4:
   * ego-exo4d - no per-camera grounding exists, so the ego/aria view goes first
              and the rest follow in listed order; dropped_cameras>0 is flagged
              (the cap is lossy for these and should be read as a lower bound).
+  * agibot - robot rig has only <=3 cams (head_color + hand_right/left_color),
+             so the cap never drops a view -> cap_answer_safe by geometry (no
+             per-camera grounding, but nothing is dropped). nuscenes stays out:
+             fixed at 6 cams with no grounding -> 100% lossy under the <=4 cap.
 
 Outputs (under analysis/):
   crossview_qa.json            - full converted pool
@@ -40,12 +44,13 @@ ANN = os.path.join(REPO, "crossview-release-annotations", "crossview-release",
 SOURCE_FILES = {
     "meva": ["qa_temporal.json", "qa_event_ordering.json", "qa_spatial.json"],
     "ego-exo4d": ["qa_temporal.json", "qa_event_ordering.json"],
+    "agibot": ["qa_temporal.json", "qa_event_ordering.json"],
 }
 KEEP_TYPES = {"temporal", "event_ordering", "spatial"}
 LETTERS = ["A", "B", "C", "D"]
 
 # pretty task_type labels (kept distinct from CVBench's 15 types on purpose)
-SOURCE_LABEL = {"meva": "MEVA", "ego-exo4d": "EgoExo4D"}
+SOURCE_LABEL = {"meva": "MEVA", "ego-exo4d": "EgoExo4D", "agibot": "AgiBot"}
 TYPE_LABEL = {"temporal": "Temporal", "event_ordering": "Event-Ordering",
               "spatial": "Spatial"}
 
@@ -82,13 +87,15 @@ def cap_cameras_meva(video_paths, metadata, stats):
 
 
 def cap_cameras_ego(video_paths):
-    """Ego/aria view first (always present), then exocentric views in order."""
+    """Generic non-MEVA cap: ego/aria view first if present, then the rest in
+    listed order; take <=4. Serves ego-exo4d (aria-first) AND agibot (no aria, so
+    just listed order head_color/hand_right/hand_left; <=3 cams -> nothing dropped)."""
     aria = [vp for vp in video_paths if is_aria(vp)]
     rest = [vp for vp in video_paths if not is_aria(vp)]
     return (aria + rest)[:4]
 
 
-def convert(sources, meva_ext="mp4"):
+def convert(sources, meva_ext="mp4", require_local_root=None):
     stats = Counter()
     pool = []
     for source, files in SOURCE_FILES.items():
@@ -152,7 +159,9 @@ def convert(sources, meva_ext="mp4"):
                     "orig_num_cameras": orig_num_cameras,
                     "dropped_cameras": max(0, orig_num_cameras - len(chosen)),
                     # MEVA keeps every requires_cameras view -> cap can't drop the
-                    # answer; ego-exo4d has no grounding -> any drop may be lossy.
+                    # answer; ego-exo4d has no grounding -> any drop may be lossy;
+                    # agibot has <=3 cams so the cap never drops a view (safe by
+                    # geometry, via the dropped==0 clause, not by grounding).
                     "cap_answer_safe": (source == "meva"
                                         or orig_num_cameras - len(chosen) == 0),
                     "orig_id": orig_id,
@@ -163,6 +172,14 @@ def convert(sources, meva_ext="mp4"):
                     if source == "meva" and meva_ext != "mp4" and vp.endswith(".mp4"):
                         vp = vp[:-4] + "." + meva_ext
                     out[f"video_{i}"] = vp
+                # --require-local: keep only questions whose chosen videos are all
+                # present under the release root (lets a partial/incremental video
+                # fetch drive a runnable subset; the eval never sees a missing file).
+                if require_local_root:
+                    if any(not os.path.exists(os.path.join(require_local_root, out[f"video_{i}"]))
+                           for i in range(1, 5) if out[f"video_{i}"]):
+                        stats["drop_missing_local"] += 1
+                        continue
                 pool.append(out)
                 stats["kept"] += 1
 
@@ -267,12 +284,18 @@ def report(tag, recs):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=60, help="Stage-A subset size")
-    ap.add_argument("--sources", default="meva,ego-exo4d",
+    ap.add_argument("--sources", default="meva,ego-exo4d,agibot",
                     help="comma list of sources to include (e.g. 'meva' for a "
-                         "MEVA-only run; ego-exo4d/agibot/nuscenes need licenses)")
+                         "MEVA-only run). meva videos are public; ego-exo4d and "
+                         "agibot are video-gated (separate licenses); nuscenes is "
+                         "not wired (structurally lossy under the <=4 cap).")
     ap.add_argument("--meva-video-ext", default="mp4", choices=["mp4", "avi"],
                     help="extension for MEVA video paths; 'avi' matches the public "
                          "MEVA source so no transcoding is needed (decord reads avi)")
+    ap.add_argument("--require-local", default=None, metavar="RELEASE_ROOT",
+                    help="drop questions whose videos are not present under this release "
+                         "root; use to build a runnable subset from a partial/incremental "
+                         "video fetch (e.g. AgiBot tars pulled so far)")
     ap.add_argument("--per-type-cap", type=int, default=20)
     ap.add_argument("--out-qa", default=os.path.join(HERE, "crossview_qa.json"))
     ap.add_argument("--out-subset", default=os.path.join(HERE, "crossview_subset.json"))
@@ -281,7 +304,8 @@ def main():
     args = ap.parse_args()
 
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
-    pool, stats = convert(sources, meva_ext=args.meva_video_ext)
+    pool, stats = convert(sources, meva_ext=args.meva_video_ext,
+                          require_local_root=args.require_local)
     json.dump(pool, open(args.out_qa, "w"), indent=2, ensure_ascii=False)
 
     subset = select(pool, args.n, args.per_type_cap)

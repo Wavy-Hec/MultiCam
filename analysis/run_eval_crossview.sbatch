@@ -68,7 +68,7 @@ if [ "$RUN_QWEN" = "1" ]; then
       --input_json "$SUBSET" \
       --output "$QOUT" \
       --video_root "$VIDEO_ROOT" \
-      --nframes 8 --max_new_tokens 2048 $LIMIT_ARG
+      --nframes 8 --max_new_tokens 8192 $LIMIT_ARG
 fi
 
 if [ "$RUN_BLIND" = "1" ]; then
@@ -78,7 +78,7 @@ if [ "$RUN_BLIND" = "1" ]; then
         --input_json "$SUBSET" \
         --output Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl_novideo.json \
         --video_root "$VIDEO_ROOT" --no_video \
-        --nframes 8 --max_new_tokens 2048 $LIMIT_ARG
+        --nframes 8 --max_new_tokens 8192 $LIMIT_ARG
 fi
 
 if [ "$RUN_INTERNVL" = "1" ]; then
