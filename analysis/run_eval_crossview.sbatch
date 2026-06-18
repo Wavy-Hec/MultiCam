@@ -42,10 +42,21 @@ LIMIT_ARG=${LIMIT_ARG:-}          # e.g. "--limit 3" for a smoke run
 RUN_BLIND=${RUN_BLIND:-0}         # set 1 to also run the no-video language-prior baseline
 RUN_QWEN=${RUN_QWEN:-1}           # set 0 to skip the Qwen leg (e.g. already done)
 RUN_INTERNVL=${RUN_INTERNVL:-1}   # set 0 to skip the InternVL leg
-QOUT=Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json
+FETCH_MEVA=${FETCH_MEVA:-0}       # set 1 to auto-fetch missing MEVA clips in pre-flight (public S3)
+# Output paths are env-overridable so a second subset (e.g. the 1,033-Q MEVA pool)
+# can run without clobbering the 60-Q results.
+QOUT=${QOUT:-Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json}
+QOUT_BLIND=${QOUT_BLIND:-Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl_novideo.json}
+INTERNVL_OUT=${INTERNVL_OUT:-analysis/crossview_internvl3_normalized.json}
 mkdir -p "$OUTDIR"
 
 echo "RUN STARTED @ $(date '+%F %T')  | Qwen=$QWEN_CKPT  InternVL=$INTERNVL_CKPT  subset=$SUBSET $LIMIT_ARG"
+
+if [ "$FETCH_MEVA" = "1" ]; then
+  echo "=== pre-flight: auto-fetch any missing MEVA clips ($SUBSET; public S3, no creds) ==="
+  python analysis/fetch_meva_videos.py --subset "$SUBSET" \
+      || echo "WARN: some MEVA clips errored; the verify step below will catch hard-missing ones"
+fi
 
 echo "=== pre-flight: verify subset videos are present under $VIDEO_ROOT ==="
 python hosting/fetch_videos.py --release-root "$VIDEO_ROOT" verify --qa "$FETCH" || {
@@ -76,7 +87,7 @@ if [ "$RUN_BLIND" = "1" ]; then
     python Video-R1/src/eval_thinking.py \
         --model_path "$QWEN_CKPT" \
         --input_json "$SUBSET" \
-        --output Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl_novideo.json \
+        --output "$QOUT_BLIND" \
         --video_root "$VIDEO_ROOT" --no_video \
         --nframes 8 --max_new_tokens 8192 $LIMIT_ARG
 fi
@@ -104,8 +115,8 @@ ARGS=""
 SAMPLES=$(ls -t lmms-eval/logs/*nternVL*/*_samples_crossview_think.jsonl 2>/dev/null | head -1)
 if [ -n "$SAMPLES" ]; then
     python analysis/parse_lmms_samples.py --samples "$SAMPLES" \
-        --out analysis/crossview_internvl3_normalized.json
-    ARGS="$ARGS internvl3=analysis/crossview_internvl3_normalized.json"
+        --out "$INTERNVL_OUT"
+    ARGS="$ARGS internvl3=$INTERNVL_OUT"
 fi
 [ -n "$ARGS" ] || { echo "FATAL: no result files to analyze"; exit 1; }
 python analysis/analyze_failures.py $ARGS --out-dir "$OUTDIR"
