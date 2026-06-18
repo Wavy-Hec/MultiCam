@@ -21,6 +21,8 @@ TASK_CATEGORIES = [
     "CrossView-MEVA-Spatial",
     "CrossView-EgoExo4D-Temporal",
     "CrossView-EgoExo4D-Event-Ordering",
+    "CrossView-AgiBot-Temporal",
+    "CrossView-AgiBot-Event-Ordering",
 ]
 
 replace_prompt = " Please answer yes or no."
