@@ -22,6 +22,21 @@ __pycache__/
 
 # Large fetched media — licensed, do not commit
 /crossview-release-annotations/crossview-release/videos/
+# External CrossView dataset (downloaded annotations + manifests live alongside
+# the gitignored videos; obtained from the upstream release, not tracked here)
+/crossview-release-annotations/
+# CVBench eval clips (downloaded, ~2GB)
+/Video-R1/src/r1-v/Evaluation/CVBench/
 
-# Claude runtime lock
-.claude/scheduled_tasks.lock
+# SLURM + fetch logs (kept on disk for provenance, not tracked)
+/analysis/logs/
+/analysis/download_subset.log
+
+# Preserved backup / superseded runs
+*.bak
+
+# Regenerable presentation binary (rebuilt by analysis/make_slides.py)
+/analysis/multicam_progress.pptx
+
+# Claude Code runtime/config
+.claude/
