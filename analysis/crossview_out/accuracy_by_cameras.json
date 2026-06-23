@@ -2,19 +2,19 @@
   "by_num_videos": {
     "qwen3vl": {
       "2": {
-        "correct": 6,
+        "correct": 10,
         "total": 17,
-        "acc": 35.294117647058826
+        "acc": 58.8235294117647
       },
       "4": {
-        "correct": 12,
+        "correct": 9,
         "total": 40,
-        "acc": 30.0
+        "acc": 22.5
       },
       "3": {
-        "correct": 1,
+        "correct": 0,
         "total": 3,
-        "acc": 33.333333333333336
+        "acc": 0.0
       }
     },
     "internvl3": {
@@ -38,19 +38,19 @@
   "by_task_type": {
     "qwen3vl": {
       "CrossView-MEVA-Event-Ordering": {
-        "correct": 0,
+        "correct": 7,
         "total": 20,
-        "acc": 0.0
+        "acc": 35.0
       },
       "CrossView-MEVA-Spatial": {
-        "correct": 13,
+        "correct": 9,
         "total": 20,
-        "acc": 65.0
+        "acc": 45.0
       },
       "CrossView-MEVA-Temporal": {
-        "correct": 6,
+        "correct": 3,
         "total": 20,
-        "acc": 30.0
+        "acc": 15.0
       }
     },
     "internvl3": {

@@ -147,15 +147,16 @@ CrossView (`analysis/crossview_out/`):
   *accuracy vs the true synchronized-camera count — the strongest "multicam is hard" figure.*
 - ![CrossView accuracy vs #videos seen](crossview_out/accuracy_vs_cameras.png)
 - ![CrossView accuracy by task type](crossview_out/accuracy_by_task.png)
-  *⚠️ the Qwen Event-Ordering bar shows 0% — this is the artifact in §6.4, not a real score.*
+  *(Regenerated from the 2026-06-18 clean re-run: Qwen Event-Ordering is now 7/20 = 35%, not the old 0% artifact — see §6.4.)*
 
 CVBench (`analysis/`):
 - `accuracy_vs_cameras.png` (contrast: no degradation), `accuracy_by_task.png`,
   `accuracy_vs_temporal.png`, `temporal_complexity_dist.png`.
 
-> **Graph caveat:** the Qwen lines/bars in the CrossView graphs reflect the
-> contaminated numbers (§6.4) and will be replaced after the re-run. InternVL3
-> series are correct.
+> **Graph note (resolved 2026-06-18):** the CrossView graphs have been
+> regenerated from the clean Qwen re-run (§6.4); both model series are now
+> correct. The old contaminated result is archived as
+> `eval_crossview_subset_qwen3vl.json.contaminated-20260615.bak`.
 
 ---
 
@@ -226,9 +227,20 @@ result.**
 - **Not a global bug:** InternVL3 parsed all 60 cleanly; Qwen parsed fine on its
   shorter Spatial/Temporal outputs.
 
-**Fix (in progress):** raise Qwen's generation budget 2048 → 8192 so traces
-finish, and harden the parser so a tagless/truncated trace **abstains** instead
-of defaulting to "A." Then re-run both models for clean, comparable graphs.
+**Fix — DONE (2026-06-18 re-run).** Raised Qwen's generation budget 2048 → 8192
+(`run_eval_crossview.sbatch --max_new_tokens 8192`) and hardened the parser to
+**abstain** on a tagless/truncated trace instead of defaulting to "A." Result of
+the clean re-run (`eval_crossview_subset_qwen3vl.json`; old file archived as
+`*.contaminated-20260615.bak`):
+
+- **54/60 outputs now emit `<answer>`** (was 0/20 on Event-Ordering); only 3 abstain.
+- **Event-Ordering 7/20 = 35%** — the model genuinely orders events; the 0/20 is gone.
+- Spatial 9/20 (45%), Temporal 3/20 (15%) — the previously fluke-inflated scores
+  corrected downward to their real values.
+- Predicted-letter distribution is now diverse (A 15 / B 7 / C 15 / D 20 / abstain 3),
+  no longer the A-spike of the parser default.
+- **Overall is still 31.7% (19/60) — but by coincidence**, on a completely different,
+  legitimate set of correct answers. Report this number; it is now trustworthy.
 
 ---
 

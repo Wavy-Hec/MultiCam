@@ -17,6 +17,10 @@ Models: `Qwen3-VL-8B-Thinking` (own harness, `Video-R1/src/eval_thinking.py`) an
 
 ---
 
+> 🧭 **New here?** Read [`ORIENTATION.md`](ORIENTATION.md) first — the single-document
+> onboarding guide: what we did, how inputs/outputs are enabled (with `file:line`
+> anchors), how to run it, the results inventory, and headline findings.
+
 ## Read these first (canonical files)
 
 1. `reports → mentor_report.md` + `mentor_summary_2026-06-17.md` — top-level findings & status.
@@ -33,7 +37,7 @@ Models: `Qwen3-VL-8B-Thinking` (own harness, `Video-R1/src/eval_thinking.py`) an
 | CVBench 45-Q, blind | Qwen3-VL | 18/45 = 40.0% | +22pp video gain |
 | CVBench 45-Q | InternVL3 | 25/45 = 55.6% | real |
 | CrossView 60-Q | InternVL3 | 23/60 = 38.3% | **clean / reportable** |
-| CrossView 60-Q | Qwen3-VL | 19/60 = 31.7% | **superseded** — old run was a truncation/parser artifact (Event-Ordering a mechanical 0/20). Being re-run with an 8192-token budget + abstain-on-truncation parser; old file kept as `*.contaminated-*.bak`. |
+| CrossView 60-Q | Qwen3-VL | 19/60 = 31.7% | **clean / reportable (re-run 2026-06-18).** Same overall % as the old contaminated run *by coincidence*, but a totally different, legitimate composition: Event-Ordering **7/20** (was a mechanical 0/20), Spatial 9/20, Temporal 3/20; 54/60 now emit `<answer>`, 3 abstain. Re-run with `--max_new_tokens 8192` + abstain-on-truncation parser; old file kept as `*.contaminated-*.bak`. |
 
 ---
 
@@ -74,7 +78,7 @@ temporal_complexity.py  → temporal_complexity.json, temporal_complexity_dist.p
 make_team_json.py (imports temporal_complexity.py) → cvbench_temporal_logic_team.json
 ```
 
-**4. Slides** — `make_slides.py` reads the figures above + `poster_assets.md` → `multicam_progress.pptx`.
+**4. Slides** — `make_slides_v2.py` reads the figures above + `poster_assets.md` → `multicam_progress_v2.pptx`.
 
 ---
 
