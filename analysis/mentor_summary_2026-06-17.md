@@ -4,6 +4,14 @@
 **Models compared:** `Qwen3-VL-8B-Thinking` vs `InternVL3-8B`
 **Goal:** Benchmark how well VLMs reason over *multiple synchronized camera views* of the same scene.
 
+> **UPDATE 2026-06-22 — the Qwen re-run flagged below is DONE.** Validity issues #1
+> (Event-Ordering 0/20) and #5 (parser) are resolved: re-ran with
+> `--max_new_tokens 8192` + an abstain-on-truncation parser. Event-Ordering is now
+> **7/20 (35%)**, Spatial 9/20, Temporal 3/20; 54/60 emit `<answer>`, 3 abstain.
+> Overall is still 31.7% (19/60) **by coincidence**, but now on a legitimate answer
+> set — reportable. CrossView graphs regenerated. Also scaled MEVA to a **1,033-Q**
+> pool (Qwen 32.0%, InternVL3 34.0%). Everything below is the original 06-17 snapshot.
+
 ---
 
 ## TL;DR

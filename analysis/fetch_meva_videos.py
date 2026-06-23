@@ -21,7 +21,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -77,31 +76,13 @@ def list_date(bucket, prefix, date):
     return out
 
 
-def download(url, dest, retries=4):
-    """Stream to a .part temp then atomically rename. fsync before the rename so
-    the bytes are durable on network filesystems (cluster /home is NFS, where an
-    un-flushed .part is sometimes invisible to os.replace -> FileNotFoundError).
-    Retries transient network/FS errors instead of aborting the whole batch."""
+def download(url, dest):
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     tmp = dest + ".part"
-    last = None
-    for attempt in range(retries):
-        try:
-            with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
-                shutil.copyfileobj(r, f, length=1 << 20)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp, dest)
-            return os.path.getsize(dest)
-        except Exception as e:  # noqa: BLE001 - transient net/FS, retry
-            last = e
-            try:
-                if os.path.exists(tmp):
-                    os.remove(tmp)
-            except OSError:
-                pass
-            time.sleep(1 + attempt)
-    raise last
+    with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
+        shutil.copyfileobj(r, f, length=1 << 20)
+    os.replace(tmp, dest)
+    return os.path.getsize(dest)
 
 
 def main():
@@ -120,7 +101,7 @@ def main():
     print(f"{len(dests)} MEVA videos referenced by {os.path.basename(args.subset)}")
 
     have_ffmpeg = shutil.which("ffmpeg") is not None
-    date_cache, done, miss, transcode_needed, failed, mb = {}, 0, [], [], [], 0.0
+    date_cache, done, miss, transcode_needed, mb = {}, 0, [], [], 0.0
     for n, vp in enumerate(dests, 1):
         dest = os.path.join(args.release_root, vp)
         if os.path.exists(dest) and os.path.getsize(dest) > 0:
@@ -134,36 +115,30 @@ def main():
         url = f"https://{args.bucket}.s3.amazonaws.com/{urllib.parse.quote(key)}"
         if args.dry_run:
             print(f"  [{n}/{len(dests)}] would fetch {key} -> {vp}"); continue
-        try:
-            if vp.endswith(".avi"):
-                sz = download(url, dest)
-            else:  # .mp4 dest -> need transcode
-                if not have_ffmpeg:
-                    transcode_needed.append(vp)
-                    print(f"  [{n}/{len(dests)}] need ffmpeg to make .mp4 (or rebuild subset "
-                          f"with --meva-video-ext avi): {vp}")
-                    continue
-                tmp = dest + ".avi"
-                download(url, tmp)
-                subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, dest], check=True)
-                os.remove(tmp)
-                sz = os.path.getsize(dest)
-        except Exception as e:  # noqa: BLE001 - log & continue so one bad file
-            failed.append(vp)      # doesn't abort the batch (re-runs resume it)
-            print(f"  [{n}/{len(dests)}] ERROR {vp}: {e}")
-            continue
+        if vp.endswith(".avi"):
+            sz = download(url, dest)
+        else:  # .mp4 dest -> need transcode
+            if not have_ffmpeg:
+                transcode_needed.append(vp)
+                print(f"  [{n}/{len(dests)}] need ffmpeg to make .mp4 (or rebuild subset "
+                      f"with --meva-video-ext avi): {vp}")
+                continue
+            tmp = dest + ".avi"
+            download(url, tmp)
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, dest], check=True)
+            os.remove(tmp)
+            sz = os.path.getsize(dest)
         mb += sz / 1e6
         print(f"  [{n}/{len(dests)}] {vp}  ({sz/1e6:.1f} MB)")
 
-    fetched = len(dests) - done - len(miss) - len(transcode_needed) - len(failed)
+    fetched = len(dests) - done - len(miss) - len(transcode_needed)
     print(f"\nMEVA videos: {len(dests)} referenced | already had: {done} | "
           f"downloaded: {fetched} ({mb/1000:.2f} GB) | "
-          f"missing-on-s3: {len(miss)} | need-ffmpeg: {len(transcode_needed)} | "
-          f"errored: {len(failed)}")
+          f"missing-on-s3: {len(miss)} | need-ffmpeg: {len(transcode_needed)}")
     if transcode_needed:
         print("  -> install ffmpeg (conda install -n cvbench -c conda-forge ffmpeg) "
               "or rebuild the subset with --meva-video-ext avi to skip transcoding.")
-    sys.exit(1 if (miss or transcode_needed or failed) else 0)
+    sys.exit(1 if (miss or transcode_needed) else 0)
 
 
 if __name__ == "__main__":

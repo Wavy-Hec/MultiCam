@@ -1,0 +1,242 @@
+[
+  {
+    "video_paths": [
+      "videos/agibot/observations/549/780146/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/549/791820/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/679/855696/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/679/856541/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/578/853343/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/578/864465/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/727/898098/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/727/897294/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/536/782800/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/536/796272/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/621/880971/videos/head_color.mp4",
+      "videos/agibot/observations/621/880971/videos/hand_right_color.mp4",
+      "videos/agibot/observations/621/880971/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/621/908717/videos/head_color.mp4",
+      "videos/agibot/observations/621/908717/videos/hand_right_color.mp4",
+      "videos/agibot/observations/621/908717/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/474/771496/videos/head_color.mp4",
+      "videos/agibot/observations/474/771496/videos/hand_right_color.mp4",
+      "videos/agibot/observations/474/771496/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/474/748385/videos/head_color.mp4",
+      "videos/agibot/observations/474/748385/videos/hand_right_color.mp4",
+      "videos/agibot/observations/474/748385/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/593/805739/videos/head_color.mp4",
+      "videos/agibot/observations/593/805739/videos/hand_right_color.mp4",
+      "videos/agibot/observations/593/805739/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/527/801426/videos/head_color.mp4",
+      "videos/agibot/observations/527/801426/videos/hand_right_color.mp4",
+      "videos/agibot/observations/527/801426/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/528/756001/videos/head_color.mp4",
+      "videos/agibot/observations/528/756001/videos/hand_right_color.mp4",
+      "videos/agibot/observations/528/756001/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/528/918935/videos/head_color.mp4",
+      "videos/agibot/observations/528/918935/videos/hand_right_color.mp4",
+      "videos/agibot/observations/528/918935/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/542/778614/videos/head_color.mp4",
+      "videos/agibot/observations/542/778614/videos/hand_right_color.mp4",
+      "videos/agibot/observations/542/778614/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/542/771104/videos/head_color.mp4",
+      "videos/agibot/observations/542/771104/videos/hand_right_color.mp4",
+      "videos/agibot/observations/542/771104/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/549/793804/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/578/860610/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/578/865612/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/727/898162/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/727/896164/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/536/789818/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/660/878937/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/660/902737/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/577/819992/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/554/906728/videos/head_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/621/912901/videos/head_color.mp4",
+      "videos/agibot/observations/621/912901/videos/hand_right_color.mp4",
+      "videos/agibot/observations/621/912901/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/765/892196/videos/head_color.mp4",
+      "videos/agibot/observations/765/892196/videos/hand_right_color.mp4",
+      "videos/agibot/observations/765/892196/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/765/920356/videos/head_color.mp4",
+      "videos/agibot/observations/765/920356/videos/hand_right_color.mp4",
+      "videos/agibot/observations/765/920356/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/474/747571/videos/head_color.mp4",
+      "videos/agibot/observations/474/747571/videos/hand_right_color.mp4",
+      "videos/agibot/observations/474/747571/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/474/771788/videos/head_color.mp4",
+      "videos/agibot/observations/474/771788/videos/hand_right_color.mp4",
+      "videos/agibot/observations/474/771788/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/593/845823/videos/head_color.mp4",
+      "videos/agibot/observations/593/845823/videos/hand_right_color.mp4",
+      "videos/agibot/observations/593/845823/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/527/801426/videos/head_color.mp4",
+      "videos/agibot/observations/527/801426/videos/hand_right_color.mp4",
+      "videos/agibot/observations/527/801426/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/528/901125/videos/head_color.mp4",
+      "videos/agibot/observations/528/901125/videos/hand_right_color.mp4",
+      "videos/agibot/observations/528/901125/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/528/920466/videos/head_color.mp4",
+      "videos/agibot/observations/528/920466/videos/hand_right_color.mp4",
+      "videos/agibot/observations/528/920466/videos/hand_left_color.mp4"
+    ]
+  },
+  {
+    "video_paths": [
+      "videos/agibot/observations/375/694728/videos/head_color.mp4",
+      "videos/agibot/observations/375/694728/videos/hand_right_color.mp4",
+      "videos/agibot/observations/375/694728/videos/hand_left_color.mp4"
+    ]
+  }
+]

@@ -2,29 +2,29 @@
   "by_orig_cameras": {
     "qwen3vl": {
       "2": {
-        "correct": 6,
+        "correct": 10,
         "total": 17,
-        "acc": 35.294117647058826
+        "acc": 58.8235294117647
       },
       "3": {
-        "correct": 1,
+        "correct": 0,
         "total": 3,
-        "acc": 33.333333333333336
+        "acc": 0.0
       },
       "5": {
-        "correct": 2,
+        "correct": 1,
         "total": 6,
-        "acc": 33.333333333333336
+        "acc": 16.666666666666668
       },
       "7": {
-        "correct": 6,
+        "correct": 3,
         "total": 15,
-        "acc": 40.0
+        "acc": 20.0
       },
       "12": {
-        "correct": 4,
+        "correct": 5,
         "total": 19,
-        "acc": 21.05263157894737
+        "acc": 26.31578947368421
       }
     },
     "internvl3": {
@@ -58,19 +58,19 @@
   "by_task_type": {
     "qwen3vl": {
       "CrossView-MEVA-Event-Ordering": {
-        "correct": 0,
+        "correct": 7,
         "total": 20,
-        "acc": 0.0
+        "acc": 35.0
       },
       "CrossView-MEVA-Spatial": {
-        "correct": 13,
+        "correct": 9,
         "total": 20,
-        "acc": 65.0
+        "acc": 45.0
       },
       "CrossView-MEVA-Temporal": {
-        "correct": 6,
+        "correct": 3,
         "total": 20,
-        "acc": 30.0
+        "acc": 15.0
       }
     },
     "internvl3": {

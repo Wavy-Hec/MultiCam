@@ -1,5 +1,15 @@
 # EgoExo4D enablement — license + download walkthrough
 
+> ✅ **DONE 2026-06-22 — the videos are now local.** License approved, AWS creds
+> configured as `aws` profile `egoexo` (in `~/.aws`, not in the repo), `awscli`
+> installed into `cvbench`, metadata fetched to `/home/hectorlugo02/egoexo_meta/takes.json`,
+> and the combined subset's EgoExo4D videos downloaded → **all 96 referenced files
+> present** (`fetch_egoexo_videos.py … --check` = 0 missing), 215 mp4s / 3.7 GB under
+> `crossview-release-annotations/crossview-release/videos/ego-exo4d/takes/`, decord-readable.
+> The combined eval (Step 5) has **not** been launched yet. The walkthrough below is
+> kept as the reproducibility record (creds expire in ~14 days — re-run Steps 2–4 if
+> they lapse).
+
 Goal: run the **combined MEVA + EgoExo4D** CrossView eval. The MEVA half is already
 local; the only gate is the license-gated EgoExo4D video download. Everything below
 the license step is pre-staged — once your credentials arrive it is two commands.
