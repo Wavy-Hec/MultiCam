@@ -203,21 +203,58 @@ MEVA with lossy-capped EgoExo4D. (iii) An \texttt{analyze\_failures.py} re-parse
 $\sim$12 borderline answers (30.9\% $\rightarrow$ 32.0\% on the 1,033-Q Qwen run); failure-mechanism
 \emph{proportions} are parser-insensitive.
 
-\section{Proposed benchmark and next steps}
-The failure analysis motivates a systems-level benchmark: compare \textbf{architectures}
-(A0 centralized single-VLM; A1 distributed one-VLM-per-stream + aggregator; A2 router; A3 NeuS-QA)
-on \textbf{multiple metrics} (accuracy, latency including a parallelizable estimate, token/compute
-cost, abstention) across three open VLM backends. The key question---\emph{for which question
-categories does a distributed agent beat a centralized one?}---follows directly from the
+\section{The benchmark harness (implemented)}
+The failure analysis motivates a systems-level benchmark, which we have implemented as a small
+reproducible harness (\texttt{bench/}). It runs a question through one of several \emph{methods}
+(architectures) backed by one of several \emph{backends} (VLMs) and logs four metric families per
+question, stratified by \texttt{task\_type}, \texttt{orig\_num\_cameras}, \texttt{source} and
+\texttt{cap\_answer\_safe}:
+\begin{itemize}
+  \item \textbf{M1 Accuracy} --- overall and per stratum;
+  \item \textbf{M2 Latency} --- end-to-end wall-clock, plus, for distributed methods, a
+        \emph{parallelizable} estimate ($\max$ over the per-stream calls $+$ aggregator);
+  \item \textbf{M3 Cost} --- input / video / output tokens and number of model calls;
+  \item \textbf{M4 Calibration} --- abstention and escape-option rates.
+\end{itemize}
+
+Two architectures are implemented (Table~\ref{tab:methods}): \textbf{A0 centralized}, where one VLM
+ingests all clips in a single prompt (current standard practice), and \textbf{A1 distributed}, where
+each clip is described by an independent per-stream perception pass and a text-only aggregator then
+reasons over the $K$ descriptions. A router (A2) and neural-reconstruction QA (A3, NeuS) are
+roadmap. The harness reuses the production path's frame sampling, prompting and abstain-safe
+parsing, and a CPU-only scoring gate reproduces the 19/60 CrossView figure above \emph{exactly},
+confirming it measures the same quantity.
+
+\begin{table}[h]
+\centering
+\caption{Implemented methods and preliminary single-GPU per-question cost (Qwen3-VL-8B-Thinking on
+the heaviest 4-camera Event-Ordering questions; latency on one L40S). These are timing magnitudes
+from a 2-question smoke, not accuracy.}
+\label{tab:methods}
+\begin{tabular}{llrr}
+\toprule
+Method & Model calls / Q & Latency (s/Q) & Tokens in / out \\
+\midrule
+A0 centralized (all clips, one prompt) & 1 & $\sim$160 & $\sim$5.4k / 5.3k \\
+A1 distributed (per-stream + aggregator) & $K{+}1$ & $\sim$305 & $\sim$10.2k / 10.7k \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A baseline sweep of A0 across Qwen3-VL-8B Thinking and Instruct on the 100-question
+MEVA$+$EgoExo4D pool is in progress, with the A0-vs-A1 per-category comparison to follow (InternVL3
+runs via the separate lmms-eval leg). The central question---\emph{for which question categories
+does a distributed agent beat a centralized one?}---follows directly from the
 cross-view-correspondence failures documented above: we expect distribution to help Spatial
 (independent per-camera grounding) but hurt Temporal/Event-Ordering (which need cross-stream
-synchronization). Further directions include 2-camera temporal alignment before VLM ingestion, and
+synchronization). Further directions: 2-camera temporal alignment before VLM ingestion, and
 neural-reconstruction (NeuS) QA.
 
 \section*{Reproducibility}
 All numbers trace to files in the project \texttt{analysis/} directory: \texttt{ORIENTATION.md}
 (results inventory, \S8), \texttt{why\_models\_fail.md} (failure taxonomy and per-task counts),
 \texttt{input\_pipeline.md} (sampling), and \texttt{blind\_sanity.md} (the text-only baseline is
-genuinely zero-vision-token).
+genuinely zero-vision-token). The benchmark harness, metrics and run/launch commands live in
+\texttt{bench/} (see \texttt{bench/bench\_spec.md}) and \texttt{analysis/BENCHMARK\_PLAN\_48H.md}.
 
 \end{document}
