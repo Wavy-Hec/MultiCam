@@ -38,6 +38,11 @@ class Result:
     gold: str
     correct: bool
     abstained: bool
+    # 4-pass protocol (Table 1 std): a "pass" = one sampled generation (temp>0)
+    # at a fixed seed, with frames held fixed; std is taken over the passes.
+    pass_idx: Optional[int] = None
+    seed: Optional[int] = None
+    temperature: Optional[float] = None
     # M2 latency
     latency_s: Optional[float] = None                  # end-to-end (serial) wall-clock
     perception_latency_par_s: Optional[float] = None   # A1: max over per-stream calls (true-parallel estimate)
@@ -67,20 +72,26 @@ def result_fields(rec):
 
 
 class Backend:
-    """A VLM that turns a chat ``messages`` list into text + token/latency stats."""
+    """A VLM that turns a chat ``messages`` list into text + token/latency stats.
+
+    ``generate`` accepts a ``seed`` and ``temperature`` so the 4-pass protocol
+    can vary the decoding sampling while holding the (deterministic) frames fixed.
+    """
     name = "backend"
 
-    def generate(self, messages, max_new_tokens) -> GenOut:
+    def generate(self, messages, max_new_tokens, *, seed=None, temperature=0.0) -> GenOut:
         raise NotImplementedError
 
 
 class Method:
     name = "method"
 
-    def __init__(self, backend: Backend, nframes: int = 8, max_new_tokens: int = 8192):
+    def __init__(self, backend: Backend, nframes: int = 8, max_new_tokens: int = 8192,
+                 temperature: float = 0.0):
         self.backend = backend
         self.nframes = nframes
         self.max_new_tokens = max_new_tokens
+        self.temperature = temperature
 
-    def answer(self, rec, video_root) -> Result:
+    def answer(self, rec, video_root, seed=None) -> Result:
         raise NotImplementedError

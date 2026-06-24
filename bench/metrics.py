@@ -4,6 +4,7 @@ Pure-stdlib (no numpy) so it runs anywhere, including the login node for the
 CPU scoring-validation gate.
 """
 from collections import defaultdict
+from statistics import mean as _mean, pstdev as _pstdev
 
 
 def _pct(xs, q):
@@ -61,6 +62,64 @@ def summarize_by_method_backend(rows):
     for r in rows:
         g[(r.get("method"), r.get("backend"))].append(r)
     return {f"{m}/{b}": summarize(v) for (m, b), v in sorted(g.items())}
+
+
+# --- 4-pass mean +/- std (Table 1 + plot error bars) -------------------------
+# A "pass" = one sampled generation at a fixed seed. Accuracy is computed WITHIN
+# each pass, then we report mean +/- std over the passes (std = decoding variance).
+
+def _pass_accs(rows, filt=None):
+    """Per-pass accuracies over rows (optionally filtered), as a list."""
+    g = defaultdict(lambda: [0, 0])  # pass_idx -> [correct, total]
+    for r in rows:
+        if filt is not None and not filt(r):
+            continue
+        pi = r.get("pass_idx")
+        g[pi][1] += 1
+        if r.get("correct"):
+            g[pi][0] += 1
+    accs = []
+    for _, (c, n) in sorted(g.items(), key=lambda kv: str(kv[0])):
+        if n:
+            accs.append(c / n)
+    return accs
+
+
+def _mstd(accs):
+    if not accs:
+        return {"mean": None, "std": None, "n_passes": 0, "per_pass": []}
+    return {"mean": _mean(accs), "std": (_pstdev(accs) if len(accs) > 1 else 0.0),
+            "n_passes": len(accs), "per_pass": accs}
+
+
+def summarize_passes(rows):
+    """Like ``summarize`` but adds mean+/-std-over-passes for overall, by task_type,
+    by orig_num_cameras, and the task_type x cameras cross-tab (Plot 4)."""
+    tts = sorted({r.get("task_type") for r in rows}, key=str)
+    cams = sorted({r.get("orig_num_cameras") for r in rows},
+                  key=lambda x: (x is None, x))
+    base = summarize(rows)
+    base["overall_passes"] = _mstd(_pass_accs(rows))
+    base["by_task_type_passes"] = {
+        str(tt): _mstd(_pass_accs(rows, lambda r, tt=tt: r.get("task_type") == tt))
+        for tt in tts}
+    base["by_orig_num_cameras_passes"] = {
+        str(c): _mstd(_pass_accs(rows, lambda r, c=c: r.get("orig_num_cameras") == c))
+        for c in cams}
+    base["by_task_camera_passes"] = {
+        str(tt): {str(c): _mstd(_pass_accs(
+            rows, lambda r, tt=tt, c=c: r.get("task_type") == tt
+            and r.get("orig_num_cameras") == c)) for c in cams}
+        for tt in tts}
+    return base
+
+
+def summarize_by_method_backend_passes(rows):
+    """Group by (method, backend) and summarize_passes each -> Table 1 + plot data."""
+    g = defaultdict(list)
+    for r in rows:
+        g[(r.get("method"), r.get("backend"))].append(r)
+    return {f"{m}/{b}": summarize_passes(v) for (m, b), v in sorted(g.items())}
 
 
 def format_summary(rows):

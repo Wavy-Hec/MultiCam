@@ -1,42 +1,71 @@
-# bench/ — multi-camera benchmark spec (frozen)
+# bench/ — multi-camera benchmark spec
 
-Implements `analysis/BENCHMARK_PLAN_48H.md`. Given a multi-stream question, run N **methods**
-× M **backends** and log accuracy + latency + cost per question-category.
+Implements "Task 1: Evaluations" from `Multi Camera Video Writeup and Logs.md`:
+compare a **centralized** vs **decentralized** harness, across 2 VLMs, on CrossView,
+producing Table 1 + Plots 1–4 with accuracy + latency segmented by question category
+and camera count. Each run = N **methods** × M **backends** × P **passes**.
 
-## Metrics (one `Result` row per question × method × backend)
-- **M1 Accuracy** — overall + by `task_type` / `orig_num_cameras` / `source` / `cap_answer_safe` (never pool).
-- **M2 Latency** — `latency_s` (end-to-end serial); for `per_stream` also `perception_latency_serial_s`
-  (sum) and `perception_latency_par_s` (`max`, the true-parallel estimate) + `aggregate_latency_s`.
-- **M3 Cost** — `input_tokens`, `video_tokens`, `output_tokens`, `num_model_calls`.
-- **M4 Calibration** — `abstained` (empty prediction), aggregated to an abstain rate.
-
-## Methods (`bench/methods/`)
-- `centralized` (A0) — one VLM ingests all clips; wraps `eval_thinking.build_messages`.
-- `per_stream` (A1) — one perception pass per clip → text aggregator pass.
+## Methods (`bench/methods/`) — the two harnesses
+- `centralized` — temporally aligns the K (≤4) clips and **spatially stitches** the
+  synchronized frames into grid-montage images (`methods/stitch.py`), fed as ONE unified
+  visual input to a single VLM call. Montages are built once per question and reused
+  across passes.
+- `per_stream` (decentralized) — one perception pass per clip → a **text-only** aggregator
+  pass reasons over the K per-camera descriptions.
 - *(A2 router / A3 NeuS-QA: roadmap, not built.)*
 
-## Backends (`bench/backends/`)
-- `qwen3vl` → `Qwen/Qwen3-VL-8B-Thinking` (cached ✅)
-- `qwen3vl-instruct` → `Qwen/Qwen3-VL-8B-Instruct` (cached ✅) — the immediately-available 3rd
-  backend (Qwen2.5-VL-7B is NOT cached and `HF_HUB_OFFLINE=1`; download it first to use it).
-- InternVL3-8B → runs via the existing **lmms-eval** leg, not a bench backend yet.
+## Backends (`bench/backends/`) — the two models
+- `qwen3vl` → `Qwen/Qwen3-VL-8B-Thinking` (cached ✅; runs under the `cvbench` env).
+- `internvl3` → `OpenGVLab/InternVL3-8B` (cached ✅; **must run under the `internvl` env** —
+  `cvbench`'s transformers breaks the InternVL3 remote code).
+- `qwen3vl-instruct` → `Qwen/Qwen3-VL-8B-Instruct` (cached ✅; ablation backend).
+
+## 4-pass protocol (Table 1 std)
+A "pass" = one generation with decoding **sampling on** (`--temperature 0.7`, default
+seeds `1,2,3,4`), with the (deterministic) frames held fixed. Std is taken over the
+per-pass accuracies (`metrics.summarize_passes`).
+
+## Metrics (one `Result` row per question × method × backend × pass)
+- **M1 Accuracy** — overall + by `task_type` / `orig_num_cameras` / `source` / `cap_answer_safe`
+  (never pool); mean±std over passes.
+- **M2 Latency** — `latency_s` (end-to-end serial); for `per_stream` also
+  `perception_latency_serial_s` / `perception_latency_par_s` (max) / `aggregate_latency_s`.
+- **M3 Cost** — `input_tokens`, `video_tokens`, `output_tokens`, `num_model_calls`.
+- **M4 Calibration** — `abstained` (empty prediction) → abstain rate.
+
+## Deliverables (`bench/plots.py` → `bench/results/figs/`)
+- **Table 1** — overall accuracy mean±std for the 2 models × 2 harnesses (`table1.md/.csv`).
+- **Plot 1** — accuracy per question category (grouped bar, std error bars).
+- **Plot 2** — latency per question (box, X = methods, Y = ms).
+- **Plot 3** — accuracy vs camera count (line, X = `orig_num_cameras`).
+- **Plot 4** — accuracy per category vs camera count (faceted lines).
 
 ## Pools
-- Dev (100 Q): `analysis/crossview_combined_subset.json` (60 MEVA + 40 EgoExo4D).
-- Scale (1,033 Q): `analysis/crossview_meva1033_subset.json`.
-- `video_root` = `crossview-release-annotations/crossview-release` (resolves MEVA .avi + EgoExo4D .mp4).
+- Dev (100 Q): `analysis/crossview_combined_subset.json` (MEVA + EgoExo4D; cameras 2–12).
+- Scale (1,033 Q): `analysis/crossview_meva1033_subset.json` (cameras 2–16).
+- `video_root` = `crossview-release-annotations/crossview-release` (MEVA .avi + EgoExo4D .mp4).
+- NOTE: records carry `video_1..video_4` (input capped at 4 cams → montage ≤ 2×2); the
+  Plot 3/4 camera axis is `orig_num_cameras` (the original difficulty count, 2–16).
 
 ## Commands
 ```bash
 # CPU gate — reproduce 19/60 from a stored eval JSON (no GPU):
 python -m bench.validate_scoring
 
-# GPU smoke (tiny) — on a gpul40q node / via bench/run_bench.sbatch:
+# GPU smoke (Qwen, cvbench env), both harnesses, 4 passes:
 python -m bench.run_bench --subset analysis/crossview_combined_subset.json \
-    --methods centralized --backends qwen3vl --limit 5
+    --methods centralized,per_stream --backends qwen3vl \
+    --passes 4 --seeds 1,2,3,4 --temperature 0.7 --limit 5
 
-# full sweep (scheduled off-peak): see bench/run_bench.sbatch + sbatch --begin/--dependency
+# full meva1033 sweep, sharded 8 ways (Qwen leg under cvbench, InternVL under internvl):
+ENV=cvbench SUBSET=analysis/crossview_meva1033_subset.json BACKENDS=qwen3vl \
+    CHUNK=8 sbatch --array=0-7 bench/run_bench.sbatch
+ENV=internvl SUBSET=analysis/crossview_meva1033_subset.json BACKENDS=internvl3 \
+    CHUNK=8 sbatch --array=0-7 bench/run_bench.sbatch
+
+# render Table 1 + Plots 1–4 from the (concatenated) result shards:
+python -m bench.plots --jsonl bench/results/*meva1033*.jsonl --out-dir bench/results/figs
 ```
-Reuses (single source of truth) `Video-R1/src/eval_thinking.py`: `build_messages`, `parse_choice`,
-`gt_choice`, `num_videos`, `video_paths`, `load_model`, `process_vision_info` path, `<|video_pad|>`
-token accounting.
+Reuses (single source of truth) `Video-R1/src/eval_thinking.py`: `build_messages`,
+`parse_choice`, `gt_choice`, `num_videos`, `video_paths`, `load_model`. The InternVL3
+preprocessing (`load_image`/`load_video`) is ported from `lmms-eval/.../internvl2.py`.

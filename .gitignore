@@ -41,5 +41,5 @@ __pycache__/
 # Benchmark run outputs (regenerable via bench/run_bench.py)
 /bench/results/
 
-# Claude runtime lock
-.claude/scheduled_tasks.lock
+# Claude Code local config / runtime (per-user, not shared)
+/.claude/

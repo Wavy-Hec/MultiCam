@@ -19,11 +19,13 @@ PERCEPTION_PROMPT = (
 class PerStreamMethod(Method):
     name = "per_stream"
 
-    def __init__(self, backend, nframes=8, max_new_tokens=8192, perception_max_new_tokens=1024):
-        super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens)
+    def __init__(self, backend, nframes=8, max_new_tokens=8192, temperature=0.0,
+                 perception_max_new_tokens=1024):
+        super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
+                         temperature=temperature)
         self.perception_max_new_tokens = perception_max_new_tokens
 
-    def answer(self, rec, video_root) -> Result:
+    def answer(self, rec, video_root, seed=None) -> Result:
         f = result_fields(rec)
         paths = video_paths(rec, video_root)
         # reuse build_messages to get the exact text-only answer scaffold + yes/no flag
@@ -40,7 +42,8 @@ class PerStreamMethod(Method):
                     {"type": "video", "video": vp, "nframes": self.nframes},
                     {"type": "text", "text": PERCEPTION_PROMPT.format(q=rec["question"])},
                 ]}]
-                g = self.backend.generate(msg, max_new_tokens=self.perception_max_new_tokens)
+                g = self.backend.generate(msg, max_new_tokens=self.perception_max_new_tokens,
+                                          seed=seed, temperature=self.temperature)
                 descs.append(f"Camera {k}:\n{g.text.strip()}")
                 lat_per.append(g.latency_s)
                 in_tok += g.input_tokens; vid_tok += g.video_tokens; out_tok += g.output_tokens
@@ -50,7 +53,8 @@ class PerStreamMethod(Method):
             agg_text = ("You are given independent descriptions of each camera view. Reason over ALL "
                         "of them together to answer.\n\n" + "\n\n".join(descs) + "\n\n" + base_text)
             agg_msg = [{"role": "user", "content": [{"type": "text", "text": agg_text}]}]
-            g = self.backend.generate(agg_msg, max_new_tokens=self.max_new_tokens)
+            g = self.backend.generate(agg_msg, max_new_tokens=self.max_new_tokens,
+                                      seed=seed, temperature=self.temperature)
             calls += 1
             in_tok += g.input_tokens; out_tok += g.output_tokens
             pred = parse_choice(g.text, yn)
@@ -61,6 +65,7 @@ class PerStreamMethod(Method):
                 prediction=pred, gold=gold,
                 correct=(pred.strip().upper() == gold.strip().upper()),
                 abstained=(pred == ""),
+                seed=seed, temperature=self.temperature,
                 latency_s=serial,
                 perception_latency_serial_s=sum(lat_per),
                 perception_latency_par_s=(max(lat_per) if lat_per else None),
@@ -71,4 +76,5 @@ class PerStreamMethod(Method):
         except Exception as e:
             return Result(**f, method=self.name, backend=self.backend.name,
                           prediction="", gold=gold, correct=False, abstained=True,
+                          seed=seed, temperature=self.temperature,
                           num_model_calls=calls, error=f"{type(e).__name__}: {e}")

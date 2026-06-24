@@ -25,7 +25,7 @@ class QwenBackend(Backend):
         self._pvi = process_vision_info
         self._vid_id = self.processor.tokenizer.convert_tokens_to_ids("<|video_pad|>")
 
-    def generate(self, messages, max_new_tokens) -> GenOut:
+    def generate(self, messages, max_new_tokens, *, seed=None, temperature=0.0) -> GenOut:
         proc = self.processor
         text = proc.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs, video_kwargs = self._pvi(
@@ -40,9 +40,15 @@ class QwenBackend(Backend):
                       return_tensors="pt", **video_kwargs).to(self.model.device)
         total = int(inputs.input_ids.shape[1])
         vid = int((inputs.input_ids[0] == self._vid_id).sum())
+        do_sample = temperature is not None and temperature > 0
+        if do_sample and seed is not None:
+            torch.manual_seed(seed)
+        gen_kwargs = dict(max_new_tokens=max_new_tokens, do_sample=do_sample)
+        if do_sample:
+            gen_kwargs.update(temperature=temperature, top_p=0.9)
         t0 = time.perf_counter()
         with torch.no_grad():
-            gen = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
+            gen = self.model.generate(**inputs, **gen_kwargs)
         dt = time.perf_counter() - t0
         trimmed = gen[:, inputs.input_ids.shape[1]:]
         out = proc.batch_decode(trimmed, skip_special_tokens=True,
