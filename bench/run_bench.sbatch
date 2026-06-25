@@ -42,6 +42,8 @@ PASSES=${PASSES:-4}
 SEEDS=${SEEDS:-1,2,3,4}
 TEMPERATURE=${TEMPERATURE:-0.7}
 MONTAGE_FRAMES=${MONTAGE_FRAMES:-0}
+MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-8192}
+INTERNVL_MAX_TILES=${INTERNVL_MAX_TILES:-1}
 CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
 OFFSET=${SLURM_ARRAY_TASK_ID:-${OFFSET:-0}}
@@ -61,5 +63,6 @@ echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE chunk=$CHUNK offset=$OFFSET out=$OUT"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
-    --montage-frames "$MONTAGE_FRAMES" --out "$OUT" $SHARD_ARG $LIMIT_ARG
+    --montage-frames "$MONTAGE_FRAMES" --max-new-tokens "$MAX_NEW_TOKENS" \
+    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $SHARD_ARG $LIMIT_ARG
 echo "DONE @ $(date '+%F %T')"

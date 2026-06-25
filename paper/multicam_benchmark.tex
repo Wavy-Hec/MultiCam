@@ -1,15 +1,4 @@
-% =============================================================================
-% Multi-Camera VLM Reasoning Benchmark -- standalone, paste-ready Overleaf writeup
-% Numbers reflect the VERIFIED analysis/ORIENTATION.md + why_models_fail.md
-% (CVBench / CrossView project) as of 2026-06-22. Re-verify before submission.
-%
-% To use in Overleaf: paste this file (or merge sections into your existing doc)
-% and upload the referenced figures (see \graphicspath / figure comments).
-% Figures live in the repo at:
-%   analysis/crossview_meva1033_out/accuracy_vs_orig_cameras.png  (camera curve, 1,033-Q)
-%   analysis/crossview_meva1033_out/accuracy_by_task.png          (per-task accuracy)
-%   analysis/reasoning_gain.png                                   (video uplift over blind)
-% =============================================================================
+
 \documentclass[11pt]{article}
 
 \usepackage[margin=1in]{geometry}
@@ -42,9 +31,12 @@ almost never lands on the brief moment a queried event occurs, so the model is e
 still photo and asked a question about a movie. The cleanest evidence is a \emph{blind-beats-video}
 inversion on CrossView (a text-only model scores 36.7\% vs.\ 31.7\% with
 video). We characterize five failure modes, show accuracy degrades as the number of cameras rises,
-and propose a multi-architecture, multi-metric benchmark (accuracy, latency, cost) to test whether
-\emph{distributed} (per-stream) agents beat \emph{centralized} (single-VLM) ones per question
-category.
+and implement a two-harness benchmark: a \emph{centralized} harness that temporally aligns and
+spatially \emph{stitches} the synchronized views into a single montage input, versus a
+\emph{decentralized} harness that summarizes each camera independently in text and aggregates the
+summaries. We evaluate the $2{\times}2$ grid of \{centralized, decentralized\}~$\times$~\{Qwen3-VL-8B,
+InternVL3-8B\} over four sampling passes on accuracy, latency, and cost, stratified by question
+category and camera count.
 \end{abstract}
 
 \section{Introduction}
@@ -55,6 +47,21 @@ cameras (relative motion, event ordering, cross-view correspondence), do today's
 \emph{see} it, or do they fall back on language priors? We answer with interpretable
 chain-of-thought traces rather than accuracy alone: accuracy is the means, the \texttt{<think>}
 trace is the end.
+
+\section{Related work}
+Vision--language models have limited context windows, so naively streaming continuous
+multi-camera video into the prompt is inadequate for complex question answering, and the models are
+prone to hallucination. The literature identifies three primary failure modes that multi-camera
+reasoning directly stresses: the inability to count objects correctly, attributable to
+neuro-symbolic limitations; the confounding of visual details across objects, known as the
+\emph{binding problem}; and \emph{blind faith}, where models default to language priors when
+confronted with conflicting visual evidence~\cite{ref1,ref2,ref3,ref4}. On video data, current
+multi-modal models continue to show significant gaps in visual and temporal understanding,
+particularly of activity and motion~\cite{ref5}. Our own preliminary investigations (NeuS-QA and
+NSVS) demonstrate this temporal-reasoning deficit even on single-camera questions that require
+composing multiple events in a prescribed sequence. Despite the recent appearance of multi-camera
+datasets, there is no targeted analysis of \emph{how} VLMs fail when reasoning across multiple
+distinct camera streams---the gap this study addresses.
 
 \section{Benchmark setup}
 \textbf{Datasets.} CrossView questions stack 2--4 clips from different cameras. We use two sources:
@@ -161,10 +168,9 @@ correspondence, worse accuracy. This is the central ``multi-camera is hard'' the
 
 \begin{figure}[h]
 \centering
-% upload analysis/crossview_meva1033_out/accuracy_vs_orig_cameras.png to Overleaf
-\fbox{\parbox{0.7\linewidth}{\centering\vspace{1.5cm}
-\texttt{accuracy\_vs\_orig\_cameras.png}\\(accuracy vs.\ original camera count)\vspace{1.5cm}}}
-% \includegraphics[width=0.7\linewidth]{accuracy_vs_orig_cameras.png}
+
+
+\includegraphics[width=0.7\linewidth]{images/accuracy_vs_orig_cameras.png}
 \caption{Accuracy declines monotonically as the true (pre-cap) camera count rises.}
 \label{fig:cameracurve}
 \end{figure}
@@ -203,52 +209,90 @@ MEVA with lossy-capped EgoExo4D. (iii) An \texttt{analyze\_failures.py} re-parse
 $\sim$12 borderline answers (30.9\% $\rightarrow$ 32.0\% on the 1,033-Q Qwen run); failure-mechanism
 \emph{proportions} are parser-insensitive.
 
-\section{The benchmark harness (implemented)}
-The failure analysis motivates a systems-level benchmark, which we have implemented as a small
-reproducible harness (\texttt{bench/}). It runs a question through one of several \emph{methods}
-(architectures) backed by one of several \emph{backends} (VLMs) and logs four metric families per
-question, stratified by \texttt{task\_type}, \texttt{orig\_num\_cameras}, \texttt{source} and
-\texttt{cap\_answer\_safe}:
+\section{Benchmark: centralized vs.\ decentralized harnesses}
+The failure analysis motivates a systems-level question: \emph{how} the multi-camera input is
+presented to the model---the ``harness''---may matter as much as the model itself. Because stitching
+all streams into one context window exhausts it and natively yields poor responses, we contrast two
+presentations, implemented as a small reproducible harness (\texttt{bench/}).
+
+\paragraph{The two harnesses.} The \textbf{centralized} harness temporally aligns the $K$ camera
+streams and spatially \emph{stitches} the synchronized frames across views into a single labeled
+grid-montage image per sampled timestep, fed as one unified visual input to one VLM call. The
+\textbf{decentralized} harness instead processes each camera independently: a per-stream perception
+pass emits a query-relevant textual summary of each view, and a text-only aggregator then reasons
+over the $K$ summaries to produce the answer. Because the dataset caps the input at four cameras, the
+montage is at most $2{\times}2$; the camera-count axis therefore uses the original pre-cap count
+\texttt{orig\_num\_cameras}.
+
+\paragraph{Objective and hypothesis.} We test whether \emph{neither harness wins universally}. We
+hypothesize the centralized harness excels on tasks requiring complex spatio-temporal reasoning
+across disjoint views (Spatial and cross-view correspondence), where a single joint view preserves
+geometry, while the decentralized harness excels on foundational per-view perception (e.g.\ counting
+per camera), where independent grounding avoids cross-view interference.
+
+\paragraph{Models, passes, and metrics.} We evaluate the $2{\times}2$ grid of \{centralized,
+decentralized\}~$\times$~\{Qwen3-VL-8B-Thinking, InternVL3-8B\}. Each configuration is run for
+\textbf{four independent sampling passes} (temperature~$0.7$, frames held fixed); we report accuracy
+as mean~$\pm$~standard deviation over the passes. Each question~$\times$~method~$\times$~backend
+$\times$~pass logs four metric families, stratified by \texttt{task\_type},
+\texttt{orig\_num\_cameras}, \texttt{source} and \texttt{cap\_answer\_safe}:
 \begin{itemize}
-  \item \textbf{M1 Accuracy} --- overall and per stratum;
-  \item \textbf{M2 Latency} --- end-to-end wall-clock, plus, for distributed methods, a
+  \item \textbf{M1 Accuracy} --- overall and per stratum, mean~$\pm$~std over passes;
+  \item \textbf{M2 Latency} --- end-to-end wall-clock, plus, for the decentralized harness, a
         \emph{parallelizable} estimate ($\max$ over the per-stream calls $+$ aggregator);
   \item \textbf{M3 Cost} --- input / video / output tokens and number of model calls;
   \item \textbf{M4 Calibration} --- abstention and escape-option rates.
 \end{itemize}
-
-Two architectures are implemented (Table~\ref{tab:methods}): \textbf{A0 centralized}, where one VLM
-ingests all clips in a single prompt (current standard practice), and \textbf{A1 distributed}, where
-each clip is described by an independent per-stream perception pass and a text-only aggregator then
-reasons over the $K$ descriptions. A router (A2) and neural-reconstruction QA (A3, NeuS) are
-roadmap. The harness reuses the production path's frame sampling, prompting and abstain-safe
-parsing, and a CPU-only scoring gate reproduces the 19/60 CrossView figure above \emph{exactly},
-confirming it measures the same quantity.
+The harness reuses the production path's frame sampling, prompting and abstain-safe parsing, and a
+CPU-only scoring gate reproduces the 19/60 CrossView figure above \emph{exactly}, confirming it
+measures the same quantity.
 
 \begin{table}[h]
 \centering
-\caption{Implemented methods and preliminary single-GPU per-question cost (Qwen3-VL-8B-Thinking on
-the heaviest 4-camera Event-Ordering questions; latency on one L40S). These are timing magnitudes
-from a 2-question smoke, not accuracy.}
+\caption{The two harnesses and preliminary single-GPU per-question cost (Qwen3-VL-8B-Thinking,
+heaviest 4-camera questions on one L40; timing magnitudes from smoke runs, not accuracy).}
 \label{tab:methods}
 \begin{tabular}{llrr}
 \toprule
-Method & Model calls / Q & Latency (s/Q) & Tokens in / out \\
+Harness & Model calls / Q & Latency (s/Q) & Tokens in / out \\
 \midrule
-A0 centralized (all clips, one prompt) & 1 & $\sim$160 & $\sim$5.4k / 5.3k \\
-A1 distributed (per-stream + aggregator) & $K{+}1$ & $\sim$305 & $\sim$10.2k / 10.7k \\
+Centralized (stitched montage, one prompt) & 1 & $\sim$150 & $\sim$6.9k / 5--8k \\
+Decentralized (per-stream $+$ text aggregator) & $K{+}1$ & $\sim$305 & $\sim$10k / 10k \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A baseline sweep of A0 across Qwen3-VL-8B Thinking and Instruct on the 100-question
-MEVA$+$EgoExo4D pool is in progress, with the A0-vs-A1 per-category comparison to follow (InternVL3
-runs via the separate lmms-eval leg). The central question---\emph{for which question categories
-does a distributed agent beat a centralized one?}---follows directly from the
-cross-view-correspondence failures documented above: we expect distribution to help Spatial
-(independent per-camera grounding) but hurt Temporal/Event-Ordering (which need cross-stream
-synchronization). Further directions: 2-camera temporal alignment before VLM ingestion, and
-neural-reconstruction (NeuS) QA.
+\paragraph{Headline comparison.} The primary deliverable is Table~\ref{tab:table1}: overall accuracy
+(mean~$\pm$~std over four passes) for the four configurations. A 100-question MEVA$+$EgoExo4D
+development sweep across all four configurations is running at the time of writing (Qwen leg under the
+\texttt{cvbench} environment, InternVL3 leg under \texttt{internvl}); a 1{,}033-question MEVA scale
+sweep follows. Values are populated by these sweeps.
+
+\begin{table}[h]
+\centering
+\caption{\textbf{Table 1.} General video-QA accuracy (mean~$\pm$~std over four passes) for the two
+models across both harnesses. Values populated by the in-progress 100-Q dev sweep; see the run log in
+\texttt{analysis/Multi Camera Video Writeup and Logs.md}.}
+\label{tab:table1}
+\begin{tabular}{llr}
+\toprule
+Model & Harness & Accuracy (\%) \\
+\midrule
+Qwen3-VL-8B-Thinking & Centralized   & \emph{(running)} \\
+Qwen3-VL-8B-Thinking & Decentralized & \emph{(running)} \\
+InternVL3-8B         & Centralized   & \emph{(running)} \\
+InternVL3-8B         & Decentralized & \emph{(running)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Additional deliverables.} Beyond Table~\ref{tab:table1} the harness emits, for each model
+and harness: accuracy per question category (grouped bars with per-pass error bars); latency per
+question; accuracy versus camera count; and accuracy per question category versus camera count. We
+expect distribution to help Spatial (independent per-camera grounding) but hurt
+Temporal/Event-Ordering (which need cross-stream synchronization). A router (selecting a harness per
+question) and neural-reconstruction (NeuS) QA are roadmap; a further direction is explicit 2-camera
+temporal alignment before VLM ingestion.
 
 \section*{Reproducibility}
 All numbers trace to files in the project \texttt{analysis/} directory: \texttt{ORIENTATION.md}
@@ -256,5 +300,18 @@ All numbers trace to files in the project \texttt{analysis/} directory: \texttt{
 \texttt{input\_pipeline.md} (sampling), and \texttt{blind\_sanity.md} (the text-only baseline is
 genuinely zero-vision-token). The benchmark harness, metrics and run/launch commands live in
 \texttt{bench/} (see \texttt{bench/bench\_spec.md}) and \texttt{analysis/BENCHMARK\_PLAN\_48H.md}.
+
+\begin{thebibliography}{9}
+\bibitem{ref1} Why Vision--Language Models Continue to Suffer from the Blind Parrot Syndrome.
+  \url{https://stillbreeze.github.io/Why-Vision-Language-Models-Continue-to-Suffer-from-the-Blind-Parrot-Syndrome/}
+\bibitem{ref2} On the counting / neuro-symbolic limitations of VLMs.
+  \url{https://arxiv.org/pdf/2503.02199}
+\bibitem{ref3} On the binding problem in vision--language models.
+  \url{https://arxiv.org/pdf/2411.00238}
+\bibitem{ref4} On language-prior over-reliance (``blind faith'') in vision--language models.
+  \url{https://arxiv.org/pdf/2212.07796}
+\bibitem{ref5} Gaps in video activity and motion understanding for multi-modal LLMs. ICLR 2025.
+  \url{https://proceedings.iclr.cc/paper_files/paper/2025/hash/16ba99f25a235f1100a4014d71d34ad8-Abstract-Conference.html}
+\end{thebibliography}
 
 \end{document}

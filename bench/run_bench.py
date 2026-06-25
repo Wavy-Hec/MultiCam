@@ -19,26 +19,29 @@ import os
 from .reuse import DEFAULT_VIDEO_ROOT
 from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
+from .methods.cvbench_native import CVBenchNativeMethod
 from .backends.qwen import QwenBackend, QWEN_ALIASES
 from . import metrics
 
-METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod}
+METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
+           "cvbench_native": CVBenchNativeMethod}
 
 # alias -> HF id (cached locally; runs under the `internvl` conda env, NOT cvbench,
 # because cvbench's transformers breaks the InternVL3 remote code).
 INTERNVL_ALIASES = {"internvl3": "OpenGVLab/InternVL3-8B"}
 
 
-def make_backend(alias, nframes=8):
+def make_backend(alias, nframes=8, internvl_max_tiles=1):
     if alias in QWEN_ALIASES:
         return QwenBackend(QWEN_ALIASES[alias])
     if alias in INTERNVL_ALIASES:
         from .backends.internvl import InternVL3Backend
-        return InternVL3Backend(INTERNVL_ALIASES[alias], num_frame=nframes)
+        return InternVL3Backend(INTERNVL_ALIASES[alias], num_frame=nframes,
+                                max_tiles=internvl_max_tiles)
     if "/" in alias:  # raw HF id
         if "internvl" in alias.lower():
             from .backends.internvl import InternVL3Backend
-            return InternVL3Backend(alias, num_frame=nframes)
+            return InternVL3Backend(alias, num_frame=nframes, max_tiles=internvl_max_tiles)
         return QwenBackend(alias)
     raise SystemExit(
         f"unknown backend '{alias}'. Known: {list(QWEN_ALIASES) + list(INTERNVL_ALIASES)}.")
@@ -83,6 +86,8 @@ def main():
     ap.add_argument("--montage-frames", type=int, default=0,
                     help="centralized montages per question (0 -> = nframes)")
     ap.add_argument("--cell-px", type=int, default=448)
+    ap.add_argument("--internvl-max-tiles", type=int, default=1,
+                    help="InternVL tiles per montage image (4 lets a 2x2 montage keep per-camera 448 res)")
     ap.add_argument("--chunk", type=int, default=0, help="number of shards (Slurm array)")
     ap.add_argument("--offset", type=int, default=0, help="this shard index in [0,chunk)")
     ap.add_argument("--out", default=None)
@@ -114,7 +119,8 @@ def main():
     from tqdm import tqdm
     with open(out, "a") as fh:
         for b in backends:
-            backend = make_backend(b, nframes=args.nframes)  # loads the model once
+            backend = make_backend(b, nframes=args.nframes,
+                                   internvl_max_tiles=args.internvl_max_tiles)  # loads the model once
             for mname in methods:
                 method = make_method(mname, backend, args)
                 # process all passes of a record consecutively so the centralized

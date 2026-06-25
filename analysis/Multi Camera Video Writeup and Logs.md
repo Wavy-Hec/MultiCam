@@ -67,3 +67,31 @@ Plots:
 
 # Logs
 
+## Harness (`bench/`) — implementation status (2026-06-24)
+
+Task-1 evaluation harness now matches this spec. Two harnesses × two models × four passes:
+
+- **Centralized** (`bench/methods/centralized.py` + `bench/methods/stitch.py`): temporally
+  aligns the ≤4 clips (proportional frame sampling) and spatially **stitches** the
+  synchronized frames into labeled grid montages (≤2×2), fed as one unified visual input.
+- **Decentralized** (`bench/methods/per_stream.py`): per-camera perception pass → text-only
+  aggregator.
+- **Models**: `qwen3vl` = Qwen3-VL-8B-Thinking (env `cvbench`); `internvl3` = InternVL3-8B
+  (env `internvl`, since cvbench's transformers breaks InternVL3's remote code).
+- **4-pass protocol**: temperature 0.7, seeds 1–4, frames held fixed; Table 1 = accuracy
+  mean ± std over the 4 passes (`bench/metrics.py:summarize_passes`).
+- **Deliverables**: `bench/plots.py` → Table 1 + Plot 1 (per category) / 2 (latency) /
+  3 (vs camera count, X = `orig_num_cameras`) / 4 (category × cameras).
+
+### Run log
+
+| date | run | subset | models | methods | passes | jobs | notes |
+|---|---|---|---|---|---|---|---|
+| 2026-06-24 | smoke | combined (3 q) | qwen3vl, internvl3 | centralized, per_stream | 4 | 57859, 57860 | 24+24 rows, 0 errors, real cross-pass variance; plumbing validated |
+| 2026-06-24 | dev | combined (100 q) | qwen3vl, internvl3 | centralized, per_stream | 4 | 57865 (cvbench ×10 shards), 57866 (internvl ×4) | primary deliverable; Table 1 + Plots 1–4 → `bench/results/figs_dev_combined/` |
+
+Notes:
+- Qwen3-VL-Thinking is slow (~100–250 s/call, often hits the 8192-token cap) → sweeps are
+  Slurm-array sharded; partition `gpul40q` has unlimited walltime.
+- Full `meva1033` (1,033 q, cameras 2–16) scale sweep is gated on the dev Table 1 looking sane.
+- Reproduce: see `bench/bench_spec.md` Commands.
