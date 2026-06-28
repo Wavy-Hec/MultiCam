@@ -53,7 +53,8 @@ CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
 OFFSET=${SLURM_ARRAY_TASK_ID:-${OFFSET:-0}}
 
-BASE="bench/results/bench_$(basename "${SUBSET%.json}")_${ENV}"
+TAG=${TAG:-}   # optional suffix to separate runs that share subset+env (e.g. _dur/_even/_stitch)
+BASE="bench/results/bench_$(basename "${SUBSET%.json}")_${ENV}${TAG}"
 if [ "$CHUNK" != "0" ]; then
   OUT=${OUT:-${BASE}_shard${OFFSET}.jsonl}
   SHARD_ARG="--chunk $CHUNK --offset $OFFSET"
