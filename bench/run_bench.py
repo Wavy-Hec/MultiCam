@@ -20,11 +20,13 @@ from .reuse import DEFAULT_VIDEO_ROOT
 from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
 from .methods.cvbench_native import CVBenchNativeMethod
+from .methods.temporal import TemporalWeightedMethod
 from .backends.qwen import QwenBackend, QWEN_ALIASES
 from . import metrics
 
 METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
-           "cvbench_native": CVBenchNativeMethod}
+           "cvbench_native": CVBenchNativeMethod,
+           "temporal_weighted": TemporalWeightedMethod}
 
 # alias -> HF id (cached locally; runs under the `internvl` conda env, NOT cvbench,
 # because cvbench's transformers breaks the InternVL3 remote code).
@@ -52,7 +54,13 @@ def make_method(mname, backend, args):
         return CentralizedMethod(backend, nframes=args.nframes,
                                  max_new_tokens=args.max_new_tokens,
                                  temperature=args.temperature,
-                                 montage_frames=args.montage_frames, cell_px=args.cell_px)
+                                 montage_frames=args.montage_frames, cell_px=args.cell_px,
+                                 montage_kind=args.montage_kind)
+    if mname == "temporal_weighted":
+        return TemporalWeightedMethod(backend, budget=args.budget, floor=args.floor,
+                                      weighting=args.weighting, nframes=args.nframes,
+                                      max_new_tokens=args.max_new_tokens,
+                                      temperature=args.temperature)
     return METHODS[mname](backend, nframes=args.nframes,
                           max_new_tokens=args.max_new_tokens, temperature=args.temperature)
 
@@ -83,9 +91,19 @@ def main():
     ap.add_argument("--passes", type=int, default=4, help="independent sampled passes for std")
     ap.add_argument("--seeds", default="1,2,3,4", help="comma seeds; len must cover --passes")
     ap.add_argument("--temperature", type=float, default=0.7)
+    ap.add_argument("--budget", type=int, default=64,
+                    help="temporal_weighted: TOTAL frames per question, split across clips")
+    ap.add_argument("--floor", type=int, default=2,
+                    help="temporal_weighted: per-clip minimum frames")
+    ap.add_argument("--weighting", default="duration", choices=["duration", "even"],
+                    help="temporal_weighted: split the budget by clip duration "
+                         "('duration') or evenly ('even', the budget-matched control)")
     ap.add_argument("--montage-frames", type=int, default=0,
                     help="centralized montages per question (0 -> = nframes)")
     ap.add_argument("--cell-px", type=int, default=448)
+    ap.add_argument("--montage-kind", default="camera", choices=["camera", "video"],
+                    help="centralized montage framing: 'camera' (synced views, default) "
+                         "or 'video' (independent clips — corrected CVBench preamble + 'Video i' labels)")
     ap.add_argument("--internvl-max-tiles", type=int, default=1,
                     help="InternVL tiles per montage image (4 lets a 2x2 montage keep per-camera 448 res)")
     ap.add_argument("--chunk", type=int, default=0, help="number of shards (Slurm array)")
