@@ -43,3 +43,6 @@ __pycache__/
 
 # Claude Code local config / runtime (per-user, not shared)
 /.claude/
+
+# Stray root-level screenshot (not referenced anywhere; do not commit)
+/image.png
