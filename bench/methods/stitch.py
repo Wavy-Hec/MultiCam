@@ -95,16 +95,17 @@ def compose_montage(frames: List[Optional[Image.Image]], labels: List[str],
 
 
 def build_montages(video_paths: List[str], nframes: int = 8, T: Optional[int] = None,
-                   cell_px: int = 448) -> List[Image.Image]:
+                   cell_px: int = 448, label_prefix: str = "Camera") -> List[Image.Image]:
     """Decode the K clips and compose ``T`` grid montages (one per aligned timestep).
 
     ``T`` defaults to ``nframes`` (each sampled timestep gets a montage); pass
-    ``T=1`` for the strict "single unified image" reading.
+    ``T=1`` for the strict "single unified image" reading. ``label_prefix`` sets the
+    per-cell caption ("Camera" for synced views, "Video" for independent clips).
     """
     T = nframes if (T is None or T <= 0) else T
     per_cam = decode_aligned_frames(video_paths, nframes)  # [K][nframes]
     k = len(video_paths)
-    labels = [f"Camera {i + 1}" for i in range(k)]
+    labels = [f"{label_prefix} {i + 1}" for i in range(k)]
     # pick T timestep indices among the nframes decoded positions
     t_idx = sample_frame_indices(nframes, T)
     montages = []
