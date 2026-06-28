@@ -53,6 +53,10 @@ class Result:
     video_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     num_model_calls: int = 1
+    # reasoning/audit (set by temporal_weighted; default None for all other methods)
+    response_text: Optional[str] = None    # raw g.text (full <think>...<answer> trace)
+    think: Optional[str] = None            # extract_think(g.text)
+    frame_alloc: Optional[dict] = None     # per-clip durations + allocated frame counts
     error: Optional[str] = None
 
     def to_dict(self):

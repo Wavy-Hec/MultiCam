@@ -42,8 +42,13 @@ PASSES=${PASSES:-4}
 SEEDS=${SEEDS:-1,2,3,4}
 TEMPERATURE=${TEMPERATURE:-0.7}
 MONTAGE_FRAMES=${MONTAGE_FRAMES:-0}
+MONTAGE_KIND=${MONTAGE_KIND:-camera}   # 'camera' (synced views) | 'video' (independent clips)
+BUDGET=${BUDGET:-64}                   # temporal_weighted: TOTAL frames per question
+FLOOR=${FLOOR:-2}                      # temporal_weighted: per-clip minimum frames
+WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
 MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-8192}
 INTERNVL_MAX_TILES=${INTERNVL_MAX_TILES:-1}
+VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. CVBench videos live elsewhere)
 CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
 OFFSET=${SLURM_ARRAY_TASK_ID:-${OFFSET:-0}}
@@ -58,11 +63,15 @@ else
 fi
 LIMIT_ARG=""
 if [ "$LIMIT" != "0" ]; then LIMIT_ARG="--limit $LIMIT"; fi
+VR_ARG=""
+if [ -n "$VIDEO_ROOT" ]; then VR_ARG="--video-root $VIDEO_ROOT"; fi
 
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
-echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE chunk=$CHUNK offset=$OFFSET out=$OUT"
+echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=$BUDGET weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
-    --montage-frames "$MONTAGE_FRAMES" --max-new-tokens "$MAX_NEW_TOKENS" \
-    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $SHARD_ARG $LIMIT_ARG
+    --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" \
+    --budget "$BUDGET" --floor "$FLOOR" --weighting "$WEIGHTING" \
+    --max-new-tokens "$MAX_NEW_TOKENS" \
+    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $SHARD_ARG $LIMIT_ARG $VR_ARG
 echo "DONE @ $(date '+%F %T')"
