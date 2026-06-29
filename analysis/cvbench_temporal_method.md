@@ -1,7 +1,7 @@
 # CVBench — Duration-Weighted Temporal Sequencing
 
 *Mentor's "Next tasks" — implementation + experiment writeup.*
-*Status: code landed; 130-question 3-way run on InternVL3 in progress; full-1000 download running. This doc is updated as results land.*
+*Status (2026-06-29): code landed; **130-question 3-way run complete, reported & verified** (§7); **full-1000 3-way run complete, finalized & reported** (§7 — temporal_weighted 61.8% > even 60.8% > 2×2 stitch 57.4%). See `cvbench_temporal_STATUS.md` for the literal input format and finalize details.*
 
 ---
 
@@ -97,17 +97,66 @@ For the overnight full set: after the download finishes, `python analysis/make_c
 
 ## 7. Results
 
-*(filled in as the runs complete)*
+### 130-question set — InternVL3-8B, 64-frame budget, 4 passes (seeds 1–4, T=0.7)
 
-### 130-question set — InternVL3-8B, 64-frame budget, 4 passes
+All three arms share the **same 64-frame total budget**; the duration vs even arms also share the
+*same* sequential framing and `=== Video k of K ===` banners — so the only thing that changes between
+them is **how the 64 frames are split across clips**. This isolates the weighting effect cleanly.
 
-| Method | Accuracy ± std | 2-clip | 3-clip | 4-clip |
-|---|---|---|---|---|
-| temporal_weighted (duration) | _pending_ | | | |
-| temporal_even (control) | _pending_ | | | |
-| centralized (2×2 stitch) | _pending_ | | | |
+| Method | Accuracy ± std | 2-clip | 3-clip | 4-clip | in-tok | abstain / err |
+|---|---|---|---|---|---|---|
+| **temporal_weighted (duration)** | **55.8 ± 0.7%** | 63.5% | 50.0% | **51.7%** | 17.2k | 0% / 0 |
+| temporal_even (budget-matched control) | 51.5 ± 2.7% | 59.9% | 43.5% | 47.9% | 17.2k | 0% / 0 |
+| centralized (2×2 spatial stitch) | 51.5 ± 2.6% | 62.5% | 51.1% | 42.8% | 4.4k | 0% / 0 |
 
-### Full set — _pending download + run_
+**Headline:** duration-weighted sampling beats the budget-matched even split by **+4.3 points
+(55.8% vs 51.5%) at an identical 64-frame budget and identical sequencing** — i.e. the gain comes
+purely from *allocating frames in proportion to clip length*, not from any extra frames or framing.
+It is also markedly more **stable across seeds** (±0.7 vs ±2.7), because long clips no longer get
+under-sampled by a fixed-per-clip budget.
+
+**Where the gain concentrates (by #clips).** The advantage grows with clip count — exactly where
+duration disparity is largest. On 4-clip questions duration-weighting leads even-split by +3.8 and
+the 2×2 stitch by **+8.9** points. The spatial stitch degrades monotonically as clips are added
+(62.5% → 51.1% → 42.8%) because each added clip shrinks every cell's resolution; duration-weighting
+holds roughly flat (63.5% → 50.0% → 51.7%) by spending frames where the content is. See
+`bench/results/figs_temporal_130/acc_by_numclips.png`.
+
+**By task type** (full breakdown in `*_report.md`). Duration-weighting tops the field on
+Multi-video Key-Action Recognition (91.7% vs 58.3% stitch), Cross-video Event Retrieval
+(80.6% vs 61.1%), Multi-view Scene Understanding (58.3% vs 41.7%) and Cross-video Counterfactual
+Reasoning (78.1%). Its one clear regression is Cross-video **Object** Recognition (31.2% vs 75.0%
+stitch) — static fine-grained object identity is the one place the high-resolution 2×2 tiling wins,
+a known trade-off of temporal sampling.
+
+Artifacts: `bench/results/bench_cvbench_temporal_subset_internvl_ALL.jsonl` (1,560 rows = 3 arms ×
+130 Q × 4 passes), `…_ALL_report.{md,csv}`, figures under `bench/results/figs_temporal_130/`.
+
+### Full set (1000-Q runnable subset) — InternVL3-8B, 64-frame budget, 4 passes — COMPLETE
+
+The same three arms ran over `analysis/cvbench_full_runnable_subset.json` (1000 runnable Q,
+**0 blocked**) on InternVL3-8B, 4-pass, 64-frame budget (SLURM arrays 58246/58247/58248, 8 shards
+each), finalized via `bench/finalize_cvbench_full.sh`.
+
+| Method | Accuracy ± std | 2-clip | 3-clip | 4-clip | in-tok | abstain / err |
+|---|---|---|---|---|---|---|
+| **temporal_weighted (duration)** | **61.8 ± 0.7%** | 62.7% | 60.4% | **61.6%** | 17.2k | 0% / 0 |
+| temporal_even (budget-matched control) | 60.8 ± 0.8% | 61.6% | 59.9% | 60.1% | 17.2k | 0% / 0 |
+| centralized (2×2 spatial stitch) | 57.4 ± 1.4% | 59.2% | 59.6% | 52.3% | 4.4k | 0% / 0 |
+
+**Headline:** duration-weighted wins on the full set too — **+1.0 pt over the budget-matched even
+split** (61.8% vs 60.8%) and **+4.4 pts over the 2×2 stitch** (57.4%). The weighted-vs-even gap is
+narrower than on the temporal-enriched 130 set (+4.3) because the full set is mostly non-temporal
+questions, but the **4-clip advantage holds**: the stitch collapses to 52.3% at 4 clips (−6.9 from
+its 2-clip 59.2%) while duration-weighting stays flat at 61.6% — a **+9.3 pt** lead exactly where
+clip-length disparity is largest. By task type, temporal sampling dominates Cross-video Event
+Retrieval (70.9% vs 52.6% stitch), Multi-view Scene Understanding (81.4% vs 72.7%) and Cross-video
+Procedural Transfer (68.6% vs 60.3%); the 2×2 stitch's one clear win is fine-grained Multi-video
+Attribute Recognition (75.0% vs 70.1%). The 130-set Object-Recognition regression did **not**
+replicate at scale (weighted 57.0% now narrowly tops stitch 54.4%).
+
+Artifacts: `bench/results/bench_cvbench_full_runnable_subset_internvl_ALL.jsonl` (12,000 rows = 3
+arms × 1000 Q × 4 passes), `…_ALL_report.{md,csv}`, figures under `bench/results/figs_temporal_full/`.
 
 ---
 
@@ -122,3 +171,32 @@ For the overnight full set: after the download finishes, `python analysis/make_c
 | `analysis/make_cvbench_temporal_subset.py` | builds the 130 temporal-logic subset |
 | `analysis/make_cvbench_full_runnable_subset.py` | builds the full runnable subset (grows with the download) |
 | `analysis/cvbench_temporal_subset.json` | the 130 questions |
+| `bench/cvbench_temporal_figs.py` | 3-way comparison figures (acc by method / #clips / task) |
+| `bench/finalize_cvbench_full.sh` | one-command finalize for the full-1000 run (pool → report → figs) |
+| `analysis/cvbench_temporal_STATUS.md` | live run status, literal input format, finalize/handoff |
+
+---
+
+## 9. Appendix — rendering the literal prompt
+
+The exact text fed to the model for any question can be reproduced offline (no GPU):
+
+```python
+import json
+from bench.methods.temporal import PREFIX, MARKER, SPLIT_DESC
+from bench.reuse import build_messages, video_paths
+
+VIDEO_ROOT = "Video-R1/src/r1-v/Evaluation/CVBench"
+rec = {r["id"]: r for r in json.load(open("analysis/cvbench_temporal_subset.json"))}["cvb-974"]
+base, yn = build_messages(rec, VIDEO_ROOT, 8, no_video=True)   # scaffold text only
+scaffold = base[0]["content"][0]["text"]
+# durs / nframes come from Result.frame_alloc in the JSONL (or _clip_meta + allocate_frames):
+durs, nframes, K, budget = [111.18, 116.98, 9.95, 193.69], [17, 17, 2, 28], 4, 64
+print(PREFIX.format(K=K, budget=budget, split=SPLIT_DESC["duration"].format(K=K)))
+for k, (n, d) in enumerate(zip(nframes, durs), 1):
+    print(MARKER.format(k=k, K=K, n_k=n, dur_s=d), "<video block>")
+print(scaffold)
+```
+
+A rendered example (cvb-974) and the per-clip duration→frames split are in
+`cvbench_temporal_STATUS.md → "How we put the inputs into the model"`.
