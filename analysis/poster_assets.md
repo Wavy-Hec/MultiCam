@@ -23,7 +23,7 @@ The 5 CVBench temporal questions (complexity ≥ L1) that are both in the eval
 subset (so real per-model predictions exist) **and** carry a neuro-symbolic
 temporal-logic view. Deliberately a 3-correct / 2-wrong mix for the thinking
 model. Text/options/gold verbatim from `analysis/cvbench_temporal_logic_team.json`;
-predictions from `analysis/temporal_failures.md`. Models: **Qwen3-VL-8B-Thinking**
+predictions regenerate via `analysis/temporal_complexity.py` (`temporal_failures.md`). Models: **Qwen3-VL-8B-Thinking**
 (qwen3vl), **InternVL3-8B** (internvl3), **qwen3vl_blind** (no video).
 
 ### Card A — id 18 · event-sequencing · L2 · 3 videos (Multi-video Temporal Reasoning)
@@ -78,16 +78,16 @@ InternVL3 is 0/5 across these (clean baseline-failure column).
 - `accuracy_vs_orig_cameras.png` — accuracy vs *original* synchronized-camera count (2,3,5,7,12); InternVL3 craters to 0% @5. **Headline "true multicam is hard" figure.**
 - `accuracy_vs_cameras.png` — accuracy vs #videos seen (2/3/4); InternVL3 65%→25%.
 - `accuracy_by_task.png` — task bars; anchors the "Qwen 0/20 event-ordering" headline.
-- `cvbench_vs_crossview.md` — **main side-by-side results table** (lift directly).
-- `crossview_camera_curve.md` — camera-count table + caption for the orig-cameras figure.
-- `qwen3vl_failures.md` / `internvl3_failures.md` — verbatim failure traces → "why models fail" callout quotes.
+- `cvbench_vs_crossview.md` — **main side-by-side results table** (regenerate via `crossview_vs_cvbench.py`, then lift directly).
+- `crossview_camera_curve.md` — camera-count table + caption for the orig-cameras figure (regenerate via `crossview_camera_curve.py`).
+- `qwen3vl_failures.md` / `internvl3_failures.md` — verbatim failure traces → "why models fail" callout quotes (regenerate via `analyze_failures.py`).
 
 **Project results — CVBench (committed, `analysis/`):**
 - `accuracy_vs_cameras.png` — CVBench does **not** degrade with #videos (contrast panel).
 - `accuracy_vs_temporal.png` — accuracy by L0/L1/L2 (flag tiny L1=1/L2=4 n).
 - `temporal_complexity_dist.png` — subset vs full-set temporal mix (methods sidebar).
 - `blind_sanity.md` — source/citation for the 40% blind baseline.
-- `cvbench_multicam_failures.md` — intro text + id57 failure caption.
+- id57 failure caption + intro text — see `mentor_report.md` §6 and `analysis/failure_examples/` (the former `cvbench_multicam_failures.md` is no longer tracked).
 - `crossview_question_types.md` — "what is CrossView / 1–16 cameras" background + stats.
 
 **Qualitative multi-video example (id57, UNTRACKED — `analysis/failure_examples/`):**

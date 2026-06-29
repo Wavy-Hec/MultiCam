@@ -36,7 +36,7 @@ We benchmark how vision-language models *reason over multiple synchronized (or u
 4. `/home/hectorlugo02/CVBench/analysis/input_pipeline.md` — verified trace of question JSON → model input (frame sampling, ordering, vision-token layout) per leg.
 5. `/home/hectorlugo02/CVBench/analysis/blind_sanity.md` — proof the no-video baseline is genuinely text-only (0 vision tokens, no metadata leak, 40% recounted 3 ways).
 6. `/home/hectorlugo02/CVBench/analysis/crossview_subset_questions.md` — the 60 CrossView questions with gold answers, true camera count, cap flags.
-7. `/home/hectorlugo02/CVBench/analysis/qwen3vl_failures.md` + `/home/hectorlugo02/CVBench/analysis/internvl3_failures.md` — failure cases grouped by task type, traces quoted verbatim.
+7. CVBench failure cases grouped by task type, traces quoted verbatim — regenerate the full `qwen3vl_failures.md` / `internvl3_failures.md` dumps on demand via `analyze_failures.py` (no longer tracked; the distilled taxonomy is item 8).
 8. `/home/hectorlugo02/CVBench/analysis/crossview_meva1033_out/failure_examples_curated.md` — the 1,033-Q failure taxonomy digest (the headline failure table).
 9. Dataset extensions when needed: `/home/hectorlugo02/CVBench/analysis/egoexo_setup.md`, `/home/hectorlugo02/CVBench/analysis/agibot_setup.md`.
 
@@ -67,10 +67,10 @@ crossview-release-annotations/  ──convert_crossview.py──►  crossview_*
                        │                                                       │
                        └───────────────────────────┬───────────────────────────┘
                                                     ▼
-                  analyze_failures.py ──► crossview_out*/{qwen3vl,internvl3}_failures.md, accuracy_by_cameras.json
-                  crossview_camera_curve.py ──► accuracy_vs_orig_cameras*.png, crossview_camera_curve.md
+                  analyze_failures.py ──► crossview_out*/{qwen3vl,internvl3}_failures.md (regen on demand), accuracy_by_cameras.json
+                  crossview_camera_curve.py ──► accuracy_vs_orig_cameras*.png, crossview_camera_curve.md (regen on demand)
                   plot_accuracy.py ──► accuracy_vs_cameras.png, accuracy_by_task.png
-                  crossview_vs_cvbench.py ──► cvbench_vs_crossview.md
+                  crossview_vs_cvbench.py ──► cvbench_vs_crossview.md (regen on demand)
                   make_slides_v2.py ──► multicam_progress_v2.pptx
    verification:  inspect_inputs.py ──► input_pipeline.md   ·   inspect_blind.py ──► blind_sanity.md
 ```
@@ -234,7 +234,7 @@ Gotchas: `overall_acc` is stored as a percentage-scaled float (e.g. `31.6667`), 
   - **wrong_reasoned: 626** (Spatial 273, Temporal 222, Event-Ordering 131) — the dominant failure: the model reads frames but reasons to the wrong conclusion.
   - **truncation_no_answer: 69**, of which **60 are Event-Ordering** — long ordering chains still run out of budget; abstain (not fabricate) is correct behavior now.
   - given_order_bias 13 (all Event-Ordering); single_video_shortcut 6 (all Spatial).
-- **Temporal task flip:** on the 1,033-Q pool Temporal accuracy is **Qwen 25% (75/305) vs InternVL3 51% (157/305)** — the two models have nearly opposite temporal strengths. (Conversely InternVL3 is weaker on Event-Ordering 25% and Spatial 28%.) Both confuse *video-level timestamps* with *game/event-level time* — temporal grounding is the hard core (`temporal_failures.md`).
+- **Temporal task flip:** on the 1,033-Q pool Temporal accuracy is **Qwen 25% (75/305) vs InternVL3 51% (157/305)** — the two models have nearly opposite temporal strengths. (Conversely InternVL3 is weaker on Event-Ordering 25% and Spatial 28%.) Both confuse *video-level timestamps* with *game/event-level time* — temporal grounding is the hard core (regenerate `temporal_failures.md` via `temporal_complexity.py`).
 - **Multi-camera is hard:** accuracy degrades with `orig_num_cameras` (the curve in `crossview_out*/accuracy_vs_orig_cameras*.png`), the central thesis of the project.
 
 ---

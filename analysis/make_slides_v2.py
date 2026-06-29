@@ -513,7 +513,7 @@ def s_modes():
         "**Given-order bias** — \"put the events in order\" defaults to clip order 1-2-3-4 instead of reasoning it out",
         "**Yes-bias / premise acceptance** — agrees with what the question assumes without checking the video",
         "**Temporal grounding** — confuses video-level timestamps with event-level time (the shared weak spot)",
-        "Full traces: qwen3vl_failures.md · internvl3_failures.md · cvbench_multicam_failures.md",
+        "Full traces: regenerate via analyze_failures.py (qwen3vl/internvl3_failures.md)",
     ], body_size=16)
 
 
