@@ -70,8 +70,9 @@ makes the failure analysis below possible.
 ## 4. The three analysis tasks (done)
 
 ### Task 1 — Why does the blind model answer correctly without seeing video? What is it exploiting?
-**Status: done.** Files: `analysis/qwen3vl_blind_failures.md` (all 45 traces) +
-`analysis/cvbench_multicam_failures.md` §4.1 & §5.1.
+**Status: done.** The exploitation analysis is in this section (§4) and §6.1; the full
+45 per-question blind traces (`qwen3vl_blind_failures.md`) regenerate on demand via
+`analysis/analyze_failures.py`.
 
 The blind model scores **40%** (vs ~31% chance, 62% with video). It exploits:
 1. **Distinctively-worded answer options** — on some task types the correct
@@ -163,8 +164,9 @@ CVBench (`analysis/`):
 ## 6. Failure-mode analysis (core deliverable)
 
 All wrong cases were read; quotes are verbatim from the models' own reasoning.
-Full traces: `analysis/cvbench_multicam_failures.md` §5,
-`analysis/crossview_out/{qwen3vl,internvl3}_failures.md`.
+Full traces regenerate on demand via `analysis/analyze_failures.py`
+(`crossview_out/{qwen3vl,internvl3}_failures.md`); the distilled taxonomy lives in
+`analysis/crossview_meva1033_out/failure_examples_curated.md`.
 
 ### 6.1 Named failure modes (CVBench)
 1. **Premise acceptance / yes-bias** — imports the question framing as evidence.
@@ -188,8 +190,8 @@ Full traces: `analysis/cvbench_multicam_failures.md` §5,
 7. **Spatial-frame errors across views**, compounded by 8-frame sampling.
 
 ### 6.2 Temporal-logic example cases (verbatim, for the poster/talk)
-From `analysis/cvbench_temporal_logic_team.json` (+ `analysis/temporal_failures.md`),
-verified verbatim. Each carries a temporal-logic (LTL-style) template.
+From `analysis/cvbench_temporal_logic_team.json` (+ `temporal_failures.md`, regenerated
+on demand via `analysis/temporal_complexity.py`), verified verbatim. Each carries a temporal-logic (LTL-style) template.
 
 - **id 18** (3 videos): *"What is the correct video sequence for processing
   artifacts?"* A.3-1-2 / B.2-3-1 / **C.2-1-3 ✅** / D.1-2-3. Template
@@ -203,7 +205,7 @@ verified verbatim. Each carries a temporal-logic (LTL-style) template.
 ### 6.3 CrossView failures (InternVL3, trustworthy)
 InternVL3 answered all 60 cleanly. Weakest on Event-Ordering (30%) and Spatial
 (40%); accuracy collapses at higher original-camera counts (0% at 5 cameras).
-Full traces: `analysis/crossview_out/internvl3_failures.md`.
+Full traces regenerate on demand via `analysis/analyze_failures.py` (`crossview_out/internvl3_failures.md`).
 
 ### 6.4 ⚠️ Methodological finding — the Qwen CrossView "0%" is an artifact
 We adversarially verified the striking "Qwen 0/20 on Event-Ordering" with four
@@ -285,12 +287,12 @@ above render when viewing this file inside the repo.)*
 
 | Item | Path |
 |---|---|
-| Blind exploitation (task 1) | `analysis/qwen3vl_blind_failures.md`, `analysis/cvbench_multicam_failures.md` §4.1/§5.1 |
+| Blind exploitation (task 1) | §4 above; full blind traces regen via `analyze_failures.py` (`qwen3vl_blind_failures.md`) |
 | Blind sanity check (task 2) | `analysis/blind_sanity.md` (+ `inspect_blind.py`) |
 | Input pipeline (task 3) | `analysis/input_pipeline.md` (+ `inspect_inputs.py`) |
 | CrossView results | `analysis/crossview_out/`, `Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json` |
 | Graphs | `analysis/crossview_out/*.png`, `analysis/*.png` |
-| Failure traces | `analysis/crossview_out/{qwen3vl,internvl3}_failures.md`, `analysis/cvbench_multicam_failures.md` §5 |
+| Failure traces | regen via `analyze_failures.py`; distilled in `crossview_meva1033_out/failure_examples_curated.md` |
 | Failure input frames | `analysis/failure_examples/` |
 | Poster asset index | `analysis/poster_assets.md` |
 | Temporal-logic question data | `analysis/cvbench_temporal_logic_team.json` |

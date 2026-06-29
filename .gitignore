@@ -46,3 +46,6 @@ __pycache__/
 
 # Stray root-level screenshot (not referenced anywhere; do not commit)
 /image.png
+
+# local export bundles (figures/videos/markdown for Obsidian) — not for git
+exports/

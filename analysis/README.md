@@ -52,7 +52,7 @@ select_subset.py            → subset.json (45 Q)
 run_eval.sbatch ─┬ eval_thinking.py (Qwen)          → eval_subset_qwen3vl.json
                  └ lmms-eval mvr_think (InternVL3)   → internvl3_normalized.json
 run_eval_novideo.sbatch → eval_thinking.py --no_video → eval_subset_qwen3vl_novideo.json
-analyze_failures.py  → accuracy_by_cameras.json, qwen3vl_failures.md, qwen3vl_blind_failures.md
+analyze_failures.py  → accuracy_by_cameras.json (+ qwen3vl_failures.md, qwen3vl_blind_failures.md — regenerated on demand, not tracked)
 plot_accuracy.py     → accuracy_vs_cameras.png, accuracy_by_task.png
 make_reasoning_gain.py (blind vs video) → reasoning_gain.png
 verification: inspect_inputs.py → inspect_inputs_data.json → input_pipeline.md;
@@ -66,15 +66,15 @@ convert_crossview.py (imports crossview_question_types.py)
 fetch_meva_videos.py --subset … → MEVA .avi clips (public S3, no creds)
 run_eval_crossview.sbatch ─┬ eval_thinking.py (Qwen, +--no_video blind)  → eval_crossview_subset_qwen3vl[_novideo].json
                            └ lmms-eval crossview_think (InternVL3) → (parse_lmms_samples.py) → crossview_internvl3_normalized.json
-crossview_camera_curve.py → crossview_out/accuracy_by_orig_cameras.json + accuracy_vs_orig_cameras[_internvl3].png + camera_curve.md
+crossview_camera_curve.py → crossview_out/accuracy_by_orig_cameras.json + accuracy_vs_orig_cameras[_internvl3].png (+ crossview_camera_curve.md — regenerated on demand, not tracked)
 plot_accuracy.py          → crossview_out/accuracy_vs_cameras.png, accuracy_by_task.png
-crossview_vs_cvbench.py   → crossview_out/cvbench_vs_crossview.md
-analyze_failures.py       → crossview_out/{qwen3vl,internvl3}_failures.md
+crossview_vs_cvbench.py   → crossview_out/cvbench_vs_crossview.md (regenerated on demand, not tracked)
+analyze_failures.py       → crossview_out/{qwen3vl,internvl3}_failures.md (regenerated on demand, not tracked)
 ```
 
 **3. Temporal-complexity analysis (CVBench)**
 ```
-temporal_complexity.py  → temporal_complexity.json, temporal_complexity_dist.png, accuracy_vs_temporal.png, temporal_failures.md
+temporal_complexity.py  → temporal_complexity.json, temporal_complexity_dist.png, accuracy_vs_temporal.png (+ temporal_failures.md — regenerated on demand, not tracked)
 make_team_json.py (imports temporal_complexity.py) → cvbench_temporal_logic_team.json
 ```
 
