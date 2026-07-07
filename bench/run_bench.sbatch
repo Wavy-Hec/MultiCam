@@ -43,6 +43,7 @@ SEEDS=${SEEDS:-1,2,3,4}
 TEMPERATURE=${TEMPERATURE:-0.7}
 MONTAGE_FRAMES=${MONTAGE_FRAMES:-0}
 MONTAGE_KIND=${MONTAGE_KIND:-camera}   # 'camera' (synced views) | 'video' (independent clips)
+STREAM_KIND=${STREAM_KIND:-camera}     # per_stream labels: 'camera' (MEVA) | 'video' (CVBench)
 BUDGET=${BUDGET:-64}                   # temporal_weighted: TOTAL frames per question
 FLOOR=${FLOOR:-2}                      # temporal_weighted: per-clip minimum frames
 WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
@@ -66,13 +67,16 @@ LIMIT_ARG=""
 if [ "$LIMIT" != "0" ]; then LIMIT_ARG="--limit $LIMIT"; fi
 VR_ARG=""
 if [ -n "$VIDEO_ROOT" ]; then VR_ARG="--video-root $VIDEO_ROOT"; fi
+SUMMARIES=${SUMMARIES:-}   # summary_select_*: per-clip summary cache JSONL (or glob)
+SUM_ARG=()                 # array + quoted expansion so a glob reaches python intact
+if [ -n "$SUMMARIES" ]; then SUM_ARG=(--summaries "$SUMMARIES"); fi
 
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=$BUDGET weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
-    --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" \
+    --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" --stream-kind "$STREAM_KIND" \
     --budget "$BUDGET" --floor "$FLOOR" --weighting "$WEIGHTING" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
-    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $SHARD_ARG $LIMIT_ARG $VR_ARG
+    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"
 echo "DONE @ $(date '+%F %T')"

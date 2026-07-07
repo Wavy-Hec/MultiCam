@@ -15,18 +15,38 @@ reused across methods/passes. ``--chunk N --offset i`` shards the subset
 import argparse
 import json
 import os
+import re
 
 from .reuse import DEFAULT_VIDEO_ROOT
 from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
 from .methods.cvbench_native import CVBenchNativeMethod
 from .methods.temporal import TemporalWeightedMethod
+from .methods.clip_select import SummarySelectMethod, ClipScoreSelectMethod
 from .backends.qwen import QwenBackend, QWEN_ALIASES
 from . import metrics
 
 METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
            "cvbench_native": CVBenchNativeMethod,
-           "temporal_weighted": TemporalWeightedMethod}
+           "temporal_weighted": TemporalWeightedMethod,
+           # (adaptive_content / adaptive_query — the within-clip frame-selection
+           # ablation — were retired 2026-07-02 after losing/tying uniform; see
+           # analysis/adaptive_frames_experiment.md §B for the archived result.)
+           # D3 clip selection: spend the budget on the clips a question needs.
+           # summary_select_* = cached per-clip summaries -> one text-only
+           # selector call (route may answer ALL; top1 forces one clip);
+           # clip_select_top1 = CLIP question-vs-thumbnail scoring, no LLM call.
+           "summary_select_route": SummarySelectMethod,
+           "summary_select_top1": SummarySelectMethod,
+           "clip_select_top1": ClipScoreSelectMethod}
+
+# clip_select method names are generated, not enumerated: an optional scorer
+# tag (must be in SCORER_ALIASES) plus the top-m count, e.g.
+# clip_select_top2, clip_select_siglip_top1. The matched string becomes the
+# method's recorded name, so scorer variants never collide in rows/resume keys.
+CLIP_SELECT_RE = re.compile(r"^clip_select(?:_(?P<tag>[a-z0-9]+))?_top(?P<m>\d+)$")
+SCORER_ALIASES = {"siglip": "google/siglip-so400m-patch14-384",
+                  "siglip2": "google/siglip2-so400m-patch14-384"}
 
 # alias -> HF id (cached locally; runs under the `internvl` conda env, NOT cvbench,
 # because cvbench's transformers breaks the InternVL3 remote code).
@@ -56,11 +76,35 @@ def make_method(mname, backend, args):
                                  temperature=args.temperature,
                                  montage_frames=args.montage_frames, cell_px=args.cell_px,
                                  montage_kind=args.montage_kind)
+    if mname == "per_stream":
+        return PerStreamMethod(backend, nframes=args.nframes,
+                               max_new_tokens=args.max_new_tokens,
+                               temperature=args.temperature,
+                               stream_kind=args.stream_kind)
     if mname == "temporal_weighted":
         return TemporalWeightedMethod(backend, budget=args.budget, floor=args.floor,
                                       weighting=args.weighting, nframes=args.nframes,
                                       max_new_tokens=args.max_new_tokens,
                                       temperature=args.temperature)
+    if mname.startswith("summary_select_"):
+        return SummarySelectMethod(
+            backend, summaries_path=args.summaries,
+            mode=mname.rsplit("_", 1)[1], budget=args.budget, floor=args.floor,
+            sel_max_new_tokens=args.sel_max_new_tokens, nframes=args.nframes,
+            max_new_tokens=args.max_new_tokens, temperature=args.temperature)
+    mm = CLIP_SELECT_RE.match(mname)
+    if mm:
+        tag = mm.group("tag")
+        if tag and tag not in SCORER_ALIASES:
+            raise SystemExit(f"unknown clip_select scorer tag '{tag}'. "
+                             f"Known: {list(SCORER_ALIASES)}")
+        return ClipScoreSelectMethod(
+            backend, top_m=int(mm.group("m")), thumbs=args.sel_thumbs,
+            clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
+            stat=args.sel_stat, name=mname,
+            budget=args.budget, floor=args.floor,
+            nframes=args.nframes, max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature)
     return METHODS[mname](backend, nframes=args.nframes,
                           max_new_tokens=args.max_new_tokens, temperature=args.temperature)
 
@@ -98,9 +142,30 @@ def main():
     ap.add_argument("--weighting", default="duration", choices=["duration", "even"],
                     help="temporal_weighted: split the budget by clip duration "
                          "('duration') or evenly ('even', the budget-matched control)")
+    ap.add_argument("--clip-model", default="openai/clip-vit-base-patch32",
+                    help="clip_select_*: HF CLIP/SigLIP model id for image-text "
+                         "scoring; a scorer tag in the method name (e.g. "
+                         "clip_select_siglip_top1) takes precedence")
+    ap.add_argument("--summaries",
+                    default=os.path.join(os.path.dirname(__file__), "results",
+                                         "clip_summaries_internvl3.jsonl"),
+                    help="summary_select_*: per-clip summary cache JSONL (or glob); "
+                         "generate with bench/gen_clip_summaries.py")
+    ap.add_argument("--sel-thumbs", type=int, default=8,
+                    help="clip_select_*: uniform thumbnails scored per clip")
+    ap.add_argument("--sel-stat", default="max", choices=["max", "mean"],
+                    help="clip_select_*: rank clips by max- or mean-over-thumbnails "
+                         "similarity (both are recorded in frame_alloc regardless)")
+    ap.add_argument("--sel-max-new-tokens", type=int, default=512,
+                    help="summary_select_*: token cap for the selector call")
     ap.add_argument("--montage-frames", type=int, default=0,
                     help="centralized montages per question (0 -> = nframes)")
     ap.add_argument("--cell-px", type=int, default=448)
+    ap.add_argument("--stream-kind", default="camera", choices=["camera", "video"],
+                    help="per_stream: label/phrase clips as synced 'camera' views "
+                         "(MEVA, byte-identical to the original prompt) or independent "
+                         "'video' clips (CVBench — matches the questions' 'Video k' "
+                         "wording, mirroring --montage-kind)")
     ap.add_argument("--montage-kind", default="camera", choices=["camera", "video"],
                     help="centralized montage framing: 'camera' (synced views, default) "
                          "or 'video' (independent clips — corrected CVBench preamble + 'Video i' labels)")
@@ -119,8 +184,9 @@ def main():
     methods = [m.strip() for m in args.methods.split(",") if m.strip()]
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
     for m in methods:
-        if m not in METHODS:
-            raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)}")
+        if m not in METHODS and not CLIP_SELECT_RE.match(m):
+            raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)} "
+                             f"or clip_select[_<scorer>]_top<m>")
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()][: args.passes]
     if len(seeds) < args.passes:
         raise SystemExit(f"need >= {args.passes} seeds, got {seeds}")
@@ -143,9 +209,12 @@ def main():
                 method = make_method(mname, backend, args)
                 # process all passes of a record consecutively so the centralized
                 # montage cache (and fixed frames) are reused across passes.
+                # Resume must key on method.name (what rows record), not mname:
+                # e.g. WEIGHTING=even runs under mname 'temporal_weighted' but
+                # writes method='temporal_even'.
                 jobs = [(rec, pi, sd) for rec in data
                         for pi, sd in enumerate(seeds, 1)
-                        if (rec["id"], mname, backend.name, pi) not in done]
+                        if (rec["id"], method.name, backend.name, pi) not in done]
                 for rec, pass_idx, seed in tqdm(jobs, desc=f"{mname}/{backend.name}"):
                     res = method.answer(rec, args.video_root, seed=seed)
                     res.pass_idx = pass_idx
