@@ -99,13 +99,20 @@ def get_index(bound, fps, max_frame, first_idx=0, num_segments=32):
                      for idx in range(num_segments)])
 
 
-def load_video(video_path, bound=None, input_size=448, max_num=1, num_segments=32):
+def load_video(video_path, bound=None, input_size=448, max_num=1, num_segments=32,
+               frame_indices=None):
     vr = VideoReader(video_path, ctx=cpu(0), num_threads=1)
     max_frame = len(vr) - 1
     fps = float(vr.get_avg_fps())
     pixel_values_list, num_patches_list = [], []
     transform = build_transform(input_size=input_size)
-    for frame_index in get_index(bound, fps, max_frame, first_idx=0, num_segments=num_segments):
+    # A method may pass explicit ``frame_indices`` to override frame choice;
+    # every current method leaves it None and gets the uniform get_index grid,
+    # so this is a no-op for centralized / temporal_* / cvbench_native / *_select.
+    if frame_indices is None:
+        frame_indices = get_index(bound, fps, max_frame, first_idx=0, num_segments=num_segments)
+    for frame_index in frame_indices:
+        frame_index = int(min(max(0, int(frame_index)), max_frame))   # clamp into range
         img = Image.fromarray(vr[frame_index].asnumpy()).convert("RGB")
         tiles = dynamic_preprocess(img, image_size=input_size, use_thumbnail=True, max_num=max_num)
         pv = torch.stack([transform(t) for t in tiles])
@@ -115,6 +122,11 @@ def load_video(video_path, bound=None, input_size=448, max_num=1, num_segments=3
 
 
 class InternVL3Backend(Backend):
+    # honors a per-video ``frame_indices`` override (see load_video); a method
+    # that relies on explicit indices can assert this flag so it never silently
+    # collapses to uniform sampling on a backend that ignores the key.
+    consumes_frame_indices = True
+
     def __init__(self, model_path="OpenGVLab/InternVL3-8B", num_frame=8, max_tiles=1,
                  device="cuda:0"):
         self.model_path = model_path
@@ -162,7 +174,8 @@ class InternVL3Backend(Backend):
                 parts.append("<image>\n")
             elif t == "video":
                 nf = item.get("nframes", self.num_frame)
-                px, sub = load_video(item["video"], num_segments=nf, max_num=1, input_size=448)
+                px, sub = load_video(item["video"], num_segments=nf, max_num=1, input_size=448,
+                                     frame_indices=item.get("frame_indices"))
                 pixel_chunks.append(px)
                 npl.extend(sub)
                 parts.append("".join(f"Frame{i+1}: <image>\n" for i in range(len(sub))))
