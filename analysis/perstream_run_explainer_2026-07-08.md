@@ -168,6 +168,23 @@ run clean (top4 ≡ baseline). Then a full-1000 `clip_select_siglip` run is wort
 where "biggest gains at large n" gets tested on the k≥3 (513 Q) / k=4 (277 Q) subsets already
 built. If SigLIP ranks no better than CLIP, the cheap-scorer idea dies here.
 
+**OUTCOME (2026-07-08, job complete):** gate **failed** — full SigLIP run not justified.
+
+| Scorer | Primary recall@1 (n=40) | Primary recall@2 | Secondary agreement (n=132) | Margin named−best-other |
+|---|---|---|---|---|
+| Random | 37.1% | — | 34.6% | — |
+| CLIP-B/32 | 42% (max) / 45% (mean) | 92% / 85% | **50% / 49%** | ≈ −0.0003 |
+| SigLIP-so400m | **50% / 50%** | 90% / 85% | 47% / 47% | ≈ +0.001–0.003 |
+
+SigLIP's primary-set edge is 2–3 questions out of 40 (noise); on the 3×-larger secondary set it is
+*worse* than CLIP; margins are ≈0, so even correct picks are coin-flip-close — hard top-1 pruning
+would drop the needed clip about half the time. Combined with D3 (CLIP selection lost to
+use-everything 53.8 vs 55.8), cheap-scorer *pruning* is now dead on two independent measurements.
+**Surviving variants** if selection is revisited: drop-lowest-1 at n=4 (recall@2 is 85–92% and n=4
+was D3's only win; the 277-Q k4 subset exists), or soft relevance-weighted frame allocation (the
+deferred `allocate_frames` v2 hook). The step-2 smoke ran clean (40 rows, 0 errors, 0 abstains) —
+plumbing is validated for any future arm.
+
 ---
 
 ## 7. Verification — done and to-do
@@ -184,13 +201,14 @@ built. If SigLIP ranks no better than CLIP, the cheap-scorer idea dies here.
 - [ ] `jq -c 'select(.error != null)' shard*.jsonl | wc -l` (or `grep -c '"error": "'`) for real errors — every row serializes `"error": null`, so a bare `grep -c '"error":'` counts ALL rows — **error rows count as done and are never retried**; requeue those ids deliberately if any.
 - [ ] If a shard was killed mid-write, delete the truncated final JSON line before running summaries (a corrupt line crashes the end-of-run re-read at `run_bench.py:224`).
 - [ ] Check abstain rate (`abstained==true`) — high abstain means truncated aggregator traces, not model wrongness.
-- [ ] Gate job: confirm STEP 2's top4 rows match baseline behavior before trusting the SigLIP wiring.
+- [x] Gate job: STEP 2 completed clean — 40 rows, 0 errors, 0 abstains; SigLIP wiring validated (accuracies on 5 questions carry no signal).
 - [ ] Per-category table: `metrics.py` over the merged shards → Table 1 + per-task_type accuracy (the missing per-question-category InternVL3 result).
 
-**Timing measured live** (21-min window, ~08:17): mean ~71 s/row/shard end-to-end → average shard
-**~10 h**; spread was large (shard6 ~6 h … shard2 projecting ~20 h vs the 16 h limit — recheck
-after a few hours; sxm003 contention drops when 63676 exits). Resubmit command if a shard times
-out: identical `sbatch --array=<idx> ...` line — resume handles the rest.
+**Timing measured live**: an early 21-min window (~08:17) suggested ~71 s/row and put shards 1–2
+past the 16 h limit, but the 53-min recheck (446 rows total, 36–89/shard) showed that was startup
+noise — **all 8 shards project comfortably under the limit** (fastest ~5 h, slowest ~11.5 h;
+finish expected the same evening). Resubmit command if a shard still times out: identical
+`sbatch --array=<idx> ...` line — resume handles the rest.
 
 ---
 
