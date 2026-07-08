@@ -248,27 +248,66 @@ appearance-only scorer over static thumbnails can express.
 - [x] Working tree was clean at launch: jobs run committed code.
 - [x] Resume keys match what rows record (a killed shard can be resubmitted safely).
 
-**End-of-run checklist:**
-- [ ] `wc -l` each shard file — expect exactly 500 rows; resubmit the same array index for any short shard (resume skips done rows).
-- [ ] `jq -c 'select(.error != null)' shard*.jsonl | wc -l` (or `grep -c '"error": "'`) for real errors — every row serializes `"error": null`, so a bare `grep -c '"error":'` counts ALL rows — **error rows count as done and are never retried**; requeue those ids deliberately if any.
-- [ ] If a shard was killed mid-write, delete the truncated final JSON line before running summaries (a corrupt line crashes the end-of-run re-read at `run_bench.py:224`).
-- [ ] Check abstain rate (`abstained==true`) — high abstain means truncated aggregator traces, not model wrongness.
-- [x] Gate job: STEP 2 completed clean — 40 rows, 0 errors, 0 abstains; SigLIP wiring validated (accuracies on 5 questions carry no signal).
-- [ ] Per-category table: `metrics.py` over the merged shards → Table 1 + per-task_type accuracy (the missing per-question-category InternVL3 result).
-
-**Timing measured live**: an early 21-min window (~08:17) suggested ~71 s/row and put shards 1–2
-past the 16 h limit, but the 53-min recheck (446 rows total, 36–89/shard) showed that was startup
-noise — **all 8 shards project comfortably under the limit** (fastest ~5 h, slowest ~11.5 h;
-finish expected the same evening). Resubmit command if a shard still times out: identical
-`sbatch --array=<idx> ...` line — resume handles the rest.
+**End-of-run checklist — ALL PASSED (2026-07-08 evening):**
+- [x] 500 rows × 8 shards = **4,000 rows**, all shards complete.
+- [x] Non-null errors: **0**.
+- [x] Abstain rate: **0.3%** (14/4000) — negligible, no truncation problem.
+- [x] Exactly 4 passes for all 1,000 questions; no corrupt lines.
+- [x] Gate job STEP 2 clean (40 rows, 0 errors); SigLIP wiring validated.
+- [x] Per-category table computed (below).
 
 ---
 
-## 8. Where this fits
+## 8. Results — decentralized vs centralized (full-1000, InternVL3-8B, 4 passes)
 
-- **Centralized vs decentralized (Task 1)**: these 4000 rows are the decentralized column for
-  CVBench, against the existing centralized full-1000 results (weighted 61.8 / even 60.8 /
-  2×2 stitch 57.4). `perception_latency_par_s` gives the parallel-latency argument.
-- **Hardware note**: these rows come from A100-80GB; earlier full-1000 runs were L40S. Irrelevant
-  for accuracy aggregates (4-pass sampling noise dominates), but say so if anyone audits per-row
-  reproducibility.
+**Decentralized `per_stream` = 55.7% ± 1.2** (per-pass: 54.9 / 55.0 / 55.5 / 57.4). This is the
+first decentralized column for CVBench, and it lands **below every centralized arm**:
+
+| Harness | Accuracy | Δ vs per_stream |
+|---|---|---|
+| Centralized — temporal_weighted (64-frame, duration-split) | **61.8% ± 0.8** | +6.1 |
+| Centralized — temporal_even (control) | 60.8% ± 0.9 | +5.1 |
+| Centralized — 2×2 stitch | 57.4% ± 1.6 | +1.7 |
+| **Decentralized — per_stream** | **55.7% ± 1.2** | — |
+
+**Headline finding**: on CVBench, centralizing the clips into one model context beats
+perceiving them independently and aggregating text — decentralization costs **~6 points** vs the
+best centralized arm. The gap is a real signal (well outside the ±1–1.6 pass std).
+
+**Where decentralization hurts most** (per_stream − temporal_weighted, by task type):
+
+| Task type | per_stream | temporal_wtd | Δ |
+|---|---|---|---|
+| Cross-video Event Retrieval | 41.3% | 70.9% | **−29.6** |
+| Cross-video Procedural Transfer | 52.9% | 68.6% | −15.7 |
+| Cross-video Counterfactual Reasoning | 46.2% | 61.5% | −15.4 |
+| Joint-video Spatial Navigating | 33.9% | 48.8% | −14.9 |
+| Cross-video Anomaly Detection | 42.0% | 53.0% | −11.0 |
+| … (mid) … | | | |
+| Cross-video Scene Recognition | 69.6% | 69.1% | +0.5 |
+| Multi-video Temporal Reasoning | 47.7% | 45.7% | +2.0 |
+| Multi-video Attribute Recognition | 72.8% | 70.1% | +2.7 |
+
+**Interpretation**: the big losses are exactly the tasks that need *cross-clip visual detail
+compared side by side* — retrieving a specific event across videos, tracing a procedure,
+reasoning counterfactually, spatial navigation. Compressing each clip to an independent text
+description throws away the fine visual grounding those need, and the aggregator can't recover it
+from prose. The handful of small *wins* (attribute recognition, temporal ordering, scene
+recognition) are tasks where a per-clip summary is sufficient and the independence actually
+reduces cross-clip distraction. By clip count the gap is flat (K=2 58.3% / K=3 52.0% / K=4 54.3%),
+so this is about *task type*, not the number of streams.
+
+**Latency (mean per question, InternVL3 on A100):** serial end-to-end **35.3 s**, of which the
+text aggregator is **26.4 s** and all perception is only 8.9 s serial / **4.6 s if the per-clip
+calls run in parallel** (the true distributed-camera number). So the decentralized *latency*
+argument is weaker than hoped: perception parallelizes nicely, but the single text-aggregation
+call dominates wall-clock and does not. Tokens: ~6.6k in (5.7k visual) / 1.3k out per question.
+
+**Bottom line for Task 1**: centralized > decentralized on CVBench, cleanly, with a mechanistic
+explanation (text-bottleneck loses cross-clip visual detail). Combined with the MEVA result
+(stitching *helps* on genuinely synchronized camera views), the story is: fuse-in-context wins
+when clips share a visual frame of reference; independent-perception loses whenever the task needs
+fine cross-clip visual comparison.
+
+**Hardware note**: these rows are from A100-80GB; earlier full-1000 runs were L40S. Irrelevant for
+accuracy (4-pass sampling noise dominates); flag only if someone audits per-row reproducibility.
