@@ -204,7 +204,31 @@ class InternVL2(lmms):
             self._device = torch.device(f"cuda:{accelerator.local_process_index}")
             self.device_map = f"cuda:{accelerator.local_process_index}"
 
-        self._model = AutoModel.from_pretrained(self.path, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True, device_map=self.device_map).eval()
+        # InternVL remote code calls .item() on a torch.linspace during __init__
+        # (modeling_intern_vit.py dpr computation); transformers>=5 builds the
+        # model on the meta device, where .item() raises. Route device-less
+        # linspace calls to CPU only while from_pretrained constructs the model.
+        _orig_linspace = torch.linspace
+
+        def _cpu_linspace(*args, **kwargs):
+            kwargs.setdefault("device", "cpu")
+            return _orig_linspace(*args, **kwargs)
+
+        torch.linspace = _cpu_linspace
+        try:
+            self._model = AutoModel.from_pretrained(self.path, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True, device_map=self.device_map).eval()
+        finally:
+            torch.linspace = _orig_linspace
+
+        # Without flash-attn the InternVL remote code forces the LLM to eager
+        # attention, which materializes O(seq^2) weights and OOMs on 4-video
+        # prompts (~10k tokens -> 12 GiB on an L40). The qwen2 forward picks
+        # its kernel from config._attn_implementation at runtime, so flip the
+        # loaded model to SDPA.
+        lm_cfg = getattr(getattr(self._model, "language_model", None), "config", None)
+        if lm_cfg is not None and getattr(lm_cfg, "_attn_implementation", None) == "eager":
+            lm_cfg._attn_implementation = "sdpa"
+            eval_logger.info("InternVL language model: eager attention -> sdpa")
         self._tokenizer = AutoTokenizer.from_pretrained(self.path, trust_remote_code=True, device_map=self.device_map)
 
         if accelerator.num_processes > 1:

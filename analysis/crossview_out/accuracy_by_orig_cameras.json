@@ -1,0 +1,152 @@
+{
+  "by_orig_cameras": {
+    "qwen3vl": {
+      "2": {
+        "correct": 10,
+        "total": 17,
+        "acc": 58.8235294117647
+      },
+      "3": {
+        "correct": 0,
+        "total": 3,
+        "acc": 0.0
+      },
+      "5": {
+        "correct": 1,
+        "total": 6,
+        "acc": 16.666666666666668
+      },
+      "7": {
+        "correct": 3,
+        "total": 15,
+        "acc": 20.0
+      },
+      "12": {
+        "correct": 5,
+        "total": 19,
+        "acc": 26.31578947368421
+      }
+    },
+    "internvl3": {
+      "2": {
+        "correct": 11,
+        "total": 17,
+        "acc": 64.70588235294117
+      },
+      "3": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      },
+      "5": {
+        "correct": 0,
+        "total": 6,
+        "acc": 0.0
+      },
+      "7": {
+        "correct": 2,
+        "total": 15,
+        "acc": 13.333333333333334
+      },
+      "12": {
+        "correct": 8,
+        "total": 19,
+        "acc": 42.10526315789474
+      }
+    }
+  },
+  "by_task_type": {
+    "qwen3vl": {
+      "CrossView-MEVA-Event-Ordering": {
+        "correct": 7,
+        "total": 20,
+        "acc": 35.0
+      },
+      "CrossView-MEVA-Spatial": {
+        "correct": 9,
+        "total": 20,
+        "acc": 45.0
+      },
+      "CrossView-MEVA-Temporal": {
+        "correct": 3,
+        "total": 20,
+        "acc": 15.0
+      }
+    },
+    "internvl3": {
+      "CrossView-MEVA-Event-Ordering": {
+        "correct": 6,
+        "total": 20,
+        "acc": 30.0
+      },
+      "CrossView-MEVA-Spatial": {
+        "correct": 8,
+        "total": 20,
+        "acc": 40.0
+      },
+      "CrossView-MEVA-Temporal": {
+        "correct": 9,
+        "total": 20,
+        "acc": 45.0
+      }
+    }
+  },
+  "cap_split": {
+    "qwen3vl": {
+      "answer_safe": {
+        "correct": 19,
+        "total": 60,
+        "acc": 31.666666666666668
+      },
+      "answer_lossy": {
+        "correct": 0,
+        "total": 0,
+        "acc": 0
+      },
+      "ego_answer_safe": {
+        "correct": 0,
+        "total": 0,
+        "acc": 0
+      },
+      "ego_answer_lossy": {
+        "correct": 0,
+        "total": 0,
+        "acc": 0
+      }
+    },
+    "internvl3": {
+      "answer_safe": {
+        "correct": 23,
+        "total": 60,
+        "acc": 38.333333333333336
+      },
+      "answer_lossy": {
+        "correct": 0,
+        "total": 0,
+        "acc": 0
+      },
+      "ego_answer_safe": {
+        "correct": 0,
+        "total": 0,
+        "acc": 0
+      },
+      "ego_answer_lossy": {
+        "correct": 0,
+        "total": 0,
+        "acc": 0
+      }
+    }
+  },
+  "overall": {
+    "qwen3vl": {
+      "correct": 19,
+      "total": 60,
+      "acc": 31.666666666666668
+    },
+    "internvl3": {
+      "correct": 23,
+      "total": 60,
+      "acc": 38.333333333333336
+    }
+  }
+}

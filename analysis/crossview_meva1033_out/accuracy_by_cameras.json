@@ -1,0 +1,86 @@
+{
+  "by_num_videos": {
+    "qwen3vl": {
+      "2": {
+        "correct": 33,
+        "total": 75,
+        "acc": 44.0
+      },
+      "4": {
+        "correct": 298,
+        "total": 955,
+        "acc": 31.20418848167539
+      },
+      "3": {
+        "correct": 0,
+        "total": 3,
+        "acc": 0.0
+      }
+    },
+    "internvl3": {
+      "2": {
+        "correct": 36,
+        "total": 75,
+        "acc": 48.0
+      },
+      "4": {
+        "correct": 313,
+        "total": 955,
+        "acc": 32.774869109947645
+      },
+      "3": {
+        "correct": 2,
+        "total": 3,
+        "acc": 66.66666666666667
+      }
+    }
+  },
+  "by_task_type": {
+    "qwen3vl": {
+      "CrossView-MEVA-Event-Ordering": {
+        "correct": 107,
+        "total": 297,
+        "acc": 36.02693602693603
+      },
+      "CrossView-MEVA-Spatial": {
+        "correct": 140,
+        "total": 431,
+        "acc": 32.48259860788863
+      },
+      "CrossView-MEVA-Temporal": {
+        "correct": 84,
+        "total": 305,
+        "acc": 27.540983606557376
+      }
+    },
+    "internvl3": {
+      "CrossView-MEVA-Event-Ordering": {
+        "correct": 75,
+        "total": 297,
+        "acc": 25.252525252525253
+      },
+      "CrossView-MEVA-Spatial": {
+        "correct": 119,
+        "total": 431,
+        "acc": 27.610208816705338
+      },
+      "CrossView-MEVA-Temporal": {
+        "correct": 157,
+        "total": 305,
+        "acc": 51.47540983606557
+      }
+    }
+  },
+  "overall": {
+    "qwen3vl": {
+      "correct": 331,
+      "total": 1033,
+      "acc": 32.042594385285575
+    },
+    "internvl3": {
+      "correct": 351,
+      "total": 1033,
+      "acc": 33.97870280735721
+    }
+  }
+}

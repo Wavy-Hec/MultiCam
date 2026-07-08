@@ -14,22 +14,15 @@ from loguru import logger as eval_logger
 
 from lmms_eval.tasks._task_utils.file_utils import generate_submission_file
 
+# CrossView task_type labels emitted by analysis/convert_crossview.py
 TASK_CATEGORIES = [
-    "Cross-video Anomaly Detection",
-    "Cross-video Scene Recognition",
-    "Multi-video Key-Action Recognition",
-    "Cross-video Event Retrieval",
-    "Cross-video Object Recognition",
-    "Multi-video Attribute Recognition",
-    "Joint-video Counting",
-    "Cross-video Entity Matching",
-    "Multi-view Scene Understanding",
-    "Multi-video Temporal Reasoning",
-    "Joint-video Spatial Navigating",
-    "Video Difference Caption",
-    "Cross-video Counterfactual Reasoning",
-    "Joint-video Summarization",
-    "Cross-video Procedural Transfer"
+    "CrossView-MEVA-Temporal",
+    "CrossView-MEVA-Event-Ordering",
+    "CrossView-MEVA-Spatial",
+    "CrossView-EgoExo4D-Temporal",
+    "CrossView-EgoExo4D-Event-Ordering",
+    "CrossView-AgiBot-Temporal",
+    "CrossView-AgiBot-Event-Ordering",
 ]
 
 replace_prompt = " Please answer yes or no."
@@ -48,7 +41,7 @@ hf_home = os.getenv("HF_HOME", "~/.cache/huggingface/")
 # cache_dir = os.path.join(hf_home, cache_dir)
 # base_cache_dir = config["dataset_kwargs"]["cache_dir"]
 base_cache_dir = os.path.expanduser(hf_home)
-with open(Path(__file__).parent / "mvr.yaml", "r") as f:
+with open(Path(__file__).parent / "crossview_think.yaml", "r") as f:
     raw_data = f.readlines()
     safe_data = []
     for i, line in enumerate(raw_data):
