@@ -161,10 +161,13 @@ InternVL3-8B, 4 sampled passes.
   consistent with MEVA clips being genuinely synchronized camera views. (On CVBench the
   label-corrected comparison also favors stitch over the native presentation, 56.2% vs.
   51.5% on the 130-Q set; stitch only trails temporal sequencing on the full 1,000.)
-- **Decentralized `per_stream`**: full-1000 CVBench run **in progress** (launched
-  2026-07-08, 8 shards, 4 passes); see
-  `analysis/perstream_run_explainer_2026-07-08.md` for the verified launch config and
-  pipeline walkthrough.
+- **Decentralized `per_stream`: 55.7% ± 1.2** (full-1000, 4 passes, 0 errors) — **below
+  every centralized arm** (weighted 61.8 / even 60.8 / stitch 57.4). Centralizing the
+  clips into one model context beats perceiving them independently and aggregating text,
+  by ~6 pts. Biggest losses are tasks needing fine cross-clip visual comparison
+  (Event Retrieval −29.6, Procedural Transfer −15.7, Counterfactual −15.4); the few small
+  wins are summary-sufficient tasks (attribute/temporal/scene recognition). Full breakdown
+  and latency in `analysis/perstream_run_explainer_2026-07-08.md` §8.
 - **Clip selection (D3, 130-question eval)**: no selection arm beat use-everything —
   `summary_select_route` 53.8% vs. `temporal_weighted` 55.8%; only the n=4-clip subset
   favored selection.
