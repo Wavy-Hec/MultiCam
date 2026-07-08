@@ -187,6 +187,58 @@ plumbing is validated for any future arm.
 
 ---
 
+## 6b. Improving clip selection — evidence-based plan (added 2026-07-08)
+
+A 5-agent analysis (forensics on the per-question gate dump + three proposal lenses + a
+ruthless judge) turned the negative gate into a concrete plan. Full agent outputs are in the
+session workflow logs; this is the distilled version.
+
+### What the per-question gate data actually shows
+
+- **Where the scorer works**: questions naming static, distinctive appearance —
+  Cross-video Event Retrieval (CLIP 65–70% recall@1 vs 33% random), Object Recognition.
+  "Penalty kick" and "app for property listings" are findable in thumbnails.
+- **Where it's at chance *by construction***: Cross-video **Anomaly Detection — the largest
+  gated class (49/172)**. "Which video stands out for NOT focusing on vehicle journeys?"
+  embeds the *shared* theme in the text, so argmax finds the best vehicle match — the exact
+  opposite of the odd-one-out. Inverting (argmin) fails too: scores are uninformative, not
+  flipped.
+- **Where it's below chance**: counterfactual / procedural-transfer questions, whose most
+  visual phrase describes the *other* clip (e.g. cvb-179: "if the performer in Video 2 had
+  performed amidst snow-covered scenery…" — the snow is the counterfactual, and every
+  scorer picks the snowy clip with its largest margin in the dataset). Plus ordinal-only
+  questions ("Does Video 1 happen first?") with zero visual content.
+- **Why margins are ~0**: within-question clips are curated near-duplicates in embedding
+  space (within-group score spread 0.03–0.04 vs 0.19–0.27 across questions). Their real
+  differences are *events and timing* — invisible to appearance scoring of 8 still
+  thumbnails. No confidence threshold gives usable precision (≥80% precision exists only at
+  ~12% coverage, and that cutoff is fit post-hoc); CLIP and SigLIP even share the same wrong
+  picks (56% precision when they agree), so ensembling doesn't help. Max vs mean pooling: a
+  statistical dead heat.
+
+### Ranked plan (judge's verdict)
+
+| # | Idea | Why | Decisive test |
+|---|---|---|---|
+| 1 | **Summaries-in-answer hybrid** — prepend the cached per-clip text summaries to the normal use-everything prompt; prune nothing, no scorer needed | The only arm aimed at *beating* the 55.8/61.8 baseline rather than salvaging selection; per-clip summaries carry single-clip detail the shared 64-frame budget loses | ~1–2 h code in `clip_select.py` + ~4–5 GPU-h on the 130-set; judge per-question flips vs `temporal_weighted` |
+| 2 | **Rank-weighted soft budget reallocation at K≥3** — give the scorer's top-2 ranked clips ~2× frame weight, floor 2 frames/clip, never drop anything | Consumes the only reliable signal (recall@2 = 85–92%) as a mild prior instead of a 50%-lethal gate; K=2 stays byte-identical to baseline | ~40–60 lines + ~8 GPU-h on the 277-Q K=4 subset vs a **free on-disk baseline** (temporal_weighted K=4 = 61.6%) |
+| 3 | **Needs-ALL guard on `summary_select_route`** — force keep-ALL when K<4 or the question needs all clips | 27 of route's 49 losing prunes violated its own prompt rule; offline replay already shows the guard lifts route 53.8 → 56.5 | ~1 h code; floor = baseline by construction |
+| 4 | **Drop-lowest-1 at K=4** (`clip_select_siglip_top3`) — zero code, name already parses | Expected *wash-to-negative*, but it rides job #2 for free and closes the hard-pruning branch definitively either way | Same sbatch as #2, extra method name |
+| 5 | **Declarative query rewriting** — strip "Which video shows…"/"Video k" scaffolding before scoring (CLIP/SigLIP were trained on captions, not questions) | Cheap multiplier for #2's weight quality; cannot fix the anomaly/temporal classes | ~30 lines in the gate script; reruns in minutes on 1 GPU |
+
+**Killed with evidence, don't revisit**: margin-gated pruning (no usable precision/coverage
+point, confidently-wrong cases sit above every cutoff), pooling sweeps / denser thumbnails
+(temporal content is invisible to stills at any density), CLIP+SigLIP ensembling (correlated
+errors), long-clip down-weighting (contradicts existing full-1000 data).
+
+**Mentor summary**: hard clip pruning is dead on the evidence — the agenda survives only in
+soft form. Two GPU experiments worth running (~13 GPU-h total): the summaries hybrid and
+soft reallocation on K=4. If neither moves ≥2 pp paired, close clip selection entirely: the
+discriminating content in this benchmark is events and temporal order, which no
+appearance-only scorer over static thumbnails can express.
+
+---
+
 ## 7. Verification — done and to-do
 
 **Already verified (2026-07-08):**

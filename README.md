@@ -173,8 +173,15 @@ InternVL3-8B, 4 sampled passes.
   with near-zero score margins — cheap-scorer clip pruning is retired (gate table in
   `analysis/perstream_run_explainer_2026-07-08.md`; raw per-question scores in the
   untracked `bench/results/clip_scorer_gate.json` on the cluster).
-- Surviving selection ideas: drop-lowest-1 at n=4, and relevance-*weighted* frame
-  allocation (reallocate budget instead of hard-pruning clips).
+- **Clip-selection improvement plan** (evidence-based, from the gate's per-question dump):
+  hard pruning is dead — the scorer is at chance on the largest question class
+  (odd-one-out anomaly detection, where argmax finds the *shared* theme, the opposite of
+  the target) and margins are ~0 because within-question clips are near-duplicates in
+  embedding space. Ranked next experiments (details in
+  `analysis/perstream_run_explainer_2026-07-08.md` §6b): (1) summaries-in-answer hybrid
+  (prepend cached per-clip summaries, prune nothing), (2) rank-weighted *soft*
+  frame-budget reallocation at K≥3, (3) a needs-ALL guard on the LLM selector route.
+  If none moves ≥2 pp paired, the selection agenda closes.
 
 ## Repo layout
 
