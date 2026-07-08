@@ -1,188 +1,37 @@
-# 🎬 CVBench: Evaluating Cross-Video Synergies for Complex Multimodal Understanding and Reasoning
+# CVBench: Multi-Camera Video QA Evaluation of Open VLMs
 
-<p align="center">
-        🤗 <a href="https://huggingface.co/datasets/Dongyh35/CVBench">Dataset</a> &nbsp&nbsp | &nbsp&nbsp 📑 <a href="http://arxiv.org/abs/2508.19542">Paper</a> &nbsp&nbsp 
-</p>
+This repo evaluates **centralized vs. decentralized multi-camera harnesses** for video
+question answering with open vision-language models — **Qwen3-VL-8B (Thinking)** and
+**InternVL3-8B** — on two benchmarks:
 
-<div align="center">
+- **CVBench** — 1,000 cross-video QA pairs, 2–4 clips per question, 15 task types
+  (object association, event association, complex reasoning).
+- **CrossView / MEVA** — multi-camera surveillance QA over synchronized MEVA camera views
+  from the CrossView release.
 
-**🚀 The first benchmark for cross-video multimodal reasoning evaluation 🚀**
+The core question: given the K clips of a question, is it better to fuse them into a
+single model input (centralized — spatial stitching or budgeted temporal sequencing), or
+to run one independent perception pass per stream and aggregate the text descriptions
+(decentralized)? Every arm runs 4 independent sampled passes (temperature 0.7, fixed
+seeds) so each accuracy comes with a std, and all runs keep the models' `<think>` traces
+so failures stay interpretable. Deliverables follow the Task-1 spec: Table 1 (accuracy
+mean±std per model × harness) and Plots 1–4.
 
-</div>
+## Attribution
 
-## 👀 CVBench Overview
+This repo is a fork of [Hokhim2/CVBench](https://github.com/Hokhim2/CVBench), the
+dataset/eval repo for the CVBench benchmark:
 
-<p align="center">
-    <img src="assets/figure1.png" width="100%" height="100%">
-</p>
+- Paper: http://arxiv.org/abs/2508.19542
+- Dataset: https://huggingface.co/datasets/Dongyh35/CVBench
 
-In the quest for artificial general intelligence, Multi-modal Large Language Models (MLLMs) have emerged as a focal point in recent advancements, but their potential in processing **cross-video relationships** is still insufficiently explored. We introduce **CVBench**, the first-ever comprehensive evaluation benchmark for **cross-video multimodal reasoning** in MLLMs.
+The upstream code (kept here as the vendored `Video-R1/` and `lmms-eval/` trees) is in
+turn adapted from two open-source evaluation platforms, whose authors we also thank:
 
-**CVBench** is designed specifically for **cross-video multimodal reasoning**, testing whether MLLMs can reason across multiple videos that are asynchronous, multi-view, or contextually related. Our work distinguishes from existing benchmarks through four key features:
-
-### 🚀 Key Features
-
-⭐ **📈 Comprehensive Dataset**  
-- **1,000 QA pairs** carefully curated for cross-video reasoning
-- From **1,315 high-quality videos** across diverse domains
-- **15 distinct task types** covering various reasoning scenarios
-
-🎨 **🌍 Diverse Domains**  
-Covering domains like **sports**, **surveillance**, **cooking**, **tutorials**, **cartoons**, and **news** to ensure comprehensive evaluation.
-
-🔗 **🎭 Multi-Video Relationships**  
-Testing **asynchronous**, **multi-view**, and **contextually related** video understanding capabilities.
-
-📊 **🎯 Cross-Video Task Categories**  
-- **Object Association**: Cross-video object recognition, multi-video attribute recognition, joint-video counting, cross-video entity matching
-- **Event Association**: Cross-video anomaly detection, scene recognition, key-action recognition, event retrieval  
-- **Complex Reasoning**: Multi-view scene understanding, temporal reasoning, spatial navigation, difference captioning, counterfactual reasoning, summarization, procedural transfer
-
-You can learn more about CVBench in the [dataset README](https://huggingface.co/datasets/Dongyh35/CVBench).
-
-## 📐 Dataset Examples
-
-<p align="center">
-    <img src="assets/figure2.png" width="100%" height="100%">
-</p>
-
-Our dataset showcases diverse cross-video reasoning scenarios across three core task categories: **object association** (identifying shared entities across multiple viewpoints), **event correlation** (linking temporal or causal chains between videos), and **complex reasoning** (integrating commonsense understanding of interrelationships). Each example demonstrates the complexity of reasoning required when models must understand relationships that span across different video contexts.
-
----
-
-## 📦 What's in This Repo
-
-> ⚠️ **Important Notice**  
-> This repository is **based on and adapted from two excellent open-source evaluation platforms**:  
-> - [EvolvingLMMs-Lab/lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval)  
-> - [tulerfeng/Video-R1](https://github.com/tulerfeng/Video-R1)  
->   
-> We do **not claim ownership** of the original frameworks. We only made **task-specific modifications** to support the evaluation of our dataset, [**CVBench**](https://huggingface.co/datasets/Dongyh35/CVBench), which focuses on cross-video reasoning in multimodal large language models (MLLMs).
-
-This repository contains code adapted from `lmms-eval` and `Video-R1`, with the following **modifications**:
-
-- ✅ Prompts for **multiple videos per question**
-- ✅ Preprocessing changes to include **start/end frame padding**
-- ✅ Custom evaluation pipelines for **multiple-choice** and **yes/no** questions
-
----
-
-## ⚡ Getting Started
-
-### Clone this repo
-
-```bash
-git clone https://github.com/Hokhim2/CVBench.git
-cd CVBench
-```
-
----
-
-## 🎮 Usage
-
-Since our work focuses on **multi-video evaluation with large models**, we made modifications based on the official codebase to support multi-video inputs. Please refer to `Video-R1/src/eval_bench.py` for detailed implementation.
-
-### 🎬 Video-R1 Evaluation
-
-> 📂 Ensure that your **video dataset** and the corresponding **JSON annotation file** are placed under `Video-R1/src/r1-v/Evaluation/`.
-> Please organize the video data in the following directory structure:
-> ```
-> Video-R1/
-> ├── src/
-> ├──├──r1-v/
-> ├──├──├──Evaluation/
-> ├──├──├──├──CVBench.json
-> ├──├──├──├──CVBench/
-> ├──├──├──├──├──0/...
-> ```
-```bash
-# Build environment
-cd Video-R1
-bash setup.sh
-cd src/qwen-vl-utils
-pip install -e .[decord]
-cd ..
-
-# Run evaluation
-bash ./src/eval_bench.sh
-```
-
-### 🔬 lmms-eval Evaluation
-
-> ⚠️ **Dataset Configuration**: Ensure that your **video dataset** and the corresponding **hf_format_dataset in `lmms-eval/lmms_eval/tasks/mvr/mvr.yaml`** match.
-> 
-> **Configuration Details**:
-> - `dataset_path: ../mvr_dataset` - Points to the **HuggingFace format dataset** containing QA pairs and metadata
-> - `cache_dir: ../Video-R1/src/r1-v/Evaluation/CVBench` - Points to the **video files directory** where actual video data is stored
-> 
-> Make sure both paths are correctly configured to match your local setup.
-
-```bash
-# Build environment
-cd lmms-eval
-pip install -e .
-
-# Run evaluation
-# Note: Model implementations are available in lmms-eval/lmms_eval/models/
-# Replace 'your_model' with the specific model name (e.g., qwen2_5_vl)
-python3 -m accelerate.commands.launch \
-    --num_processes=1 \
-    -m lmms_eval \
-    --model your_model \
-    --tasks mvr \
-    --batch_size 1 \
-    --output_path ./logs/
-
-# Example with Qwen2.5-VL model:
-python3 -m accelerate.commands.launch \
-    --num_processes=1 \
-    -m lmms_eval \
-    --model qwen2_5_vl \
-    --tasks mvr \
-    --batch_size 1 \
-    --output_path ./logs/
-```
-
----
-
-## 📈 Experimental Results
-
-### Cross-Video Object Association
-
-<p align="center">
-    <img src="assets/results_1.png" width="60%" height="60%">
-</p>
-
-**Performance of MLLMs on CVBench regarding cross-video object association**, evaluated across closed-source and open-source MLLMs. Tasks include: cross-video object recognition (C.OR), multi-video attribute recognition (M.AR), joint-video counting (J.C), and cross-video entity match (C.EM). For human evaluation, we employed five annotators and reported the average accuracy.
-
-### Cross-Video Event Association
-
-<p align="center">
-    <img src="assets/results_2.png" width="60%" height="60%">
-</p>
-
-**Performance of MLLMs on CVBench regarding cross-video event association**, evaluated across closed-source and open-source MLLMs. Tasks include: cross-video anomaly detection (C.AD), cross-video scene recognition (C.SR), multi-video key-action recognition (M.KAR), and cross-video event retrieval (C.ER). For human evaluation, we employed five annotators and reported the average accuracy.
-
-### Cross-Video Complex Reasoning
-
-<p align="center">
-    <img src="assets/results_3.png" width="100%" height="100%">
-</p>
-
-**Performance of MLLMs on CVBench in cross-video complex reasoning tasks**, evaluated across closed-source and open-source MLLMs. The tasks include: multi-view scene understanding (M.SU), multi-video temporal reasoning (M.TR), joint-video spatial navigation (J.SN), video difference captioning (VDC), cross-video counterfactual reasoning (C.CR), joint-video summarization (J.S), and cross-video procedural transfer (C.PT).
-
-Our evaluation results demonstrate the effectiveness of CVBench in assessing cross-video reasoning capabilities across different multimodal large language models. The comprehensive evaluation reveals significant performance gaps between current MLLMs and human-level understanding in cross-video scenarios.
-
-## 💝 Acknowledgements
-
-We sincerely thank the contributions from the open source community, including the awesome works of:
 - [EvolvingLMMs-Lab/lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval)
 - [tulerfeng/Video-R1](https://github.com/tulerfeng/Video-R1)
 
-
-## 📚 Citation
-
-If you find CVBench useful in your research, please consider citing:
+**Dataset citation** (cite this for the CVBench benchmark itself, not for this harness):
 
 ```bibtex
 @misc{cvbench2025,
@@ -193,10 +42,155 @@ If you find CVBench useful in your research, please consider citing:
 }
 ```
 
----
+Everything under `bench/` and `analysis/` is this project's own work on top of that
+foundation.
 
-<div align="center">
+## Get started
 
-**⭐ Star this repo if you find it helpful! ⭐**
+### Environments
 
-</div>
+Two pre-provisioned conda envs on the cluster (no project venvs). The split exists
+because the `cvbench` env's transformers 5.x breaks InternVL3's `trust_remote_code`
+modeling files:
+
+| env        | used for                        | transformers |
+|------------|---------------------------------|--------------|
+| `cvbench`  | Qwen3-VL legs, plots, analysis  | 5.2.0        |
+| `internvl` | InternVL3-8B legs               | 4.48.3       |
+
+The sbatch launcher picks the env via `ENV=...` (default `cvbench`).
+<!-- TODO: export environment.yml files for both envs so teammates can rebuild them
+     off-cluster; currently they only exist under ~/anaconda3/envs on the cluster. -->
+
+### Data layout
+
+- **CVBench videos**: `Video-R1/src/r1-v/Evaluation/CVBench/<group_dir>/<youtube_id>.mp4`
+  — 468 numbered video-group directories shared across questions (layout inherited from
+  upstream); paths are taken verbatim from the subset JSON's `video_1..video_4` fields.
+  Download the videos from the
+  [HF dataset](https://huggingface.co/datasets/Dongyh35/CVBench) and place them there. <!-- TODO: exact fetch procedure for the CVBench videos (the fetch scripts in
+  hosting/ cover CrossView, not CVBench). -->
+- **CrossView/MEVA videos**: annotations live in `crossview-release-annotations/`
+  (on-disk only, not in git); videos are pulled per-file from a private HF shard repo —
+  see `hosting/README.md`.
+- **Question subsets**: JSONs under `analysis/`, e.g.
+  `analysis/cvbench_full_runnable_subset.json` (the full 1,000 CVBench questions) and
+  `analysis/crossview_meva1033_subset.json` (MEVA). The harness default `--video-root`
+  is the CrossView release, so **CVBench runs must set
+  `VIDEO_ROOT=Video-R1/src/r1-v/Evaluation/CVBench`**.
+- **Outputs**: JSONL rows under `bench/results/` (untracked — run outputs never go in
+  git), logs under `analysis/logs/`.
+
+### Running the benchmark
+
+Everything goes through `bench/run_bench.sbatch`, a thin env-var wrapper around
+`python -m bench.run_bench` (Slurm-array sharding via `CHUNK` shards ×
+`OFFSET=$SLURM_ARRAY_TASK_ID`; runs are resumable on `(id, method, backend, pass)`).
+
+```bash
+# tiny smoke test (Qwen, 5 records):
+LIMIT=5 BACKENDS=qwen3vl sbatch bench/run_bench.sbatch
+
+# full MEVA Qwen leg, sharded 8 ways:
+ENV=cvbench SUBSET=analysis/crossview_meva1033_subset.json BACKENDS=qwen3vl \
+  CHUNK=8 sbatch --array=0-7 bench/run_bench.sbatch
+
+# full MEVA InternVL3 leg, sharded 8 ways:
+ENV=internvl SUBSET=analysis/crossview_meva1033_subset.json BACKENDS=internvl3 \
+  CHUNK=8 sbatch --array=0-7 bench/run_bench.sbatch
+
+# full-1000 CVBench decentralized (per_stream) InternVL3 run, sharded 8 ways
+# (the run launched 2026-07-08):
+ENV=internvl SUBSET=analysis/cvbench_full_runnable_subset.json BACKENDS=internvl3 \
+  METHODS=per_stream STREAM_KIND=video TAG=_fullperstream CHUNK=8 \
+  VIDEO_ROOT=Video-R1/src/r1-v/Evaluation/CVBench \
+  sbatch --array=0-7 bench/run_bench.sbatch
+```
+
+Useful knobs (env var → CLI flag, with defaults): `METHODS` (`centralized,per_stream`),
+`BACKENDS` (`qwen3vl`), `NFRAMES` (8 frames/clip), `PASSES` (4), `SEEDS` (`1,2,3,4`),
+`TEMPERATURE` (0.7), `BUDGET` (64 total frames for the temporal method), `WEIGHTING`
+(`duration` | `even`), `STREAM_KIND` / `MONTAGE_KIND` (`camera` | `video` labels),
+`MAX_NEW_TOKENS` (8192), `TAG` (suffix to separate runs sharing a subset+env). See the
+header of `bench/run_bench.sbatch` and `python -m bench.run_bench --help` for the full
+list.
+
+### Scoring, reports, figures
+
+```bash
+# CPU-only gate: re-score a stored eval JSON through the bench parse+metrics path
+# and confirm it reproduces the stored accuracy (no GPU, no model load):
+python -m bench.validate_scoring [path/to/eval_*.json]
+
+# Table 1 + Plots 1-4 from pooled result JSONLs:
+python -m bench.plots --jsonl bench/results/<leg1>.jsonl bench/results/<leg2>.jsonl \
+    --out-dir bench/results/figs_<name>
+
+# one-command pool + report + figures for the CVBench full-1000 shards:
+bash bench/finalize_cvbench_full.sh
+```
+
+## Methods
+
+Method names are what you pass in `METHODS=` / `--methods` and what gets recorded in
+each result row. All methods share the same question/options/`<think>`/`<answer>` text
+scaffold, so only the visual presentation differs between arms.
+
+| method | file | what it does |
+|---|---|---|
+| `centralized` | `bench/methods/centralized.py` + `bench/methods/stitch.py` | Centralized 2×2 stitch: temporally aligns the K clips and tiles the synchronized frames into labeled grid-montage images, fed to one model. `--montage-kind camera\|video` picks the cell labels (synced MEVA views vs. independent CVBench clips). |
+| `temporal_weighted` | `bench/methods/temporal.py` | Centralized temporal sequencing: one model sees the clips sequentially under a single total frame budget (default 64) split across clips in proportion to duration; `--weighting even` is the budget-matched control (recorded as `temporal_even`). |
+| `cvbench_native` | `bench/methods/cvbench_native.py` | The benchmark's own presentation: each clip as a separate sequential video block ("Video k:") at a flat per-clip `--nframes`. Baseline for the stitching comparison at equal frame budget. |
+| `per_stream` | `bench/methods/per_stream.py` | Decentralized "1-VLM-per-stream": an independent perception pass per clip, then a text-only aggregation pass reasons over the K descriptions. `--stream-kind camera\|video` picks the stream labels; latency reported both serial and max-parallel. |
+| `summary_select_route` / `summary_select_top1` | `bench/methods/clip_select.py` | Question-driven clip selection via cached per-clip text summaries (`bench/gen_clip_summaries.py`, passed with `--summaries`): one text-only selector call picks the clips (route may keep ALL; top1 forces one), then the full frame budget is spent on the selection. |
+| `clip_select_top{m}`, `clip_select_siglip_top{m}` | `bench/methods/clip_select.py` | No-LLM selector: score each clip by CLIP (or SigLIP) text–image similarity between the question and a few thumbnails, keep the top-m clips. |
+
+Backends: `qwen3vl` (Qwen/Qwen3-VL-8B-Thinking; also `qwen3vl-instruct`) in
+`bench/backends/qwen.py`, `internvl3` (OpenGVLab/InternVL3-8B) in
+`bench/backends/internvl.py`.
+
+## Results so far
+
+**In-progress research numbers — not final.** Unless noted, these are full-1000 CVBench,
+InternVL3-8B, 4 sampled passes.
+
+- **Centralized frame-budget comparison**: temporal `weighted` **61.8%** > `even`
+  **60.8%** > 2×2 stitch **57.4%**. Duration-weighted temporal sequencing is the current
+  best centralized arm on CVBench.
+- **MEVA (CrossView)**: spatial stitching *helps* there (+14 pts vs. unstitched),
+  consistent with MEVA clips being genuinely synchronized camera views. (On CVBench the
+  label-corrected comparison also favors stitch over the native presentation, 56.2% vs.
+  51.5% on the 130-Q set; stitch only trails temporal sequencing on the full 1,000.)
+- **Decentralized `per_stream`**: full-1000 CVBench run **in progress** (launched
+  2026-07-08, 8 shards, 4 passes); see
+  `analysis/perstream_run_explainer_2026-07-08.md` for the verified launch config and
+  pipeline walkthrough.
+- **Clip selection (D3, 130-question eval)**: no selection arm beat use-everything —
+  `summary_select_route` 53.8% vs. `temporal_weighted` 55.8%; only the n=4-clip subset
+  favored selection.
+- **SigLIP scorer gate (2026-07-08): negative.** SigLIP recall@1 50% vs. CLIP 42–45% vs.
+  random 37.1% on the n=40 primary set, *worse* than CLIP on the n=132 secondary set,
+  with near-zero score margins — cheap-scorer clip pruning is retired (gate table in
+  `analysis/perstream_run_explainer_2026-07-08.md`; raw per-question scores in the
+  untracked `bench/results/clip_scorer_gate.json` on the cluster).
+- Surviving selection ideas: drop-lowest-1 at n=4, and relevance-*weighted* frame
+  allocation (reallocate budget instead of hard-pruning clips).
+
+## Repo layout
+
+| path | contents |
+|---|---|
+| `bench/` | The harness: `run_bench.py` / `run_bench.sbatch` (runner + Slurm launcher), `methods/` (the arms above), `backends/` (Qwen3-VL, InternVL3), `metrics.py`, `plots.py` (Table 1 + Plots 1–4), `report.py`, `validate_scoring.py` (CPU gate), figure scripts. Results land in `bench/results/` (untracked). |
+| `analysis/` | Question subsets, subset/data builders, run logs, and experiment write-ups — including `analysis/perstream_run_explainer_2026-07-08.md`, the full explainer for the decentralized run. Intentionally flat; many docs cross-reference these paths. |
+| `Video-R1/` | Vendored from upstream: the eval scaffold (`src/eval_bench.py`) and the CVBench videos under `src/r1-v/Evaluation/CVBench/`; plus this fork's own `src/eval_thinking.py` (thinking-trace eval entry point whose parse/scoring helpers `bench/reuse.py` imports). |
+| `hosting/` | Tooling to shard/upload/fetch the CrossView videos via a private HF dataset repo (store-mode zips, per-file HTTP range fetch). |
+| `crossview-release-annotations/` | CrossView dataset release (annotations); on-disk only, not tracked in git. |
+| `lmms-eval/` | Vendored eval framework — still a live dependency: the InternVL3 lmms-eval legs run through it (`analysis/run_eval.sbatch`, `analysis/run_eval_crossview.sbatch`, the `crossview`/`mvr` task configs), and its `res/` marker images are used at runtime by the multi-video InternVL path. |
+| `paper/` | This project's write-up (`multicam_benchmark.tex`). |
+
+## Related repos
+
+The shared team harness lives at
+[adihebbalae/multicam-harness](https://github.com/adihebbalae/multicam-harness); a port
+of this repo's `bench/` into that layout is in progress there (port verified
+byte-identical as of commit `480d6f4` here).
