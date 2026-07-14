@@ -152,36 +152,43 @@ Backends: `qwen3vl` (Qwen/Qwen3-VL-8B-Thinking; also `qwen3vl-instruct`) in
 ## Results so far
 
 **In-progress research numbers — not final.** Unless noted, these are full-1000 CVBench,
-InternVL3-8B, 4 sampled passes.
+InternVL3-8B, 4 sampled passes. (The full-1000 CVBench legs are InternVL3-only so far;
+Qwen3-VL ran the earlier MEVA/CrossView and dev-subset legs.)
 
-- **Centralized frame-budget comparison**: temporal `weighted` **61.8%** > `even`
-  **60.8%** > 2×2 stitch **57.4%**. Duration-weighted temporal sequencing is the current
-  best centralized arm on CVBench.
+- **Centralized comparison**: temporal `weighted` **61.8% ± 0.7** > `even` **60.8% ± 0.8**
+  > 2×2 stitch16 (16 montages, 4,096 video tokens) **57.4% ± 1.4** > equal-token 2×2
+  stitch64 (64 montages, 16,384 tokens) **55.75% ± 0.49** (2026-07-13). The stitch64 rerun
+  matches the temporal arms' 16,384-token budget exactly and **refutes token starvation**
+  as the explanation for stitch's deficit: at equal tokens the grid format itself loses
+  ~6 pts (paired t = −5.5 over the same 1,000 questions), and adding montages at equal
+  per-frame tokens marginally *hurt* (−1.7 vs. stitch16). Grid cells cap per-view
+  resolution — stitch degrades with camera count (58.8% at 2 cams → 51.2% at 4) while
+  weighted stays flat. Duration-weighted temporal sequencing remains the best centralized
+  arm on CVBench.
 - **MEVA (CrossView)**: spatial stitching *helps* there (+14 pts vs. unstitched),
   consistent with MEVA clips being genuinely synchronized camera views. (On CVBench the
   label-corrected comparison also favors stitch over the native presentation, 56.2% vs.
   51.5% on the 130-Q set; stitch only trails temporal sequencing on the full 1,000.)
-- **Decentralized `per_stream`: 55.7% ± 1.2** (full-1000, 4 passes, 0 errors) — **below
-  every centralized arm** (weighted 61.8 / even 60.8 / stitch 57.4). Centralizing the
-  clips into one model context beats perceiving them independently and aggregating text,
-  by ~6 pts. Biggest losses are tasks needing fine cross-clip visual comparison
-  (Event Retrieval −29.6, Procedural Transfer −15.7, Counterfactual −15.4); the few small
-  wins are summary-sufficient tasks (attribute/temporal/scene recognition). Full breakdown
-  and latency in `analysis/perstream_run_explainer_2026-07-08.md` §8.
+- **Decentralized `per_stream`: 55.7% ± 1.2** (full-1000, 4 passes, 0 errors) — below
+  every centralized arm (weighted 61.8 / even 60.8 / stitch16 57.4 / stitch64 55.75),
+  ~6 pts behind the temporal arms and statistically tied with equal-token stitch64.
+  Centralizing the clips into one temporally-sequenced model context beats perceiving them
+  independently and aggregating text. Biggest losses are tasks needing fine cross-clip
+  visual comparison (Event Retrieval −29.6, Procedural Transfer −15.7, Counterfactual
+  −15.4); the few small wins are summary-sufficient tasks (attribute/temporal/scene
+  recognition).
 - **Clip selection (D3, 130-question eval)**: no selection arm beat use-everything —
   `summary_select_route` 53.8% vs. `temporal_weighted` 55.8%; only the n=4-clip subset
   favored selection.
 - **SigLIP scorer gate (2026-07-08): negative.** SigLIP recall@1 50% vs. CLIP 42–45% vs.
   random 37.1% on the n=40 primary set, *worse* than CLIP on the n=132 secondary set,
-  with near-zero score margins — cheap-scorer clip pruning is retired (gate table in
-  `analysis/perstream_run_explainer_2026-07-08.md`; raw per-question scores in the
-  untracked `bench/results/clip_scorer_gate.json` on the cluster).
+  with near-zero score margins — cheap-scorer clip pruning is retired (raw per-question
+  scores in the untracked `bench/results/clip_scorer_gate.json` on the cluster).
 - **Clip-selection improvement plan** (evidence-based, from the gate's per-question dump):
   hard pruning is dead — the scorer is at chance on the largest question class
   (odd-one-out anomaly detection, where argmax finds the *shared* theme, the opposite of
   the target) and margins are ~0 because within-question clips are near-duplicates in
-  embedding space. Ranked next experiments (details in
-  `analysis/perstream_run_explainer_2026-07-08.md` §6b): (1) summaries-in-answer hybrid
+  embedding space. Ranked next experiments: (1) summaries-in-answer hybrid
   (prepend cached per-clip summaries, prune nothing), (2) rank-weighted *soft*
   frame-budget reallocation at K≥3, (3) a needs-ALL guard on the LLM selector route.
   If none moves ≥2 pp paired, the selection agenda closes.
@@ -191,11 +198,11 @@ InternVL3-8B, 4 sampled passes.
 | path | contents |
 |---|---|
 | `bench/` | The harness: `run_bench.py` / `run_bench.sbatch` (runner + Slurm launcher), `methods/` (the arms above), `backends/` (Qwen3-VL, InternVL3), `metrics.py`, `plots.py` (Table 1 + Plots 1–4), `report.py`, `validate_scoring.py` (CPU gate), figure scripts. Results land in `bench/results/` (untracked). |
-| `analysis/` | Question subsets, subset/data builders, run logs, and experiment write-ups — including `analysis/perstream_run_explainer_2026-07-08.md`, the full explainer for the decentralized run. Intentionally flat; many docs cross-reference these paths. |
+| `analysis/` | Question subsets, subset/data builders, job scripts, and run logs. Intentionally flat; scripts cross-reference these paths. Experiment write-ups live in the maintainer's notes; past in-repo ones are recoverable from git history. |
 | `Video-R1/` | Vendored from upstream: the eval scaffold (`src/eval_bench.py`) and the CVBench videos under `src/r1-v/Evaluation/CVBench/`; plus this fork's own `src/eval_thinking.py` (thinking-trace eval entry point whose parse/scoring helpers `bench/reuse.py` imports). |
 | `hosting/` | Tooling to shard/upload/fetch the CrossView videos via a private HF dataset repo (store-mode zips, per-file HTTP range fetch). |
 | `crossview-release-annotations/` | CrossView dataset release (annotations); on-disk only, not tracked in git. |
-| `lmms-eval/` | Vendored eval framework — still a live dependency: the InternVL3 lmms-eval legs run through it (`analysis/run_eval.sbatch`, `analysis/run_eval_crossview.sbatch`, the `crossview`/`mvr` task configs), and its `res/` marker images are used at runtime by the multi-video InternVL path. |
+| `lmms-eval/` | Vendored eval framework — still a live dependency: the InternVL3 lmms-eval legs run through it (`analysis/run_eval.sbatch`, `analysis/run_eval_crossview.sbatch`, the `crossview`/`mvr` task configs). Its multi-video InternVL path needs the untracked `res/` marker images, currently absent from disk — restore via `git show 480d6f4^:lmms-eval/res/<name>.png` if you rerun that leg (the primary `bench/` harness has no such dependency). |
 | `paper/` | This project's write-up (`multicam_benchmark.tex`). |
 
 ## Related repos

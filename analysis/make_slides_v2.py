@@ -13,6 +13,9 @@ Supersedes make_slides.py / multicam_progress.pptx. Reflects everything since:
 Figures are regenerated from the verified result JSONs into analysis/slides_v2_figs/
 so the deck always matches the data. CVBench overall accuracies are verified
 constants (see ORIENTATION.md §8). 16:9, ~5 bullets/slide, jargon glossed.
+NOTE: the analysis/*.md docs cited in the slide text (ORIENTATION.md,
+input_pipeline.md, mentor_report.md, ...) left the repo in the 2026-07-08
+cleanup — recover any of them via `git show 480d6f4:analysis/<name>.md`.
 
 Two modes from one source (no number drift):
   full deck  ->  analysis/multicam_progress_v2.pptx       (16 slides)

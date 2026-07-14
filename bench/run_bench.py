@@ -30,8 +30,8 @@ METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
            "cvbench_native": CVBenchNativeMethod,
            "temporal_weighted": TemporalWeightedMethod,
            # (adaptive_content / adaptive_query — the within-clip frame-selection
-           # ablation — were retired 2026-07-02 after losing/tying uniform; see
-           # analysis/adaptive_frames_experiment.md §B for the archived result.)
+           # ablation — were retired 2026-07-02 after losing/tying uniform; archived
+           # result: git show 6ef38ac^:analysis/adaptive_frames_experiment.md §B.)
            # D3 clip selection: spend the budget on the clips a question needs.
            # summary_select_* = cached per-clip summaries -> one text-only
            # selector call (route may answer ALL; top1 forces one clip);

@@ -3,8 +3,8 @@
 ### Same prompts as the Stage-A run; measures how far language priors alone get.
 
 #SBATCH --job-name=cvbench-novideo
-#SBATCH --output=/home/hectorlugo02/CVBench/analysis/logs/%j.cvbench_novideo.out
-#SBATCH --error=/home/hectorlugo02/CVBench/analysis/logs/%j.cvbench_novideo.err
+#SBATCH --output=analysis/logs/%j.cvbench_novideo.out
+#SBATCH --error=analysis/logs/%j.cvbench_novideo.err
 #SBATCH -N 1
 #SBATCH -p gpul40q
 #SBATCH --gres=gpu:1
@@ -17,7 +17,7 @@ conda activate cvbench
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}   # weights pre-downloaded on the login node
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
-REPO=/home/hectorlugo02/CVBench
+REPO=$HOME/CVBench
 cd "$REPO"
 
 python3 Video-R1/src/eval_thinking.py \

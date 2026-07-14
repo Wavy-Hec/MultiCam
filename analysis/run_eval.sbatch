@@ -3,8 +3,8 @@
 ### Modeled on eval_g1_imitation_vlm_all.sh. Smoke-test first with run_eval_smoke.sbatch.
 
 #SBATCH --job-name=cvbench-think
-#SBATCH --output=/home/hectorlugo02/CVBench/analysis/logs/%j.cvbench_think.out
-#SBATCH --error=/home/hectorlugo02/CVBench/analysis/logs/%j.cvbench_think.err
+#SBATCH --output=analysis/logs/%j.cvbench_think.out
+#SBATCH --error=analysis/logs/%j.cvbench_think.err
 #SBATCH -N 1
 #SBATCH -p gpul40q
 #SBATCH --gres=gpu:1
@@ -20,7 +20,7 @@ export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}   # weights pre-downloaded on the log
 # avoid allocator fragmentation OOM on multi-video questions (see job 56671)
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
-REPO=/home/hectorlugo02/CVBench
+REPO=$HOME/CVBench
 cd "$REPO"
 
 QWEN_CKPT=${QWEN_CKPT:-Qwen/Qwen3-VL-8B-Thinking}
@@ -50,7 +50,7 @@ python Video-R1/src/eval_thinking.py \
 echo "=== 2/3  InternVL3 thinking eval (lmms-eval; run from lmms-eval/ so ./res markers resolve) ==="
 # InternVL3 remote code predates transformers 5; run this leg from the
 # transformers==4.48.3 overlay venv (shares torch/decord with cvbench).
-IVL_PY=/home/hectorlugo02/CVBench/.venv-internvl/bin/python
+IVL_PY=$HOME/CVBench/.venv-internvl/bin/python
 # verbosity=DEBUG so lmms_eval re-raises instead of swallowing exceptions (exit 0)
 ( cd lmms-eval && "$IVL_PY" -m lmms_eval \
     --model internvl2 \
