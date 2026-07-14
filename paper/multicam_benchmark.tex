@@ -295,11 +295,12 @@ question) and neural-reconstruction (NeuS) QA are roadmap; a further direction i
 temporal alignment before VLM ingestion.
 
 \section*{Reproducibility}
-All numbers trace to files in the project \texttt{analysis/} directory: \texttt{ORIENTATION.md}
-(results inventory, \S8), \texttt{why\_models\_fail.md} (failure taxonomy and per-task counts),
-\texttt{input\_pipeline.md} (sampling), and \texttt{blind\_sanity.md} (the text-only baseline is
-genuinely zero-vision-token). The benchmark harness, metrics and run/launch commands live in
-\texttt{bench/} (see \texttt{bench/bench\_spec.md}) and \texttt{analysis/BENCHMARK\_PLAN\_48H.md}.
+All numbers trace to the tracked eval subsets and result JSONs in the project
+\texttt{analysis/} directory. The benchmark harness, metrics and run/launch commands live in
+\texttt{bench/}; the repository \texttt{README.md} documents environments, data layout and the
+exact launch commands. The original working notes (\texttt{ORIENTATION.md},
+\texttt{bench\_spec.md}, and related write-ups) were moved out of the repository and remain
+recoverable from its git history.
 
 \begin{thebibliography}{9}
 \bibitem{ref1} Why Vision--Language Models Continue to Suffer from the Blind Parrot Syndrome.

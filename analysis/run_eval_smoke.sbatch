@@ -2,8 +2,8 @@
 ### Smoke test: validate env + GPU + both models + data on 3 questions before the full run.
 
 #SBATCH --job-name=cvbench-smoke
-#SBATCH --output=/home/hectorlugo02/CVBench/analysis/logs/%j.cvbench_smoke.out
-#SBATCH --error=/home/hectorlugo02/CVBench/analysis/logs/%j.cvbench_smoke.err
+#SBATCH --output=analysis/logs/%j.cvbench_smoke.out
+#SBATCH --error=analysis/logs/%j.cvbench_smoke.err
 #SBATCH -N 1
 #SBATCH -p gpul40q
 #SBATCH --gres=gpu:1
@@ -20,7 +20,7 @@ export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
 # variable-length multi-video sequences under eager attention)
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
-REPO=/home/hectorlugo02/CVBench
+REPO=$HOME/CVBench
 cd "$REPO"
 
 echo "=== smoke 0/2: rebuild mvr_dataset from analysis/subset.json ==="
@@ -56,7 +56,7 @@ fi
 echo "=== smoke 2/2: InternVL3 on 3 questions ==="
 # InternVL3 remote code predates transformers 5; run this leg from the
 # transformers==4.48.3 overlay venv (shares torch/decord with cvbench).
-IVL_PY=/home/hectorlugo02/CVBench/.venv-internvl/bin/python
+IVL_PY=$HOME/CVBench/.venv-internvl/bin/python
 # lmms_eval swallows exceptions and exits 0 unless verbosity=DEBUG
 ( cd lmms-eval && "$IVL_PY" -m lmms_eval \
     --model internvl2 \

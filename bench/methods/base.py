@@ -3,7 +3,7 @@
 A ``Method`` is an *architecture* (how the camera streams are fed to a model);
 a ``Backend`` is the underlying VLM. ``Method.answer(rec, video_root)`` returns
 a ``Result`` carrying the prediction plus the latency / token / calibration
-metrics (M1-M4 in bench_spec.md).
+metrics (M1-M4; the spec doc left the repo — ``git show 6ef38ac^:bench/bench_spec.md``).
 """
 from __future__ import annotations
 

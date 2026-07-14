@@ -61,8 +61,8 @@ def clip_scores(clip_bundle, text, pil_frames, batch=32):
     (higher = closer). Raw normalized cosine is monotonic in the model's own
     logit, so it ranks identically for both families. (Relocated from the
     retired frame-level adaptive ablation, whose result — motion −6.4 pts,
-    CLIP-frames tie vs uniform — is archived in
-    analysis/adaptive_frames_experiment.md §B.)"""
+    CLIP-frames tie vs uniform — is archived in git history:
+    ``git show 6ef38ac^:analysis/adaptive_frames_experiment.md`` §B.)"""
     import torch
     model, proc, device = clip_bundle
     # SigLIP was trained with fixed 64-token max_length padding; CLIP with

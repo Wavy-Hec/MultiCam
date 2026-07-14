@@ -12,8 +12,8 @@
 ###   #  route in hosting/fetch_videos.py is an alternative if videos get uploaded.)
 
 #SBATCH --job-name=crossview-think
-#SBATCH --output=/home/hectorlugo02/CVBench/analysis/logs/%j.crossview_think.out
-#SBATCH --error=/home/hectorlugo02/CVBench/analysis/logs/%j.crossview_think.err
+#SBATCH --output=analysis/logs/%j.crossview_think.out
+#SBATCH --error=analysis/logs/%j.crossview_think.err
 #SBATCH -N 1
 #SBATCH -p gpul40q
 #SBATCH --gres=gpu:1
@@ -28,7 +28,7 @@ export DECORD_EOF_RETRY_MAX=20480
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
-REPO=/home/hectorlugo02/CVBench
+REPO=$HOME/CVBench
 cd "$REPO"
 
 QWEN_CKPT=${QWEN_CKPT:-Qwen/Qwen3-VL-8B-Thinking}

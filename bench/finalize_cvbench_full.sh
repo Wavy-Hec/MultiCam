@@ -44,6 +44,6 @@ echo "  $ALL"
 echo "  ${ALL%.jsonl}_report.md  /  _report.csv"
 echo "  $FIGS/{acc_by_method,acc_by_numclips,acc_by_task}.png"
 echo
-echo "Headline + per-#clips (paste into analysis/cvbench_temporal_method.md §7):"
+echo "Headline + per-#clips:"
 sed -n '/## Headline/,/## Accuracy by task_type/p' "${ALL%.jsonl}_report.md" | head -12
 sed -n '/## Accuracy by orig_num_cameras/,$p' "${ALL%.jsonl}_report.md"
