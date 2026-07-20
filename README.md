@@ -69,6 +69,15 @@ ENV=internvl SUBSET=analysis/cvbench_full_runnable_subset.json BACKENDS=internvl
   METHODS=per_stream STREAM_KIND=video TAG=_fullperstream CHUNK=8 \
   VIDEO_ROOT=Video-R1/src/r1-v/Evaluation/CVBench \
   sbatch --array=0-7 bench/run_bench.sbatch
+
+# stitch frame-budget sweep leg: the centralized 2x2-stitch arm at N frames per
+# clip with nothing else changed (one leg per N; the sweep used N = 8/16/32/64/128).
+# Note the 128-frame leg overruns InternVL3-8B's native context window and leans
+# on the model's dynamic RoPE scaling — interpret that arm with care:
+ENV=internvl SUBSET=analysis/cvbench_full_runnable_subset.json BACKENDS=internvl3 \
+  METHODS=centralized MONTAGE_KIND=video NFRAMES=32 TAG=_fullstitch32 CHUNK=8 \
+  VIDEO_ROOT=Video-R1/src/r1-v/Evaluation/CVBench \
+  sbatch --array=0-7 bench/run_bench.sbatch
 ```
 
 Useful knobs (env var → CLI flag, with defaults): `METHODS` (`centralized,per_stream`),
@@ -92,6 +101,11 @@ python -m bench.plots --jsonl bench/results/<leg1>.jsonl bench/results/<leg2>.js
 
 # one-command pool + report + figures for the CVBench full-1000 shards:
 bash bench/finalize_cvbench_full.sh
+
+# pool the stitch frame-budget sweep legs into one per-budget report — every leg
+# records method='centralized', so this renames each leg's rows to stitch<NN>_f<N>
+# (keyed by the leg's TAG) before reporting, keeping the arms distinct:
+bash bench/pool_stitch_sweep.sh
 ```
 
 ## Methods
