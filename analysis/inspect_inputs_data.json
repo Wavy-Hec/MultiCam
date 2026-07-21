@@ -1,8 +1,8 @@
 {
  "env": {
-  "qwen_vl_utils_file": "/home/hectorlugo02/anaconda3/envs/cvbench/lib/python3.10/site-packages/qwen_vl_utils/__init__.py",
+  "qwen_vl_utils_file": "<conda-env>/lib/python3.10/site-packages/qwen_vl_utils/__init__.py",
   "qwen_vl_utils_version": "0.0.14",
-  "lmms_eval_file": "/home/hectorlugo02/CVBench/lmms-eval/lmms_eval/__init__.py",
+  "lmms_eval_file": "lmms-eval/lmms_eval/__init__.py",
   "transformers_version": "5.2.0",
   "decord_version": "0.6.0",
   "torchcodec_present": false,
