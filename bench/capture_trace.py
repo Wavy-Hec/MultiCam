@@ -3,7 +3,7 @@ full model output (the reasoning trace), which the sweep harness doesn't persist
 
 Usage (internvl env, GPU):
   python -m bench.capture_trace --id cvb-28 \
-      --subset analysis/cvbench_temporal_runnable.json \
+      --subset analysis/cvbench_temporal_subset.json \
       --video-root Video-R1/src/r1-v/Evaluation/CVBench
 """
 import argparse
@@ -19,7 +19,7 @@ from .backends.internvl import InternVL3Backend
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--id", default="cvb-28")
-    ap.add_argument("--subset", default="analysis/cvbench_temporal_runnable.json")
+    ap.add_argument("--subset", default="analysis/cvbench_temporal_subset.json")
     ap.add_argument("--video-root", default="Video-R1/src/r1-v/Evaluation/CVBench")
     ap.add_argument("--nframes", type=int, default=16)
     ap.add_argument("--max-tiles", type=int, default=4)
