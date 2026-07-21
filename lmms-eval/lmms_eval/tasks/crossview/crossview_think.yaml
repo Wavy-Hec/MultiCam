@@ -1,8 +1,8 @@
 dataset_path: ../crossview_dataset
 dataset_kwargs:
   token: True
-  # utils.py joins this onto HF_HOME, so it must be absolute
-  cache_dir: /home/hectorlugo02/CVBench/crossview-release-annotations/crossview-release
+  # Repo-relative; utils.py prefixes it with the repo root (or $CVBENCH_ROOT).
+  cache_dir: crossview-release-annotations/crossview-release
   video: True
   load_from_disk: True
 task: "crossview_think"

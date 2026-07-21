@@ -40,7 +40,11 @@ replace_prompt = " Please answer yes or no."
 hf_home = os.getenv("HF_HOME", "~/.cache/huggingface/")
 # cache_dir = os.path.join(hf_home, cache_dir)
 # base_cache_dir = config["dataset_kwargs"]["cache_dir"]
-base_cache_dir = os.path.expanduser(hf_home)
+# Prefix for the (repo-relative) cache_dir from the yaml. Derive the repo root
+# from this file's location so paths are portable across checkouts (no hard-coded
+# home dir); $CVBENCH_ROOT overrides. An absolute yaml cache_dir is still honoured
+# since os.path.join(base, abs) == abs.
+base_cache_dir = os.environ.get("CVBENCH_ROOT", str(Path(__file__).resolve().parents[4]))
 with open(Path(__file__).parent / "crossview_think.yaml", "r") as f:
     raw_data = f.readlines()
     safe_data = []
