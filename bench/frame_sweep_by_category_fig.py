@@ -10,6 +10,12 @@ population std across those 4 passes -- the same statistic bench/report.py print
 (statistics.pstdev). If the raw jsonl is missing we fall back to the frozen
 verified arrays and print a warning.
 
+Each series also gets a dashed random-guessing (chance) line in its own colour,
+computed by bench/chance_level.py from the real option lists: chance = mean over
+that category's questions of 1 / (number of answer options). It is not a flat 25%
+-- CVBench mixes 861 four-option questions with 139 yes/no ones, so the pooled
+chance is 28.5% while the three plotted categories sit at 25.0-26.2%.
+
     conda activate cvbench
     python -m bench.frame_sweep_by_category_fig      # or: python bench/frame_sweep_by_category_fig.py
 
@@ -26,6 +32,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.ticker import FixedLocator, FuncFormatter  # noqa: E402
+
+try:  # works both as `python -m bench.frame_sweep_by_category_fig` and as a script
+    from bench.chance_level import chance_table
+except ImportError:  # pragma: no cover
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from bench.chance_level import chance_table
 
 # --------------------------------------------------------------------------- #
 # Paths
@@ -119,6 +132,23 @@ def get_data():
     return (FALLBACK_MEAN, FALLBACK_STD), "frozen fallback arrays"
 
 
+def get_chance():
+    """Chance (random-guessing) accuracy % per plotted category, + option-mix note."""
+    per_task, overall, detail, prov = chance_table()
+    chance, mix = {}, {}
+    for cat, filt in CATS.items():
+        chance[cat] = overall if filt is None else per_task[filt]
+        d = detail.get(filt) if filt is not None else None
+        if filt is None and detail:      # pooled: sum the histograms
+            pooled = defaultdict(int)
+            for dd in detail.values():
+                for k, v in dd["hist"].items():
+                    pooled[k] += v
+            d = {"n": sum(dd["n"] for dd in detail.values()), "hist": dict(sorted(pooled.items()))}
+        mix[cat] = d
+    return chance, mix, prov
+
+
 # --------------------------------------------------------------------------- #
 # Reusable editorial style -- an rcParams block, drop into any figure script.
 # --------------------------------------------------------------------------- #
@@ -210,18 +240,26 @@ def decollide(targets, min_gap, lo, hi):
 
 def main():
     (means, stds), provenance = get_data()
+    chance, mix, chance_prov = get_chance()
 
     # ---- print the exact arrays being plotted -----------------------------
-    print(f"\nData source: {provenance}")
+    print(f"\nData source   : {provenance}")
+    print(f"Chance source : {chance_prov}")
     print(f"Frame budgets : {FRAMES}")
     print(f"Effective fps : {[FPS[f] for f in FRAMES]}  (= frames / {CLIP_SECONDS:.0f}s clip)\n")
-    print(f"{'category':20s} | " + " | ".join(f"f{f:<3d}" for f in FRAMES))
-    print("-" * 66)
+    print(f"{'category':20s} | " + " | ".join(f"f{f:<3d}" for f in FRAMES) + " | chance")
+    print("-" * 76)
     for cat in ORDER:
         cells = " | ".join(f"{m:4.1f}" for m in means[cat])
-        print(f"{cat:20s} | {cells}   (accuracy %)")
+        print(f"{cat:20s} | {cells} | {chance[cat]:5.1f}   (accuracy %)")
         scells = " | ".join(f"{s:4.1f}" for s in stds[cat])
-        print(f"{'  +/- pass std':20s} | {scells}")
+        print(f"{'  +/- pass std':20s} | {scells} |")
+        gcells = " | ".join(f"{m - chance[cat]:+4.1f}" for m in means[cat])
+        print(f"{'  above chance':20s} | {gcells} |")
+        d = mix.get(cat)
+        if d:
+            print(f"{'  option mix':20s} | n={d['n']}, "
+                  f"{{n_options: count}} = {d['hist']}")
     print()
 
     # ---- figure ------------------------------------------------------------
@@ -238,6 +276,13 @@ def main():
                         [a + b for a, b in zip(m, s)],
                         color=COLOR[cat], alpha=0.09, linewidth=0, zorder=1)
 
+    # ---- chance (random-guessing) reference, one dashed line per series ----
+    # Drawn under the data. Each category's own chance level, because CVBench's
+    # option counts are not uniform -- see bench/chance_level.py.
+    for cat in ORDER:
+        ax.plot([8, 128], [chance[cat]] * 2, color=COLOR[cat], lw=1.0,
+                linestyle=(0, (4, 3)), alpha=0.55, zorder=2, solid_capstyle="butt")
+
     # lines + markers
     for cat in ORDER:
         ax.plot(FRAMES, means[cat], color=COLOR[cat], lw=LW[cat],
@@ -247,8 +292,8 @@ def main():
 
     # ---- axes limits & ticks ----------------------------------------------
     ax.set_xlim(7.1, 205)          # right room for the direct labels
-    ax.set_ylim(29, 72)
-    ax.set_yticks([30, 40, 50, 60, 70])
+    ax.set_ylim(20, 72)            # low enough to seat the ~25-29% chance lines
+    ax.set_yticks([20, 30, 40, 50, 60, 70])
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}"))
 
     ax.xaxis.set_major_locator(FixedLocator(FRAMES))
@@ -256,7 +301,7 @@ def main():
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{int(round(v))}"))
 
     # Tufte-ish: trim spines to the data range so they don't run into margins
-    ax.spines["left"].set_bounds(30, 70)
+    ax.spines["left"].set_bounds(20, 70)
     ax.spines["bottom"].set_bounds(8, 128)
 
     ax.set_ylabel("accuracy (%)")
@@ -284,17 +329,34 @@ def main():
         ax.text(x_text * 1.04, yl, cat, color=COLOR[cat], fontsize=10,
                 va="center", ha="left", clip_on=False)
 
+    # ---- direct labels for the chance lines, same treatment ----------------
+    c_label_y = decollide(dict(chance), min_gap=1.9, lo=21.0, hi=30.2)
+    for cat in ORDER:
+        ye, yl = chance[cat], c_label_y[cat]
+        if abs(yl - ye) > 0.25:
+            ax.plot([128, x_text], [ye, yl], color=COLOR[cat], lw=0.6,
+                    alpha=0.45, zorder=2, clip_on=False)
+        ax.text(x_text * 1.04, yl, f"{chance[cat]:.1f}%", color=COLOR[cat],
+                fontsize=9, alpha=0.9, va="center", ha="left", clip_on=False)
+    ax.text(x_text * 1.04, max(c_label_y.values()) + 2.7,
+            "chance (random guessing)", color=MUTED, fontsize=8.5,
+            style="italic", va="center", ha="left", clip_on=False)
+
     # ---- title (neutral, descriptive) & finding caption (below axes) ------
     ax.set_title("CVBench accuracy vs. frame budget, by task category\n"
                  "(2×2-stitch, InternVL3-8B)", loc="left", linespacing=1.35)
 
-    fig.text(0.115, 0.055,
+    fig.text(0.115, 0.078,
              "Overall flat then falling; temporal-ordering tasks degrade with "
-             "more frames, spatial navigation improves.",
+             "more frames, spatial navigation improves — all well above chance.",
              ha="left", va="center", fontsize=9.5, color=INK_SOFT)
-    fig.text(0.115, 0.018,
-             f"1000 CVBench questions × 4 passes; bands = ±1 std across "
-             f"passes.  Effective fps = frames ÷ {CLIP_SECONDS:.0f}s clip.",
+    fig.text(0.115, 0.040,
+             f"1000 CVBench questions × 4 passes; bands = ±1 std across passes.  "
+             f"Effective fps = frames ÷ {CLIP_SECONDS:.0f}s clip.",
+             ha="left", va="center", fontsize=8, color=MUTED)
+    fig.text(0.115, 0.012,
+             "Dashed = chance, the score of a uniform random guesser: mean over that "
+             "category's questions of 1∕(number of answer options).",
              ha="left", va="center", fontsize=8, color=MUTED)
 
     # ---- export -----------------------------------------------------------
