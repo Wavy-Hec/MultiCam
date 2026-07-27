@@ -12,8 +12,7 @@ Answer from code (bench/methods/stitch.py):
 
 This script proves it on real data:
   1. Runs the actual pipeline entry point (build_montages, same call as
-     CentralizedMethod._prepare) on one 4-camera MEVA question and one
-     CVBench question that includes a non-16:9 clip.
+     CentralizedMethod._prepare) on one 4-camera MEVA question.
   2. Extracts each grid cell back out of the montage and diffs it pixel-for-
      pixel against an independent full-frame resize (crop-free reference) —
      max abs diff 0 == nothing was trimmed.
@@ -22,7 +21,7 @@ This script proves it on real data:
 
 Usage (internvl env, no GPU):
   python analysis/stitch_crop_audit.py
-Writes: analysis/stitch_audit_meva.png, analysis/stitch_audit_cvbench.png
+Writes: analysis/stitch_audit_meva.png
 """
 import json
 import os
@@ -39,8 +38,6 @@ from bench.methods.stitch import (build_montages, sample_frame_indices,
 from bench.reuse import video_paths, DEFAULT_VIDEO_ROOT          # noqa: E402
 
 CELL, BAND = 448, 22   # pipeline defaults (compose_montage signature)
-CVBENCH_ROOT = os.path.join(os.path.dirname(_HERE),
-                            "Video-R1/src/r1-v/Evaluation/CVBench")
 
 
 def decode_frame(vp, t_frac=0.0, nframes=8):
@@ -142,31 +139,8 @@ def main():
     d1 = audit(f"MEVA {rec['id']}", paths, "Camera",
                os.path.join(_HERE, "stitch_audit_meva.png"))
 
-    # CVBench: pick the question whose clips have the most non-16:9 clip
-    cvb = json.load(open(os.path.join(_HERE, "cvbench_full_runnable_subset.json")))
-    best, best_dev = None, -1.0
-    for r in cvb:
-        ps = video_paths(r, CVBENCH_ROOT)
-        if len(ps) < 4:
-            continue
-        try:
-            devs = []
-            for vp in ps:
-                vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
-                h, w = vr[0].shape[:2]
-                devs.append(abs(w / h - 16 / 9))
-            dev = max(devs)
-        except Exception:
-            continue
-        if dev > best_dev:
-            best, best_dev = r, dev
-        if best_dev > 0.8:        # found a clearly portrait/square clip; stop
-            break
-    d2 = audit(f"CVBench {best['id']}", video_paths(best, CVBENCH_ROOT), "Video",
-               os.path.join(_HERE, "stitch_audit_cvbench.png"))
-
-    verdict = "NO CROPPING" if max(d1 + d2) == 0 else "DIFF FOUND — investigate"
-    print(f"\nVERDICT: {verdict} (max cell-vs-full-resize diff: {max(d1 + d2)})")
+    verdict = "NO CROPPING" if max(d1) == 0 else "DIFF FOUND — investigate"
+    print(f"\nVERDICT: {verdict} (max cell-vs-full-resize diff: {max(d1)})")
 
 
 if __name__ == "__main__":

@@ -122,10 +122,5 @@ python analysis/plot_accuracy.py \
     --out-tasks "$OUTDIR/accuracy_by_task.png" \
     --title CrossView
 python analysis/crossview_camera_curve.py $ARGS --subset "$SUBSET" --out-dir "$OUTDIR"
-python analysis/crossview_vs_cvbench.py \
-    --cvbench analysis/accuracy_by_cameras.json \
-    --crossview "$OUTDIR/accuracy_by_cameras.json" \
-    --out "$OUTDIR/cvbench_vs_crossview.md"
-
 echo "RUN DONE @ $(date '+%F %T')"
-echo "See $OUTDIR/{qwen3vl,internvl3}_failures.md, accuracy_vs_orig_cameras.png, cvbench_vs_crossview.md"
+echo "See $OUTDIR/{qwen3vl,internvl3}_failures.md, accuracy_vs_orig_cameras.png"

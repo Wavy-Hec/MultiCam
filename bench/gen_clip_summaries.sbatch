@@ -4,9 +4,9 @@
 ###
 ### Usage:
 ###   # the 357 unique clips of the 130-question temporal subset (~45 min):
-###   SUBSET=analysis/cvbench_temporal_subset.json sbatch bench/gen_clip_summaries.sbatch
+###   SUBSET=analysis/crossview_meva1033_subset.json sbatch bench/gen_clip_summaries.sbatch
 ###   # the full 1315-clip manifest, sharded 4 ways:
-###   MANIFEST=analysis/cvbench_all_videos.txt CHUNK=4 sbatch --array=0-3 \
+###   MANIFEST=analysis/crossview_subset_videos.txt CHUNK=4 sbatch --array=0-3 \
 ###     bench/gen_clip_summaries.sbatch
 #SBATCH --job-name=clip-summaries
 #SBATCH --output=analysis/logs/%A_%a.summaries.out
@@ -29,7 +29,7 @@ export DECORD_EOF_RETRY_MAX=${DECORD_EOF_RETRY_MAX:-20480}
 export PYTORCH_ALLOC_CONF=${PYTORCH_ALLOC_CONF:-expandable_segments:True}
 
 BACKEND=${BACKEND:-internvl3}
-VIDEO_ROOT=${VIDEO_ROOT:-Video-R1/src/r1-v/Evaluation/CVBench}
+VIDEO_ROOT=${VIDEO_ROOT:-crossview-release-annotations/crossview-release}
 OUT=${OUT:-bench/results/clip_summaries_internvl3.jsonl}
 LIMIT=${LIMIT:-0}
 CHUNK=${CHUNK:-0}
