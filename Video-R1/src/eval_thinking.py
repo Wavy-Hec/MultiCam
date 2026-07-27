@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thinking-enabled CVBench eval for Qwen-family VLMs (e.g. Qwen3-VL-*-Thinking).
+"""Thinking-enabled multi-video eval for Qwen-family VLMs (e.g. Qwen3-VL-*-Thinking).
 
 Adapted from eval_bench.py, but:
   * parameterized (--model_path / --input_json / --output / --video_root / etc.)
@@ -163,8 +163,7 @@ def main():
     ap.add_argument("--input_json", required=True)
     ap.add_argument("--output", required=True)
     here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--video_root",
-                    default=os.path.join(here, "r1-v", "Evaluation", "CVBench"))
+    ap.add_argument("--video_root", required=True)
     ap.add_argument("--nframes", type=int, default=8, help="frames sampled per video")
     ap.add_argument("--max_new_tokens", type=int, default=2048)
     ap.add_argument("--limit", type=int, default=0, help="only run first N (smoke test)")

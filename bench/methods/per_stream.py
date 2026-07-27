@@ -17,9 +17,9 @@ PERCEPTION_PROMPT = (
 AGGREGATE_PREFIX = ("You are given independent descriptions of each {unit}. Reason over ALL "
                     "of them together to answer.\n\n")
 # 'camera' keeps the original MEVA phrasing byte-identical; 'video' mirrors
-# centralized's montage_kind fix for CVBench, where questions say "Video k"
-# and calling independent clips "camera views" is the known ~5-pt labeling
-# artifact (see analysis/ cvbench flip result, job 58000).
+# centralized's montage_kind fix for sets whose questions say "Video k" —
+# calling independent clips "camera views" there is a documented ~5-pt
+# labeling artifact.
 STREAM_KINDS = {"camera": ("Camera", "camera view"), "video": ("Video", "video clip")}
 
 

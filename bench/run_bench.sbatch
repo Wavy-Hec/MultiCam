@@ -43,13 +43,13 @@ SEEDS=${SEEDS:-1,2,3,4}
 TEMPERATURE=${TEMPERATURE:-0.7}
 MONTAGE_FRAMES=${MONTAGE_FRAMES:-0}
 MONTAGE_KIND=${MONTAGE_KIND:-camera}   # 'camera' (synced views) | 'video' (independent clips)
-STREAM_KIND=${STREAM_KIND:-camera}     # per_stream labels: 'camera' (MEVA) | 'video' (CVBench)
+STREAM_KIND=${STREAM_KIND:-camera}     # per_stream labels: 'camera' (synced views) | 'video' (independent clips)
 BUDGET=${BUDGET:-64}                   # temporal_weighted: TOTAL frames per question
 FLOOR=${FLOOR:-2}                      # temporal_weighted: per-clip minimum frames
 WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
 MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-8192}
 INTERNVL_MAX_TILES=${INTERNVL_MAX_TILES:-1}
-VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. CVBench videos live elsewhere)
+VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. roots under data/)
 CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
 OFFSET=${SLURM_ARRAY_TASK_ID:-${OFFSET:-0}}

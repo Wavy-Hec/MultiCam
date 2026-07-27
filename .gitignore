@@ -51,3 +51,4 @@ exports/
 # eval output dumps — regenerable, outputs never in git (files stay on disk)
 /Video-R1/src/r1-v/eval_results/
 /lmms-eval/res/
+/data/

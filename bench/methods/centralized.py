@@ -17,7 +17,7 @@ MONTAGE_PREFIX_CAMERA = (
     "view(s), shown in chronological order. Each montage tiles the cameras into a "
     "grid; every cell is labeled 'Camera i' (top-left). Reason across the views and "
     "over time to answer.")
-# "video" — CVBench-style INDEPENDENT clips (corrected preamble: matches the
+# "video" — INDEPENDENT clips (corrected preamble: matches the
 # 'Video i' labels used in the question, and does not falsely call them synchronized).
 MONTAGE_PREFIX_VIDEO = (
     "The following {T} image(s) are grid montages built from {k} independent video "
