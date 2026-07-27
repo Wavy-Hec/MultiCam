@@ -204,9 +204,10 @@ def main():
     methods = [m.strip() for m in args.methods.split(",") if m.strip()]
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
     for m in methods:
-        if m not in METHODS and not CLIP_SELECT_RE.match(m):
+        if (m not in METHODS and not CLIP_SELECT_RE.match(m)
+                and not FRAME_SELECT_RE.match(m)):
             raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)} "
-                             f"or clip_select[_<scorer>]_top<m>")
+                             f"or clip_select[_<scorer>]_top<m> or frame_select[_<scorer>]")
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()][: args.passes]
     if len(seeds) < args.passes:
         raise SystemExit(f"need >= {args.passes} seeds, got {seeds}")
