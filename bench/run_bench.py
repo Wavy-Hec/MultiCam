@@ -22,7 +22,8 @@ from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
 from .methods.cvbench_native import CVBenchNativeMethod
 from .methods.temporal import TemporalWeightedMethod
-from .methods.clip_select import SummarySelectMethod, ClipScoreSelectMethod
+from .methods.clip_select import (SummarySelectMethod, ClipScoreSelectMethod,
+                                  FrameSelectMethod)
 from .backends.qwen import QwenBackend, QWEN_ALIASES
 from . import metrics
 
@@ -45,6 +46,9 @@ METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
 # clip_select_top2, clip_select_siglip_top1. The matched string becomes the
 # method's recorded name, so scorer variants never collide in rows/resume keys.
 CLIP_SELECT_RE = re.compile(r"^clip_select(?:_(?P<tag>[a-z0-9]+))?_top(?P<m>\d+)$")
+# frame_select: global top-budget frame selection across ALL clips (optional
+# scorer tag, e.g. frame_select_siglip); the budget comes from --budget.
+FRAME_SELECT_RE = re.compile(r"^frame_select(?:_(?P<tag>[a-z0-9]+))?$")
 SCORER_ALIASES = {"siglip": "google/siglip-so400m-patch14-384",
                   "siglip2": "google/siglip2-so400m-patch14-384"}
 
@@ -92,6 +96,19 @@ def make_method(mname, backend, args):
             mode=mname.rsplit("_", 1)[1], budget=args.budget, floor=args.floor,
             sel_max_new_tokens=args.sel_max_new_tokens, nframes=args.nframes,
             max_new_tokens=args.max_new_tokens, temperature=args.temperature)
+    fm = FRAME_SELECT_RE.match(mname)
+    if fm:
+        tag = fm.group("tag")
+        if tag and tag not in SCORER_ALIASES:
+            raise SystemExit(f"unknown frame_select scorer tag '{tag}'. "
+                             f"Known: {list(SCORER_ALIASES)}")
+        return FrameSelectMethod(
+            backend, budget=args.budget,
+            candidates_per_video=args.frame_candidates,
+            clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
+            cell_px=args.cell_px, name=mname,
+            nframes=args.nframes, max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature)
     mm = CLIP_SELECT_RE.match(mname)
     if mm:
         tag = mm.group("tag")
@@ -156,6 +173,9 @@ def main():
     ap.add_argument("--sel-stat", default="max", choices=["max", "mean"],
                     help="clip_select_*: rank clips by max- or mean-over-thumbnails "
                          "similarity (both are recorded in frame_alloc regardless)")
+    ap.add_argument("--frame-candidates", type=int, default=32,
+                    help="frame_select: uniform candidate frames decoded PER clip; "
+                         "the global top-(--budget) across all clips' candidates is kept")
     ap.add_argument("--sel-max-new-tokens", type=int, default=512,
                     help="summary_select_*: token cap for the selector call")
     ap.add_argument("--montage-frames", type=int, default=0,
