@@ -65,17 +65,25 @@ def clip_scores(clip_bundle, text, pil_frames, batch=32):
     ``git show 6ef38ac^:analysis/adaptive_frames_experiment.md`` §B.)"""
     import torch
     model, proc, device = clip_bundle
+    # transformers <5 returns the projected embedding tensor directly from
+    # get_{text,image}_features; >=5 (the cvbench env) returns a ModelOutput
+    # whose .pooler_output IS that projected embedding (verified identical to
+    # the forward image_embeds/text_embeds path). Coerce so scoring works in
+    # both envs — otherwise the .norm() call raises and callers silently fall
+    # back to uniform sampling.
+    def _emb(x):
+        return x if hasattr(x, "norm") else x.pooler_output
     # SigLIP was trained with fixed 64-token max_length padding; CLIP with
     # dynamic padding. Mismatched padding shifts SigLIP text embeddings.
     pad = "max_length" if getattr(model.config, "model_type", "") == "siglip" else True
     tok = proc(text=[text], return_tensors="pt", padding=pad, truncation=True).to(device)
     with torch.no_grad():
-        t_emb = model.get_text_features(**tok)
+        t_emb = _emb(model.get_text_features(**tok))
         t_emb = t_emb / t_emb.norm(dim=-1, keepdim=True)
         sims = []
         for i in range(0, len(pil_frames), batch):
             chunk = proc(images=pil_frames[i:i + batch], return_tensors="pt").to(device)
-            i_emb = model.get_image_features(**chunk)
+            i_emb = _emb(model.get_image_features(**chunk))
             i_emb = i_emb / i_emb.norm(dim=-1, keepdim=True)
             sims.append((i_emb @ t_emb.T).squeeze(1).float().cpu().numpy())
     return np.concatenate(sims)
@@ -663,10 +671,11 @@ class FrameSelectMethod(Method):
             question = rec.get("question", "")
             try:
                 scores = clip_scores(self._ensure_clip(), question, [im for _, _, im in pool])
-            except Exception:
+            except Exception as e:
                 scores = None
+                score_err = f"{type(e).__name__}: {e}"
             if scores is None:                        # scoring failed -> uniform stride
-                fallback = "fallback:score_error"
+                fallback = f"fallback:score_error:{score_err}"
                 step = max(1, len(pool) // self.budget)
                 order = list(range(0, len(pool), step))
             else:
