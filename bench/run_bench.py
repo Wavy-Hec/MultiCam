@@ -164,11 +164,11 @@ def main():
     ap.add_argument("--stream-kind", default="camera", choices=["camera", "video"],
                     help="per_stream: label/phrase clips as synced 'camera' views "
                          "(MEVA, byte-identical to the original prompt) or independent "
-                         "'video' clips (CVBench — matches the questions' 'Video k' "
+                         "'video' clips (matches questions whose text says 'Video k', "
                          "wording, mirroring --montage-kind)")
     ap.add_argument("--montage-kind", default="camera", choices=["camera", "video"],
                     help="centralized montage framing: 'camera' (synced views, default) "
-                         "or 'video' (independent clips — corrected CVBench preamble + 'Video i' labels)")
+                         "or 'video' (independent clips — 'Video i' labels matching the question wording)")
     ap.add_argument("--internvl-max-tiles", type=int, default=1,
                     help="InternVL tiles per montage image (4 lets a 2x2 montage keep per-camera 448 res)")
     ap.add_argument("--chunk", type=int, default=0, help="number of shards (Slurm array)")

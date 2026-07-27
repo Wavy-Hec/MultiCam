@@ -20,7 +20,7 @@ Modes:
   verify  --qa <json...>   report which referenced videos are present/missing
                            under the release root. No network needed.
 
-Examples (from the CVBench repo root):
+Examples (from the repo root):
   python3 hosting/fetch_videos.py --repo <user>/crossview-videos \\
       subset --qa crossview-release-annotations/crossview-release/annotations/multi-cam-dataset/meva/qa_best_camera.json
   python3 hosting/fetch_videos.py --repo <user>/crossview-videos dataset meva

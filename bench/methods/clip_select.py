@@ -12,7 +12,7 @@ budget on the selected clips only. Two selector families, three method arms:
                          baseline is attributable to the questions it pruned.
 
   summary_select_top1    Same summaries + selector, but forced to pick exactly
-                         ONE clip. Only ~4% of CVBench questions name a single
+                         ONE clip. Typically only a small share of questions name a single
                          video, so this arm is a DIAGNOSTIC of what hard
                          pruning costs, not a candidate winner.
 
@@ -253,7 +253,7 @@ def _clip_meta(vp):
 
 def _rel_keys(rec):
     """The record's raw video_1..4 values, in video_paths() order — the summary
-    cache keys (they match analysis/cvbench_all_videos.txt lines exactly)."""
+    cache keys (they match the summary manifest lines exactly)."""
     return [rec.get(f"video_{i}") for i in range(1, 5) if rec.get(f"video_{i}")]
 
 

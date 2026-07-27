@@ -1,4 +1,4 @@
-"""TEMPORAL-WEIGHTED harness: the K (<=4) independent CVBench clips of one
+"""TEMPORAL-WEIGHTED harness: the K independent clips of one
 question are presented to ONE model SEQUENTIALLY (clip 1, then clip 2, ...), with
 a single TOTAL frame budget split across the clips IN PROPORTION TO EACH CLIP'S
 DURATION (longer clips get more frames). Within each clip the frames are sampled

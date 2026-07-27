@@ -1,4 +1,5 @@
-"""CVBench-native presentation: the exact method described in CVBench --- the
+"""Native sequential presentation (the presentation the original CVBench
+release used, hence the registered method name): the
 multiple clips are fed to ONE model as separate, sequential video blocks (each
 clip's frames presented as a temporal sequence with a ``"Video k:"`` marker),
 not stitched. This is the baseline the stitching harness is compared against at
