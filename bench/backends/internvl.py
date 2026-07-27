@@ -168,7 +168,10 @@ class InternVL3Backend(Backend):
             if t == "text":
                 parts.append(item["text"])
             elif t == "image":
-                px = load_image(item["image"], input_size=448, max_num=self.max_tiles)
+                img = item["image"]
+                if isinstance(img, str):
+                    img = Image.open(img).convert("RGB")
+                px = load_image(img, input_size=448, max_num=self.max_tiles)
                 pixel_chunks.append(px)
                 npl.append(px.shape[0])
                 parts.append("<image>\n")

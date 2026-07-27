@@ -52,7 +52,7 @@ from .base import Method, Result, result_fields
 # PREFIX/MARKER/SPLIT_DESC are imported verbatim, and the budget split over
 # the selected clips reuses allocate_frames.
 from .temporal import allocate_frames, PREFIX, MARKER, SPLIT_DESC
-from ..reuse import (build_messages, parse_choice, gt_choice, video_paths,
+from ..reuse import (build_messages, parse_choice, gt_choice, letters_of, video_paths,
                      extract_think)
 
 
@@ -398,7 +398,8 @@ class SummarySelectMethod(Method):
 
         content, nframes = present_selected(paths, durs, ncaps, sel_idx,
                                             self.budget, self.floor, scaffold)
-        gold = gt_choice(rec["answer"], yn)
+        letters = letters_of(rec)
+        gold = gt_choice(rec["answer"], yn, letters=letters)
         alloc_meta = {
             "budget": self.budget,
             "floor": self.floor,
@@ -429,7 +430,7 @@ class SummarySelectMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn)
+            pred = parse_choice(g.text, yn, letters=letters)
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,
@@ -532,7 +533,8 @@ class ClipScoreSelectMethod(Method):
 
         content, nframes = present_selected(paths, durs, ncaps, sel_idx,
                                             self.budget, self.floor, scaffold)
-        gold = gt_choice(rec["answer"], yn)
+        letters = letters_of(rec)
+        gold = gt_choice(rec["answer"], yn, letters=letters)
         alloc_meta = {
             "budget": self.budget,
             "floor": self.floor,

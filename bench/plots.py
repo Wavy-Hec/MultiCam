@@ -21,7 +21,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from . import metrics  # noqa: E402
 
-HARNESS = {"centralized": "Centralized", "per_stream": "Decentralized"}
+HARNESS = {"centralized": "Centralized", "per_stream": "Decentralized",
+           "cvbench_native": "Native interleaved"}
 
 
 def label(key):

@@ -9,7 +9,7 @@ It is the production ``build_messages(no_video=False)`` path, wrapped as a
 Method with per-question timing + seed/temperature plumbing.
 """
 from .base import Method, Result, result_fields
-from ..reuse import build_messages, parse_choice, gt_choice
+from ..reuse import build_messages, gt_choice, letters_of, parse_choice
 
 
 class CVBenchNativeMethod(Method):
@@ -18,11 +18,12 @@ class CVBenchNativeMethod(Method):
     def answer(self, rec, video_root, seed=None) -> Result:
         messages, yn = build_messages(rec, video_root, self.nframes, no_video=False)
         f = result_fields(rec)
-        gold = gt_choice(rec["answer"], yn)
+        letters = letters_of(rec)
+        gold = gt_choice(rec["answer"], yn, letters=letters)
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn)
+            pred = parse_choice(g.text, yn, letters=letters)
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,

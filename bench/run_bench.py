@@ -161,12 +161,12 @@ def main():
     ap.add_argument("--montage-frames", type=int, default=0,
                     help="centralized montages per question (0 -> = nframes)")
     ap.add_argument("--cell-px", type=int, default=448)
-    ap.add_argument("--stream-kind", default="camera", choices=["camera", "video"],
+    ap.add_argument("--stream-kind", default="camera", choices=["camera", "video", "view"],
                     help="per_stream: label/phrase clips as synced 'camera' views "
                          "(MEVA, byte-identical to the original prompt) or independent "
                          "'video' clips (matches questions whose text says 'Video k', "
                          "wording, mirroring --montage-kind)")
-    ap.add_argument("--montage-kind", default="camera", choices=["camera", "video"],
+    ap.add_argument("--montage-kind", default="camera", choices=["camera", "video", "view"],
                     help="centralized montage framing: 'camera' (synced views, default) "
                          "or 'video' (independent clips — 'Video i' labels matching the question wording)")
     ap.add_argument("--internvl-max-tiles", type=int, default=1,

@@ -9,7 +9,7 @@ import argparse
 import json
 import os
 
-from .reuse import build_messages, parse_choice, gt_choice, video_paths
+from .reuse import build_messages, gt_choice, letters_of, parse_choice, video_paths
 from .methods.stitch import build_montages
 from .methods.centralized import MONTAGE_PREFIX
 from .backends.internvl import InternVL3Backend
@@ -30,11 +30,12 @@ def main():
     backend = InternVL3Backend("OpenGVLab/InternVL3-8B", num_frame=args.nframes, max_tiles=args.max_tiles)
 
     out = {"id": args.id, "question": rec["question"], "options": rec["options"], "gold": rec["answer"]}
+    letters = letters_of(rec)
 
     # --- native ---
     msgs, yn = build_messages(rec, args.video_root, args.nframes, no_video=False)
     g = backend.generate(msgs, max_new_tokens=8192, seed=1, temperature=0)
-    out["native"] = {"prediction": parse_choice(g.text, yn), "gold": gt_choice(rec["answer"], yn),
+    out["native"] = {"prediction": parse_choice(g.text, yn, letters=letters), "gold": gt_choice(rec["answer"], yn, letters=letters),
                      "text": g.text, "output_tokens": g.output_tokens}
 
     # --- stitch (centralized) ---
@@ -47,7 +48,7 @@ def main():
     content += [{"type": "image", "image": m} for m in montages]
     content += [{"type": "text", "text": scaffold}]
     g2 = backend.generate([{"role": "user", "content": content}], max_new_tokens=8192, seed=1, temperature=0)
-    out["stitch"] = {"prediction": parse_choice(g2.text, yn), "gold": gt_choice(rec["answer"], yn),
+    out["stitch"] = {"prediction": parse_choice(g2.text, yn, letters=letters), "gold": gt_choice(rec["answer"], yn, letters=letters),
                      "text": g2.text, "output_tokens": g2.output_tokens}
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict, field
 from typing import Optional
 
-from ..reuse import num_videos
+from ..reuse import num_images, num_videos
 
 
 @dataclass
@@ -38,6 +38,7 @@ class Result:
     gold: str
     correct: bool
     abstained: bool
+    pair_idx: Optional[str] = None   # paired-question twin id (All-Angles-Bench IC metric)
     # 4-pass protocol (Table 1 std): a "pass" = one sampled generation (temp>0)
     # at a fixed seed, with frames held fixed; std is taken over the passes.
     pass_idx: Optional[int] = None
@@ -71,7 +72,8 @@ def result_fields(rec):
         source=rec.get("source"),
         orig_num_cameras=rec.get("orig_num_cameras"),
         cap_answer_safe=rec.get("cap_answer_safe"),
-        num_videos=num_videos(rec),
+        num_videos=num_videos(rec) or num_images(rec),
+        pair_idx=rec.get("pair_idx") or None,
     )
 
 
