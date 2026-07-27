@@ -7,7 +7,6 @@ __pycache__/
 *.part
 
 # Built HF datasets (regenerable from analysis/*subset*.json)
-/mvr_dataset/
 /crossview_dataset/
 *.tmp/
 *.tmp
@@ -27,7 +26,6 @@ __pycache__/
 # Regenerable analysis outputs, logs, media (rebuilt by analyze_failures.py /
 # curate_failure_examples.py / make_slides_v2.py from the tracked eval JSONs)
 /analysis/logs/
-/analysis/download_subset.log
 /analysis/failure_examples/
 /analysis/slides_v2_figs/
 # large per-question failure dumps (12M/685K); the curated digest stays tracked
