@@ -12,7 +12,7 @@
 #SBATCH --output=analysis/logs/%A_%a.summaries.out
 #SBATCH --error=analysis/logs/%A_%a.summaries.err
 #SBATCH -N 1
-#SBATCH -p gpul40q
+#SBATCH -p sxmq
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=6
 #SBATCH --time=08:00:00
