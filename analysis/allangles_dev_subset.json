@@ -1,0 +1,1996 @@
+[
+  {
+    "id": 0,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, there is a bike being worked on by a person. Could you identify the same bike in View 2?",
+    "options": [
+      "A. The bike on the work stand in the center of View 2",
+      "B. The bike mounted on the wall",
+      "C. The bike on the floor next to the tool cart"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1",
+    "orig_id": "3",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 1,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, there is a bike on the work stand in the center. Could you identify the same bike in View 1?",
+    "options": [
+      "A. The bike in front of the human",
+      "B. The bike mounted on the wall",
+      "C. The bike on the floor next to the tool cart"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "0",
+    "orig_id": "4",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 2,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, there is a yellow coil air hose. Could you identify the same air hose in View 2?",
+    "options": [
+      "A. The air hose hanging above the tool cart",
+      "B. The air hose on the left side of View 2",
+      "C. The air hose hanging directly above the person in View 2"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "3",
+    "orig_id": "5",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 3,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, there is an air hose hanging directly above the person. Could you identify the same air hose in View 1?",
+    "options": [
+      "A. The air hose hanging above the tool cart",
+      "B. The air hose on the left side of View 1",
+      "C. The yellow coil air hose next to bike stand"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2",
+    "orig_id": "6",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 4,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, there is a tool cart with multiple shelves. Could you identify the same tool cart in View 2?",
+    "options": [
+      "A. The tool cart on the right side of View 2",
+      "B. The tool cart on the left side of View 2",
+      "C. The tool cart in the center of View 2 with multiple shelves"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "5",
+    "orig_id": "7",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 5,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, there is a tool cart on the right side. Could you identify the same tool cart in View 1?",
+    "options": [
+      "A. The tool cart with multiple shelves and on the left side of View 1",
+      "B. The tool cart on the right side of View 1",
+      "C. The tool cart in the center of View 1 with multiple shelves"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "4",
+    "orig_id": "8",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 6,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 1, there is a bicycle being fixed on a black stand with a yellow coil attached to it. Could you identify the same bicycle in View 2?",
+    "options": [
+      "A. The bicycle on the floor of View 2",
+      "B. The bicycle closer to the center of View 2",
+      "C. The bicycle on the right side of View 2"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "7",
+    "orig_id": "30",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg"
+  },
+  {
+    "id": 7,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 2, there is a bicycle closer to the center of the view. Could you identify the same bicycle in View 1?",
+    "options": [
+      "A. The bicycle on the left side of View 1",
+      "B. The bicycle being fixed on a black stand with a yellow coil attached to it",
+      "C. The bicycle near the white door"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "6",
+    "orig_id": "31",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg"
+  },
+  {
+    "id": 8,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 1, there is a man wearing a navy-blue shirt and khaki shorts working on a bicycle. Could you identify the same person in View 2?",
+    "options": [
+      "A. The man on the left side of View 2",
+      "B. The man closer to the center of View 2",
+      "C. The man standing next to the door in View 2"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "9",
+    "orig_id": "32",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg"
+  },
+  {
+    "id": 9,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 2, there is a man closer to the center of the view. Could you identify the same person in View 1?",
+    "options": [
+      "A. The man wearing a navy-blue shirt and khaki shorts working on a bicycle",
+      "B. The man sitting on a bench",
+      "C. The man holding a cup of coffee"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "8",
+    "orig_id": "33",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg"
+  },
+  {
+    "id": 349,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 1, there is a person wearing a red shirt and black pants standing near the center of the court. Could you identify the same person in View 2?",
+    "options": [
+      "A. The person on the most left side of View 2",
+      "B. The person near the center of View 2",
+      "C. The person on the most right side of View 2"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "350",
+    "orig_id": "1222",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg"
+  },
+  {
+    "id": 350,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 2, there is a person on the far left side of the view. Could you identify the same person in View 1?",
+    "options": [
+      "A. The person wearing a red shirt and black pants standing near the center of the court in View 1",
+      "B. The person on the far left side of View 1",
+      "C. The person on the rightmost side of View 1"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "349",
+    "orig_id": "1223",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg"
+  },
+  {
+    "id": 351,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 1, there is a person in white shorts and a white shirt standing near the left side of the net in the background. Could you identify the same person in View 2?",
+    "options": [
+      "A. The person on the left side of View 2",
+      "B. The person on the far right of View 2",
+      "C. The person in red on the far left of View 2"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "352",
+    "orig_id": "1224",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg"
+  },
+  {
+    "id": 352,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 2, there is a person on the center left side of the view. Could you identify the same person in View 1?",
+    "options": [
+      "A. The person in white shorts and a white shirt standing near the left side of the net",
+      "B. The person in black shorts on the far right of View 1",
+      "C. The person in red on the far left of View 1"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "351",
+    "orig_id": "1225",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg"
+  },
+  {
+    "id": 353,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "In View 1, there is a person wearing a dark jacket standing near the right side of the net. Could you identify the same person in View 2?",
+    "options": [
+      "A. The person near a tripod on the left side of View 2",
+      "B. The person in a red shirt near the net in View 2",
+      "C. The person in white shorts near the left side of View 2"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "1226",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg"
+  },
+  {
+    "id": 354,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, there is a person holding a basketball on the right. Could you identify the same person in View 2?",
+    "options": [
+      "A. The person on the far left of View 2",
+      "B. The person in the purple shirt in View 2",
+      "C. The person on the right side in View 2"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "355",
+    "orig_id": "1248",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg"
+  },
+  {
+    "id": 355,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 2 and View 1 are two different views that represent the same scene. In View 2, there is a person on the far left. Could you identify the same person in View 1?",
+    "options": [
+      "A. The person holding a basketball on the right in View 1",
+      "B. The person in the purple shirt in View 1",
+      "C. The person on the left side in View 1"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "354",
+    "orig_id": "1249",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg"
+  },
+  {
+    "id": 356,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, there is a person wearing a purple shirt. Could you identify the same person in View 1?",
+    "options": [
+      "A. The person walking towards the camera in View 1",
+      "B. The person on the most left in View 1",
+      "C. The person standing near the middle of the parking lot in View 1"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "357",
+    "orig_id": "1250",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg"
+  },
+  {
+    "id": 357,
+    "task_type": "AAB-Attribute-Identification",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, there is a person on the most left of the view. Could you identify the same person in View 2?",
+    "options": [
+      "A. The person wearing a purple shirt in View 2",
+      "B. The person on the most left in View 2",
+      "C. The person holding a basketball"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "attribute_identification",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "356",
+    "orig_id": "1251",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg"
+  },
+  {
+    "id": 383,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 4, View 3, View 2, View 1",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4",
+      "C. in clockwise order, the layout is View 2, View 1, View 3, View 4"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "384",
+    "orig_id": "25",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg"
+  },
+  {
+    "id": 384,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 1, View 2, View 3, View 4",
+      "B. in counterclockwise order, the layout is View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 2, View 1, View 3, View 4"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "383",
+    "orig_id": "26",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg"
+  },
+  {
+    "id": 385,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 3, View 2, View 1, View 4",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4",
+      "C. in clockwise order, the layout is View 2, View 1, View 3, View 4"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "386",
+    "orig_id": "50",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg"
+  },
+  {
+    "id": 386,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 4, View 1, View 2, View 3",
+      "B. in counterclockwise order, the layout is View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 4, View 2, View 1, View 3"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "385",
+    "orig_id": "51",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg"
+  },
+  {
+    "id": 387,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 2, View 3, View 1, View 4",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4",
+      "C. in clockwise order, the layout is View 3, View 2, View 4, View 1"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "388",
+    "orig_id": "75",
+    "image_1": "ego_exo4d_scenes/nus_covidtest_49_1/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/nus_covidtest_49_1/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/nus_covidtest_49_1/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/nus_covidtest_49_1/cam04.jpg"
+  },
+  {
+    "id": 388,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 4, View 1, View 3, View 2",
+      "B. in counterclockwise order, the layout is View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 1, View 4, View 2, View 3"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "387",
+    "orig_id": "76",
+    "image_1": "ego_exo4d_scenes/nus_covidtest_49_1/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/nus_covidtest_49_1/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/nus_covidtest_49_1/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/nus_covidtest_49_1/cam04.jpg"
+  },
+  {
+    "id": 389,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 4, View 3, View 2, View 1",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4",
+      "C. in clockwise order, the layout is View 2, View 1, View 3, View 4"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "390",
+    "orig_id": "101",
+    "image_1": "ego_exo4d_scenes/cmu_bike09_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike09_4/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike09_4/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike09_4/cam04.jpg"
+  },
+  {
+    "id": 390,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 1, View 2, View 3, View 4",
+      "B. in counterclockwise order, the layout is View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 2, View 1, View 3, View 4"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "389",
+    "orig_id": "102",
+    "image_1": "ego_exo4d_scenes/cmu_bike09_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike09_4/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike09_4/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike09_4/cam04.jpg"
+  },
+  {
+    "id": 391,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 2, View 3, View 1, View 4",
+      "B. in clockwise order, the layout is View 1, View 3, View 4, View 2",
+      "C. in clockwise order, the layout is View 1, View 2, View 3, View 4"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "392",
+    "orig_id": "128",
+    "image_1": "ego_exo4d_scenes/sfu_cooking027_9/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/sfu_cooking027_9/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/sfu_cooking027_9/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/sfu_cooking027_9/cam04.jpg"
+  },
+  {
+    "id": 392,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, and View 4 are four different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 2, View 4, View 3, View 1",
+      "B. in counterclockwise order, the layout is View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 4, View 1, View 3, View 2"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "391",
+    "orig_id": "129",
+    "image_1": "ego_exo4d_scenes/sfu_cooking027_9/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/sfu_cooking027_9/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/sfu_cooking027_9/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/sfu_cooking027_9/cam04.jpg"
+  },
+  {
+    "id": 545,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 2, View 3, View 1, View 4, View 5",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4, View 5",
+      "C. in clockwise order, the layout is View 2, View 1, View 4, View 3, View 5"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "546",
+    "orig_id": "1243",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam01.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_3": "egohumans_scenes/05_volleyball/001_volleyball/cam05.jpg",
+    "image_4": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_5": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg"
+  },
+  {
+    "id": 546,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 2, View 3, View 1, View 4, View 5",
+      "B. in counterclockwise order, the layout is View 5, View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 5, View 3, View 4, View 1, View 2"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "545",
+    "orig_id": "1244",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam01.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_3": "egohumans_scenes/05_volleyball/001_volleyball/cam05.jpg",
+    "image_4": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_5": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg"
+  },
+  {
+    "id": 547,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 2, View 3, View 1, View 5, View 4",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4, View 5",
+      "C. in clockwise order, the layout is View 2, View 1, View 3, View 4, View 5"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "548",
+    "orig_id": "1270",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam01.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg",
+    "image_3": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_4": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_5": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 548,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 4, View 5, View 1, View 3, View 2",
+      "B. in counterclockwise order, the layout is View 5, View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 4, View 3, View 1, View 2, View 5"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "547",
+    "orig_id": "1271",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam01.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg",
+    "image_3": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_4": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_5": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 549,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 2, View 3, View 1, View 4, View 5",
+      "B. in clockwise order, the layout is View 1, View 2, View 4, View 3, View 5",
+      "C. in clockwise order, the layout is View 2, View 1, View 3, View 4, View 5"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "550",
+    "orig_id": "1296",
+    "image_1": "egohumans_scenes/06_badminton/029_badminton/cam01.jpg",
+    "image_2": "egohumans_scenes/06_badminton/029_badminton/cam03.jpg",
+    "image_3": "egohumans_scenes/06_badminton/029_badminton/cam05.jpg",
+    "image_4": "egohumans_scenes/06_badminton/029_badminton/cam07.jpg",
+    "image_5": "egohumans_scenes/06_badminton/029_badminton/cam09.jpg"
+  },
+  {
+    "id": 550,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 5, View 4, View 1, View 3, View 2",
+      "B. in counterclockwise order, the layout is View 5, View 3, View 4, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 5, View 3, View 1, View 2, View 4"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "549",
+    "orig_id": "1297",
+    "image_1": "egohumans_scenes/06_badminton/029_badminton/cam01.jpg",
+    "image_2": "egohumans_scenes/06_badminton/029_badminton/cam03.jpg",
+    "image_3": "egohumans_scenes/06_badminton/029_badminton/cam05.jpg",
+    "image_4": "egohumans_scenes/06_badminton/029_badminton/cam07.jpg",
+    "image_5": "egohumans_scenes/06_badminton/029_badminton/cam09.jpg"
+  },
+  {
+    "id": 551,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 3, View 5, View 1, View 4, View 2",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4, View 5",
+      "C. in clockwise order, the layout is View 2, View 1, View 3, View 4, View 5"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "552",
+    "orig_id": "1320",
+    "image_1": "egohumans_scenes/01_tagging/001_tagging/cam02.jpg",
+    "image_2": "egohumans_scenes/01_tagging/001_tagging/cam03.jpg",
+    "image_3": "egohumans_scenes/01_tagging/001_tagging/cam04.jpg",
+    "image_4": "egohumans_scenes/01_tagging/001_tagging/cam07.jpg",
+    "image_5": "egohumans_scenes/01_tagging/001_tagging/cam08.jpg"
+  },
+  {
+    "id": 552,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 2, View 4, View 1, View 5, View 3",
+      "B. in counterclockwise order, the layout is View 5, View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 2, View 1, View 3, View 4, View 5"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "551",
+    "orig_id": "1321",
+    "image_1": "egohumans_scenes/01_tagging/001_tagging/cam02.jpg",
+    "image_2": "egohumans_scenes/01_tagging/001_tagging/cam03.jpg",
+    "image_3": "egohumans_scenes/01_tagging/001_tagging/cam04.jpg",
+    "image_4": "egohumans_scenes/01_tagging/001_tagging/cam07.jpg",
+    "image_5": "egohumans_scenes/01_tagging/001_tagging/cam08.jpg"
+  },
+  {
+    "id": 553,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in clockwise order, the layout is View 2, View 3, View 1, View 4, View 5",
+      "B. in clockwise order, the layout is View 1, View 2, View 3, View 4, View 5",
+      "C. in clockwise order, the layout is View 2, View 1, View 3, View 4, View 5"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "554",
+    "orig_id": "1343",
+    "image_1": "egohumans_scenes/07_tennis/001_tennis/cam01.jpg",
+    "image_2": "egohumans_scenes/07_tennis/001_tennis/cam03.jpg",
+    "image_3": "egohumans_scenes/07_tennis/001_tennis/cam05.jpg",
+    "image_4": "egohumans_scenes/07_tennis/001_tennis/cam07.jpg",
+    "image_5": "egohumans_scenes/07_tennis/001_tennis/cam09.jpg"
+  },
+  {
+    "id": 554,
+    "task_type": "AAB-Camera-Pose-Estimation",
+    "question": "View 1, View 2, View 3, View 4, and View 5 are five different input camera views that represent the same scene. Could you reconstruct the camera view layout from the top-bottom view, and answer the following question?",
+    "options": [
+      "A. in counterclockwise order, the layout is View 2, View 3, View 1, View 4, View 5",
+      "B. in counterclockwise order, the layout is View 5, View 4, View 3, View 2, View 1",
+      "C. in counterclockwise order, the layout is View 5, View 4, View 1, View 2, View 3"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "camera_pose_estimation",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "553",
+    "orig_id": "1344",
+    "image_1": "egohumans_scenes/07_tennis/001_tennis/cam01.jpg",
+    "image_2": "egohumans_scenes/07_tennis/001_tennis/cam03.jpg",
+    "image_3": "egohumans_scenes/07_tennis/001_tennis/cam05.jpg",
+    "image_4": "egohumans_scenes/07_tennis/001_tennis/cam07.jpg",
+    "image_5": "egohumans_scenes/07_tennis/001_tennis/cam09.jpg"
+  },
+  {
+    "id": 559,
+    "task_type": "AAB-Counting",
+    "question": "Considering the multiple camera views provided, can you count the total number of bicycles hanging on the bike stand in the scene?",
+    "options": [
+      "A. 2",
+      "B. 3",
+      "C. 4"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "counting",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "0",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg"
+  },
+  {
+    "id": 560,
+    "task_type": "AAB-Counting",
+    "question": "Based on the different camera views presented, how many tripods are visible in the scene?",
+    "options": [
+      "A. 1",
+      "B. 2",
+      "C. 4"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "counting",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "1",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg"
+  },
+  {
+    "id": 561,
+    "task_type": "AAB-Counting",
+    "question": "Looking at the multiple camera views, how many people can you identify in the scene?",
+    "options": [
+      "A. 1",
+      "B. 2",
+      "C. 3"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "counting",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "2",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg"
+  },
+  {
+    "id": 562,
+    "task_type": "AAB-Counting",
+    "question": "Here are multiple camera views pointing to the same scene, could you count how many people are in the scene?",
+    "options": [
+      "A. 2",
+      "B. 3",
+      "C. 4"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "counting",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "27",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg"
+  },
+  {
+    "id": 563,
+    "task_type": "AAB-Counting",
+    "question": "Here are multiple camera views pointing to the same scene, could you count how many tripods are in the scene?",
+    "options": [
+      "A. 2",
+      "B. 3",
+      "C. 4"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "counting",
+    "orig_num_cameras": 4,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "28",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg",
+    "image_3": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg",
+    "image_4": "ego_exo4d_scenes/cmu_bike16_3/cam04.jpg"
+  },
+  {
+    "id": 793,
+    "task_type": "AAB-Counting",
+    "question": "Here are multiple camera views which are pointing to the same scene, could you count how many volleyball nets are in total in the scene?",
+    "options": [
+      "A. 1",
+      "B. 2",
+      "C. 3"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "counting",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "1221",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam01.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg",
+    "image_3": "egohumans_scenes/05_volleyball/001_volleyball/cam05.jpg",
+    "image_4": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_5": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg"
+  },
+  {
+    "id": 794,
+    "task_type": "AAB-Counting",
+    "question": "Here are multiple camera views which are pointing to the same scene, could you count how many people in total are holding a basketball in the scene?",
+    "options": [
+      "A. 3",
+      "B. 2",
+      "C. 1"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "counting",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "1245",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam01.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg",
+    "image_3": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_4": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_5": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 795,
+    "task_type": "AAB-Counting",
+    "question": "Here are multiple camera views which are pointing to the same scene, could you count how many people are visible in the scene?",
+    "options": [
+      "A. 5",
+      "B. 3",
+      "C. 4"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "counting",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "1246",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam01.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg",
+    "image_3": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_4": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_5": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 796,
+    "task_type": "AAB-Counting",
+    "question": "Here are multiple camera views which are pointing to the same scene, could you count how many people are wearing a purple shirt in the scene?",
+    "options": [
+      "A. 1",
+      "B. 2",
+      "C. 3"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "counting",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "1247",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam01.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg",
+    "image_3": "egohumans_scenes/04_bastetball/002_basketball/cam04.jpg",
+    "image_4": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_5": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 797,
+    "task_type": "AAB-Counting",
+    "question": "Here are multiple camera views which are pointing to the same scene, could you count how many people wearing red are standing on the court in the scene?",
+    "options": [
+      "A. 1",
+      "B. 2",
+      "C. 3"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "counting",
+    "orig_num_cameras": 5,
+    "cap_answer_safe": true,
+    "pair_idx": "",
+    "orig_id": "1272",
+    "image_1": "egohumans_scenes/06_badminton/029_badminton/cam01.jpg",
+    "image_2": "egohumans_scenes/06_badminton/029_badminton/cam03.jpg",
+    "image_3": "egohumans_scenes/06_badminton/029_badminton/cam05.jpg",
+    "image_4": "egohumans_scenes/06_badminton/029_badminton/cam07.jpg",
+    "image_5": "egohumans_scenes/06_badminton/029_badminton/cam09.jpg"
+  },
+  {
+    "id": 810,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the blue bicycle is moved closer to the spot where camera view is positioned in camera View 1, what would be the trajectory of the blue bicycle in camera View 2?",
+    "options": [
+      "A. moving toward the left side of View 2",
+      "B. moving toward the right side of View 2",
+      "C. no moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "811",
+    "orig_id": "19",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 811,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the blue bicycle is moved farther from the spot where camera view is positioned in camera View 1, what would be the trajectory of the blue bicycle in camera View 2?",
+    "options": [
+      "A. moving toward the right side of View 2",
+      "B. moving toward the left side of View 2",
+      "C. no moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "810",
+    "orig_id": "20",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 812,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the black tripod near the tool cart from the right side is moved to the left side in the camera View 1, what would be the trajectory of the black tripod in camera View 2?",
+    "options": [
+      "A. moving toward the left side of View 2",
+      "B. moving toward the right side of View 2",
+      "C. moving away from the spot where camera View 2 was positioned"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "813",
+    "orig_id": "21",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 813,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the black tripod near the tool cart from the right side is moved to the door in the camera View 1, what would be the trajectory of the black tripod in camera View 2?",
+    "options": [
+      "A. moving toward the right side of View 2",
+      "B. moving toward the left side of View 2",
+      "C. moving closer to the spot where camera View 2 was positioned"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "812",
+    "orig_id": "22",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 814,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the yellow air hose is extended to the spot where camera view is positioned in the camera View 1, what would be the trajectory of the yellow air hose in camera View 2?",
+    "options": [
+      "A. moving toward the left side of View 2",
+      "B. moving toward the right side of View 2",
+      "C. no moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "815",
+    "orig_id": "23",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 815,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the yellow air hose is retracted from the spot where camera view is positioned in the camera View 1, what would be the trajectory of the yellow air hose in camera View 2?",
+    "options": [
+      "A. moving toward the right side of View 2",
+      "B. moving toward the left side of View 2",
+      "C. no moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "814",
+    "orig_id": "24",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 816,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person holds the bike tire and walks toward the spot where camera view is positioned in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. walking toward the top left side of View 2",
+      "B. walking toward the bottom right side of View 2",
+      "C. stand without moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "817",
+    "orig_id": "44",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg"
+  },
+  {
+    "id": 817,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person holds the bike tire and walks away from the spot where camera view is positioned in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. walking toward the right side of View 2",
+      "B. walking toward the top left side of View 2",
+      "C. stand without moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "816",
+    "orig_id": "45",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg"
+  },
+  {
+    "id": 818,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the rolling cart with tools is pushed toward the left side in camera View 2, what would be the trajectory of the cart in camera View 1?",
+    "options": [
+      "A. moving toward the bottom right side of View 1",
+      "B. moving toward the door of View 1",
+      "C. no moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "819",
+    "orig_id": "46",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg"
+  },
+  {
+    "id": 819,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the rolling cart with tools is pushed toward the right side in camera View 2, what would be the trajectory of the cart in camera View 1?",
+    "options": [
+      "A. moving toward the top left side of View 1",
+      "B. moving toward the bottom right side of View 1",
+      "C. no moving"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "818",
+    "orig_id": "47",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam03.jpg"
+  },
+  {
+    "id": 1251,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person near the center of the court is moving towards the left in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. Moving towards the left side of View 2",
+      "B. Moving towards the right side of View 2",
+      "C. Moving towards the spot where camera View 2 was positioned"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1252",
+    "orig_id": "1237",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1252,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person near the center of the court is moving towards the right in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. Moving towards the left side of View 2",
+      "B. Moving towards the right side of View 2",
+      "C. Moving away from the spot where camera View 2 was positioned"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1251",
+    "orig_id": "1238",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1253,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the volleyball net is being pulled slightly closer to the camera in camera View 1, what would be the trajectory of the net in camera View 2?",
+    "options": [
+      "A. Moving towards the left side of View 2",
+      "B. Moving towards the right side of View 2",
+      "C. Moving towards the spot where camera View 2 was positioned"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1254",
+    "orig_id": "1239",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1254,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the volleyball net is being pulled slightly further from the camera in camera View 1, what would be the trajectory of the net in camera View 2?",
+    "options": [
+      "A. Moving towards the left side of View 2",
+      "B. Moving towards the right side of View 2",
+      "C. Moving away from the spot where camera View 2 was positioned"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1253",
+    "orig_id": "1240",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1255,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person standing near the net on the right side in camera View 1 is moving backwards, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. Moving towards the spot where camera View 2 was positioned",
+      "B. Moving towards the left side of View 2",
+      "C. Moving towards the right side of View 2"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1256",
+    "orig_id": "1241",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1256,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person standing near the net on the right side in camera View 1 is moving forwards, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. Moving away from the spot where camera View 2 was positioned",
+      "B. Moving towards the right side of View 2",
+      "C. Moving towards the left side of View 2"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1255",
+    "orig_id": "1242",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1257,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person wearing the purple t-shirt is walking toward the spot where camera view is positioned in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. walking toward the left side of View 2",
+      "B. walking toward the right side of View 2",
+      "C. walking away from the spot where camera View 2 was positioned"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1258",
+    "orig_id": "1264",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg"
+  },
+  {
+    "id": 1258,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person wearing the purple t-shirt is walking away from the spot where camera view is positioned in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. walking toward the left side of View 2",
+      "B. walking toward the right side of View 2",
+      "C. walking toward the spot where camera View 2 was positioned"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1257",
+    "orig_id": "1265",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg"
+  },
+  {
+    "id": 1259,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person in the green hoodie and blue jeans moves towards the building in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. moving toward the left side of View 2",
+      "B. moving toward the right side of View 2",
+      "C. standing without moving"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1260",
+    "orig_id": "1266",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg"
+  },
+  {
+    "id": 1260,
+    "task_type": "AAB-Manipulation",
+    "question": "What if the person in the green hoodie and blue jeans moves away from the building in camera View 1, what would be the trajectory of the same person in camera View 2?",
+    "options": [
+      "A. moving toward the right side of View 2",
+      "B. moving toward the left side of View 2",
+      "C. standing without moving"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "manipulation",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1259",
+    "orig_id": "1267",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam02.jpg"
+  },
+  {
+    "id": 1286,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 1, the blue bicycle on the left side of the view is facing away from the spot where camera view was positioned. In View 2, which direction is the blue bicycle facing?",
+    "options": [
+      "A. facing to the left side of the View 2",
+      "B. facing to the right side of the View 2",
+      "C. facing to the spot where camera View 2 was positioned"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1287",
+    "orig_id": "15",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 1287,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 2, the blue bicycle is facing to the right side of the view. In View 1, which direction is the blue bicycle facing?",
+    "options": [
+      "A. facing away from the spot where camera View 1 was positioned",
+      "B. facing to the left side of View 1",
+      "C. facing to the spot where camera View 1 was positioned"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1286",
+    "orig_id": "16",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 1288,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 1, the man holding the tire is facing the spot where camera view was positioned. In View 2, which direction is the man holding the tire facing?",
+    "options": [
+      "A. facing to the left side of the View 2",
+      "B. facing to the right side of the View 2",
+      "C. facing to the spot where camera View 2 was positioned"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1289",
+    "orig_id": "17",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 1289,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 2, the man holding the tire is facing to the left side of the view. In View 1, which direction is the man holding the tire facing?",
+    "options": [
+      "A. facing to the left side of the View 1",
+      "B. facing to the right side of the View 1",
+      "C. facing the spot where camera View 1 was positioned"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1288",
+    "orig_id": "18",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam02.jpg"
+  },
+  {
+    "id": 1290,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, the man holding the bike wheel is facing the spot where camera view was positioned, which direction is the man holding the bike wheel facing in View 2?",
+    "options": [
+      "A. facing to the left side of the View 2",
+      "B. facing to the right side of the View 2",
+      "C. facing to the spot where camera View 2 was positioned"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1291",
+    "orig_id": "40",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg"
+  },
+  {
+    "id": 1291,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, the man holding the bike wheel is facing to the left side of the view. Which direction is the man holding the bike wheel facing in View 1?",
+    "options": [
+      "A. facing to the left side of the View 1",
+      "B. facing to the right side of the View 1",
+      "C. facing the spot where camera View 1 was positioned"
+    ],
+    "answer": "C",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1290",
+    "orig_id": "41",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg"
+  },
+  {
+    "id": 1292,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, the bike on the left stand is facing away from the spot where camera view was positioned, which direction is the bike on the left stand facing in View 2?",
+    "options": [
+      "A. facing to the left side of the View 2",
+      "B. facing to the right side of the View 2",
+      "C. facing to the spot where camera View 2 was positioned"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1293",
+    "orig_id": "42",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg"
+  },
+  {
+    "id": 1293,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, the bike on the stand near the center is facing to the right side of the view. Which direction is the bike on the stand facing in View 1?",
+    "options": [
+      "A. facing to the left side of the View 1",
+      "B. facing away from the spot where camera View 1 was positioned",
+      "C. facing to the spot where camera View 1 was positioned"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1292",
+    "orig_id": "43",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg"
+  },
+  {
+    "id": 1608,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 1, the player standing near the far-right side of the net is facing to the spot where camera view was positioned. In View 2, which direction is this player facing?",
+    "options": [
+      "A. facing to the left side of the View 2",
+      "B. facing to the right side of the View 2",
+      "C. facing to the spot where camera View 2 was positioned"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1609",
+    "orig_id": "1233",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1609,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 2, the player standing near the left side of the net in the background is facing to the right side of the view. In View 1, which direction is this player facing?",
+    "options": [
+      "A. facing to the left side of the View 1",
+      "B. facing away from the spot where camera View 1 was positioned",
+      "C. facing to the spot where camera View 1 was positioned"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1608",
+    "orig_id": "1234",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1610,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 1, the player jumping with arms up in the middle of the court is facing away from the spot where camera view was positioned. In View 2, which direction is this player facing?",
+    "options": [
+      "A. facing to the left side of the View 2",
+      "B. facing to the right side of the View 2",
+      "C. facing to the spot where camera View 2 was positioned"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1611",
+    "orig_id": "1235",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1611,
+    "task_type": "AAB-Relative-Direction",
+    "question": "In View 2, the player jumping with arms up in the middle of the court is facing to the left side of the view. In View 1, which direction is this player facing?",
+    "options": [
+      "A. facing away from the spot where camera View 1 was positioned",
+      "B. facing to the left side of the View 1",
+      "C. facing to the spot where camera View 1 was positioned"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1610",
+    "orig_id": "1236",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam09.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 1612,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, the man in a green hoodie and blue jeans is facing to the left side of the View 1. Which direction is the man with the green hoodie facing in View 2?",
+    "options": [
+      "A. facing to the left side of the View 2",
+      "B. facing to the right side of the View 2",
+      "C. facing away from the spot where camera View 2 was positioned"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1613",
+    "orig_id": "1260",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 1613,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, the man in a green hoodie and blue jeans is facing away from the spot where camera view was positioned. Which direction is the man with the green hoodie facing in View 1?",
+    "options": [
+      "A. facing to the left side of the View 1",
+      "B. facing to the right side of the View 1",
+      "C. facing to the spot where camera View 1 was positioned"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1612",
+    "orig_id": "1261",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 1614,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 1, the man in a purple t-shirt is walking towards the left side of the view. Which direction is the man in the purple t-shirt walking in View 2?",
+    "options": [
+      "A. walking to the left side of the View 2",
+      "B. walking to the right side of the View 2",
+      "C. walking away from the spot where camera View 2 was positioned"
+    ],
+    "answer": "C",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1615",
+    "orig_id": "1262",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 1615,
+    "task_type": "AAB-Relative-Direction",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In View 2, the man in a purple t-shirt is walking away from the spot where camera view was positioned. Which direction is the man in the purple t-shirt walking in View 1?",
+    "options": [
+      "A. walking to the left side of the View 1",
+      "B. walking to the right side of the View 1",
+      "C. walking towards the spot where camera View 1 was positioned"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_direction",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1614",
+    "orig_id": "1263",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam06.jpg"
+  },
+  {
+    "id": 1638,
+    "task_type": "AAB-Relative-Distance",
+    "question": "In which view is the blue bicycle frame closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1639",
+    "orig_id": "9",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg"
+  },
+  {
+    "id": 1639,
+    "task_type": "AAB-Relative-Distance",
+    "question": "In which view is the blue bicycle frame farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance from the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1638",
+    "orig_id": "10",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg"
+  },
+  {
+    "id": 1640,
+    "task_type": "AAB-Relative-Distance",
+    "question": "In which view is the tool cart with red cloths and blue spray cans closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1641",
+    "orig_id": "11",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg"
+  },
+  {
+    "id": 1641,
+    "task_type": "AAB-Relative-Distance",
+    "question": "In which view is the tool cart with red cloths and blue spray cans farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance from the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1640",
+    "orig_id": "12",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg"
+  },
+  {
+    "id": 1642,
+    "task_type": "AAB-Relative-Distance",
+    "question": "In which view is the person with the blue jeans closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1643",
+    "orig_id": "13",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg"
+  },
+  {
+    "id": 1643,
+    "task_type": "AAB-Relative-Distance",
+    "question": "In which view is the person with the blue jeans farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance from the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1642",
+    "orig_id": "14",
+    "image_1": "ego_exo4d_scenes/cmu_bike13_4/cam04.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike13_4/cam03.jpg"
+  },
+  {
+    "id": 1644,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view is the red cloth on the workbench closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1645",
+    "orig_id": "36",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg"
+  },
+  {
+    "id": 1645,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view is the red cloth on the workbench farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance from the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "Ego-Exo4D",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "1644",
+    "orig_id": "37",
+    "image_1": "ego_exo4d_scenes/cmu_bike16_3/cam02.jpg",
+    "image_2": "ego_exo4d_scenes/cmu_bike16_3/cam01.jpg"
+  },
+  {
+    "id": 2092,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the net is closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2093",
+    "orig_id": "1227",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 2093,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the net is farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2092",
+    "orig_id": "1228",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 2094,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the player in the white T-shirt with short dark hair is closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2095",
+    "orig_id": "1229",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 2095,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the player in the white T-shirt with short dark hair is farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2094",
+    "orig_id": "1230",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 2096,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the volleyball is closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2097",
+    "orig_id": "1231",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 2097,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the volleyball is farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2096",
+    "orig_id": "1232",
+    "image_1": "egohumans_scenes/05_volleyball/001_volleyball/cam07.jpg",
+    "image_2": "egohumans_scenes/05_volleyball/001_volleyball/cam03.jpg"
+  },
+  {
+    "id": 2098,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the man in the purple shirt is closer to the spot where the camera view was positioned?",
+    "options": [
+      "A. closer to the spot where camera View 1 was positioned",
+      "B. closer to the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "A",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2099",
+    "orig_id": "1254",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam01.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg"
+  },
+  {
+    "id": 2099,
+    "task_type": "AAB-Relative-Distance",
+    "question": "View 1 and View 2 are two different views that represent the same scene. In which view, the man in the purple shirt is farther from the spot where the camera view was positioned?",
+    "options": [
+      "A. farther from the spot where camera View 1 was positioned",
+      "B. farther from the spot where camera View 2 was positioned",
+      "C. distance to the spot where camera View 1 and View 2 were positioned is equal"
+    ],
+    "answer": "B",
+    "source": "EgoHumans",
+    "question_type": "relative_distance",
+    "orig_num_cameras": 2,
+    "cap_answer_safe": true,
+    "pair_idx": "2098",
+    "orig_id": "1255",
+    "image_1": "egohumans_scenes/04_bastetball/002_basketball/cam01.jpg",
+    "image_2": "egohumans_scenes/04_bastetball/002_basketball/cam05.jpg"
+  }
+]
