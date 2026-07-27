@@ -13,8 +13,8 @@ question subset, and reports per method:
 
 Usage:
   python analysis/clip_selection_diagnostic.py \
-      --results 'bench/results/bench_cvbench_temporal_subset_internvl_clipsel*.jsonl' \
-      --subset analysis/cvbench_temporal_subset.json
+      --results 'bench/results/bench_crossview_meva1033_subset_internvl_clipsel*.jsonl' \
+      --subset analysis/crossview_meva1033_subset.json
 """
 import argparse
 import glob

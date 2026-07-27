@@ -1,7 +1,7 @@
 """Generate the QUESTION-AGNOSTIC per-clip text-summary cache used by the
 ``summary_select_*`` methods (bench/methods/clip_select.py).
 
-One VLM call per UNIQUE clip (1315 in analysis/cvbench_all_videos.txt), written
+One VLM call per UNIQUE clip in the subset or manifest, written
 as one JSON row per line — the cost amortizes over every question and every
 future method, unlike per_stream's question-conditioned summaries (K calls per
 question, nothing cacheable). The prompt/frame constants are imported from
@@ -9,9 +9,9 @@ clip_select.py so cache rows and any live fallback are guaranteed identical.
 
 Usage (from repo root, `internvl` conda env):
   # clips of one subset (e.g. the 357 unique clips of the 130-question set):
-  python -m bench.gen_clip_summaries --subset analysis/cvbench_temporal_subset.json
+  python -m bench.gen_clip_summaries --subset analysis/crossview_meva1033_subset.json
   # the full manifest, sharded 4 ways on Slurm:
-  MANIFEST=analysis/cvbench_all_videos.txt CHUNK=4 sbatch --array=0-3 \
+  MANIFEST=analysis/crossview_subset_videos.txt CHUNK=4 sbatch --array=0-3 \
       bench/gen_clip_summaries.sbatch
   # verify a subset is fully covered before a sharded eval:
   python -m bench.gen_clip_summaries --subset <subset.json> --check
@@ -87,7 +87,7 @@ def main():
     src.add_argument("--subset", help="question subset JSON; summarizes the union "
                                       "of its video_1..4 clips")
     src.add_argument("--manifest", help="text file with one relative clip path per line")
-    ap.add_argument("--video-root", default="Video-R1/src/r1-v/Evaluation/CVBench")
+    ap.add_argument("--video-root", default="crossview-release-annotations/crossview-release")
     ap.add_argument("--backend", default="internvl3")
     ap.add_argument("--nframes", type=int, default=SUMMARY_NFRAMES)
     ap.add_argument("--max-new-tokens", type=int, default=SUMMARY_MAX_NEW_TOKENS)

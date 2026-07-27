@@ -15,8 +15,7 @@ that passes here is the scorer the eval will actually run.
 
 Usage (internvl env; works with HF_HUB_OFFLINE=1 once checkpoints are cached):
   python analysis/clip_scorer_gate.py \
-      --subset analysis/cvbench_full_runnable_subset.json \
-      --video-root Video-R1/src/r1-v/Evaluation/CVBench \
+      --subset analysis/crossview_meva1033_subset.json \
       --models openai/clip-vit-base-patch32 google/siglip-so400m-patch14-384
 """
 import argparse
@@ -72,8 +71,8 @@ def rank_of(target, scores):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--subset", default="analysis/cvbench_full_runnable_subset.json")
-    ap.add_argument("--video-root", default="Video-R1/src/r1-v/Evaluation/CVBench")
+    ap.add_argument("--subset", default="analysis/crossview_meva1033_subset.json")
+    ap.add_argument("--video-root", default="crossview-release-annotations/crossview-release")
     ap.add_argument("--models", nargs="+",
                     default=["openai/clip-vit-base-patch32",
                              "google/siglip-so400m-patch14-384"])
