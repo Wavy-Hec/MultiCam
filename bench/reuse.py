@@ -18,10 +18,20 @@ parse_choice = _et.parse_choice
 gt_choice = _et.gt_choice
 num_videos = _et.num_videos
 video_paths = _et.video_paths
+num_images = _et.num_images
+image_paths = _et.image_paths
 load_model = _et.load_model
 extract_think = _et.extract_think
 extract_answer = _et.extract_answer
 QUESTION_TEMPLATE = _et.QUESTION_TEMPLATE
+MAX_SLOTS = _et.MAX_SLOTS
+letters_for = _et.letters_for
+
+
+def letters_of(rec):
+    """The record's multiple-choice letter set ("ABCD" for classic 4-option),
+    for threading into parse_choice/gt_choice."""
+    return letters_for(rec.get("options"))
 
 # Default video root for the CrossView subsets (both MEVA .avi and EgoExo4D .mp4
 # resolve under it); mirrors run_eval_crossview.sbatch VIDEO_ROOT.

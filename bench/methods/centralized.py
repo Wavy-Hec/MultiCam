@@ -8,8 +8,9 @@ presentation differs from the blind/per-stream paths. The montages for a questio
 are built once and cached, so the 4 sampling passes reuse identical pixels.
 """
 from .base import Method, Result, result_fields
-from .stitch import build_montages
-from ..reuse import build_messages, parse_choice, gt_choice, video_paths
+from .stitch import build_image_montage, build_montages
+from ..reuse import (build_messages, gt_choice, image_paths, letters_of,
+                     num_images, parse_choice, video_paths)
 
 # "camera" — MEVA-style synchronized multi-view (default, unchanged).
 MONTAGE_PREFIX_CAMERA = (
@@ -25,8 +26,16 @@ MONTAGE_PREFIX_VIDEO = (
     "tiles the {k} clips into a grid; every cell is labeled 'Video i' (top-left), "
     "corresponding to Video 1..Video {k} in the question. Reason about each Video "
     "separately as well as together, and over time, to answer.")
-MONTAGE_PREFIXES = {"camera": MONTAGE_PREFIX_CAMERA, "video": MONTAGE_PREFIX_VIDEO}
-MONTAGE_LABELS = {"camera": "Camera", "video": "Video"}
+# "view" — still-image multi-view (All-Angles-Bench style): one montage of the K
+# simultaneous view images; labels match the question text's "View 1..View k".
+MONTAGE_PREFIX_VIEW = (
+    "The following image is a grid montage of {k} camera views of the same scene, "
+    "captured at the same moment. Every cell is labeled 'View i' (top-left), "
+    "corresponding to View 1..View {k} in the question. Reason across the views "
+    "to answer.")
+MONTAGE_PREFIXES = {"camera": MONTAGE_PREFIX_CAMERA, "video": MONTAGE_PREFIX_VIDEO,
+                    "view": MONTAGE_PREFIX_VIEW}
+MONTAGE_LABELS = {"camera": "Camera", "video": "Video", "view": "View"}
 MONTAGE_PREFIX = MONTAGE_PREFIX_CAMERA  # backward-compat alias
 
 
@@ -50,32 +59,42 @@ class CentralizedMethod(Method):
             return self._cache[key]
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
         scaffold = base_msgs[0]["content"][0]["text"]
-        paths = video_paths(rec, video_root)
-        montages = build_montages(paths, nframes=self.nframes, T=self.T, cell_px=self.cell_px,
-                                  label_prefix=self._label)
-        gold = gt_choice(rec["answer"], yn)
-        self._cache = {key: (montages, scaffold, yn, gold, len(paths))}  # keep only last rec
+        if num_images(rec) > 0:
+            # still-image record: one montage of the view images; labels/preamble
+            # are forced to "View" to match the question text regardless of
+            # --montage-kind (using "Camera i" here is a known labeling artifact)
+            paths = image_paths(rec, video_root)
+            montages = build_image_montage(paths, cell_px=self.cell_px, label_prefix="View")
+            prefix = MONTAGE_PREFIX_VIEW
+        else:
+            paths = video_paths(rec, video_root)
+            montages = build_montages(paths, nframes=self.nframes, T=self.T,
+                                      cell_px=self.cell_px, label_prefix=self._label)
+            prefix = self._prefix
+        gold = gt_choice(rec["answer"], yn, letters=letters_of(rec))
+        self._cache = {key: (montages, scaffold, yn, gold, len(paths), prefix)}  # last rec only
         return self._cache[key]
 
     def answer(self, rec, video_root, seed=None) -> Result:
         f = result_fields(rec)
+        letters = letters_of(rec)
         try:
-            montages, scaffold, yn, gold, k = self._prepare(rec, video_root)
+            montages, scaffold, yn, gold, k, prefix = self._prepare(rec, video_root)
         except Exception as e:
             gold = gt_choice(rec["answer"], all(o.strip().strip(".").lower() in ("yes", "no")
-                                                for o in rec["options"]))
+                                                for o in rec["options"]), letters=letters)
             return Result(**f, method=self.name, backend=self.backend.name,
                           prediction="", gold=gold, correct=False, abstained=True,
                           pass_idx=None, seed=seed, temperature=self.temperature,
                           num_model_calls=1, error=f"stitch:{type(e).__name__}: {e}")
-        content = [{"type": "text", "text": self._prefix.format(T=len(montages), k=k)}]
+        content = [{"type": "text", "text": prefix.format(T=len(montages), k=k)}]
         content += [{"type": "image", "image": m} for m in montages]
         content += [{"type": "text", "text": scaffold}]
         messages = [{"role": "user", "content": content}]
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn)
+            pred = parse_choice(g.text, yn, letters=letters)
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,

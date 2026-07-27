@@ -9,7 +9,7 @@ import json
 import os
 import sys
 
-from .reuse import parse_choice, gt_choice, is_yesno, REPO
+from .reuse import parse_choice, gt_choice, is_yesno, letters_of, REPO
 from . import metrics
 
 DEFAULT = os.path.join(REPO, "Video-R1", "src", "r1-v", "eval_results",
@@ -23,8 +23,9 @@ def main():
     rows, mismatch = [], 0
     for r in res:
         yn = is_yesno(r["options"])
-        pred = parse_choice(r.get("output", ""), yn)
-        gold = gt_choice(r["answer"], yn)
+        letters = letters_of(r)
+        pred = parse_choice(r.get("output", ""), yn, letters=letters)
+        gold = gt_choice(r["answer"], yn, letters=letters)
         if "prediction" in r and pred != r["prediction"]:
             mismatch += 1
         rows.append(dict(

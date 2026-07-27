@@ -28,6 +28,7 @@ Smoke test (first 3 questions):
       --input_json analysis/subset.json --output /tmp/smoke.json --limit 3
 """
 import argparse
+import functools
 import json
 import os
 import re
@@ -64,21 +65,41 @@ def extract_answer(text):
     return m.group(1).strip() if m else ""
 
 
+# Widest supported multiple-choice letter range and slot count. Records carry
+# up to MAX_SLOTS video_i (or image_i) fields; option letters are always the
+# per-record prefix of LETTERS_ALL — never the blanket range (a bare \b[A-M]\b
+# would match prose words like "I"/"A" in the tag-missing fallback).
+LETTERS_ALL = "ABCDEFGHIJKLM"
+MAX_SLOTS = 13
+
+
+def letters_for(options):
+    """Option letters for one record's options list ("ABCD" for 4 options).
+    Malformed single-string option rows fall back to the classic ABCD."""
+    n = len(options or [])
+    return LETTERS_ALL[:n] if 2 <= n <= len(LETTERS_ALL) else "ABCD"
+
+
 # Explicit "the answer is X" style conclusions, used ONLY when the model never
 # emitted an <answer> tag (e.g. a truncated trace). We take the LAST such match
 # (closest to the model's conclusion). Scanning the whole trace for any bare
 # A/B/C/D is wrong: it grabs prose like "a vehicle" / "options A to D", which
 # fabricated a lucky 'A' on truncated runs and made 0/20 structural.
-_CONCLUDE_MC = re.compile(
-    r"(?i)(?:final\s+answer|best\s+answer|correct\s+answer|the\s+answer|answer)\s*"
-    r"(?:is|:|=|would\s+be)?\s*\(?([ABCD])\b"
-)
+@functools.lru_cache(maxsize=None)
+def _conclude_mc_re(letters):
+    return re.compile(
+        r"(?i)(?:final\s+answer|best\s+answer|correct\s+answer|the\s+answer|answer)\s*"
+        r"(?:is|:|=|would\s+be)?\s*\(?([" + letters + r"])\b"
+    )
+
+
+_CONCLUDE_MC = _conclude_mc_re("ABCD")
 _CONCLUDE_YN = re.compile(
     r"(?i)(?:final\s+answer|the\s+answer|answer)\s*(?:is|:|=)?\s*\(?(yes|no)\b"
 )
 
 
-def parse_choice(text, is_yesno):
+def parse_choice(text, is_yesno, letters="ABCD"):
     """Final answer = <answer>..</answer> if present. If the tag is missing
     (e.g. a truncated trace), fall back ONLY to an explicit "the answer is X"
     conclusion (last match); otherwise abstain (return "") rather than grabbing
@@ -91,55 +112,92 @@ def parse_choice(text, is_yesno):
         ms = list(_CONCLUDE_YN.finditer(text))
         return ms[-1].group(1).capitalize() if ms else ""
     if ans:
-        m = re.search(r"(?i)\b([ABCD])\b", ans)
+        m = re.search(r"(?i)\b([" + letters + r"])\b", ans)
         return m.group(1).upper() if m else ans.strip()
-    ms = list(_CONCLUDE_MC.finditer(text))
+    ms = list(_conclude_mc_re(letters).finditer(text))
     return ms[-1].group(1).upper() if ms else ""
 
 
-def gt_choice(answer, is_yesno):
+def gt_choice(answer, is_yesno, letters="ABCD"):
     a = answer.strip()
     if is_yesno:
         return a.capitalize()
-    m = re.search(r"(?i)([ABCD])", a)
+    m = re.search(r"(?i)([" + letters + r"])", a)
     return m.group(1).upper() if m else a.upper()
 
 
 def num_videos(rec):
-    return sum(1 for i in range(1, 5) if rec.get(f"video_{i}"))
+    return sum(1 for i in range(1, MAX_SLOTS + 1) if rec.get(f"video_{i}"))
 
 
 def video_paths(rec, video_root):
     out = []
-    for i in range(1, 5):
+    for i in range(1, MAX_SLOTS + 1):
         v = rec.get(f"video_{i}")
         if v:
             out.append(os.path.normpath(os.path.join(video_root, v)))
     return out
 
 
+def num_images(rec):
+    return sum(1 for i in range(1, MAX_SLOTS + 1) if rec.get(f"image_{i}"))
+
+
+def image_paths(rec, image_root):
+    """Ordered view-image paths of a still-image record (image_1..image_N).
+    Order is semantically load-bearing: question text references "View k"."""
+    out = []
+    for i in range(1, MAX_SLOTS + 1):
+        v = rec.get(f"image_{i}")
+        if v:
+            out.append(os.path.normpath(os.path.join(image_root, v)))
+    return out
+
+
+def _letters_phrase(letters):
+    """Human phrasing of the letter range: "A, B, C, or D" (byte-identical to
+    the original 4-option prompt), "A or B", "A, B, or C", and an elided
+    "A, B, ..., or J" once enumerating would bloat the prompt."""
+    if len(letters) == 2:
+        return f"{letters[0]} or {letters[1]}"
+    if len(letters) <= 6:
+        return ", ".join(letters[:-1]) + f", or {letters[-1]}"
+    return f"{letters[0]}, {letters[1]}, ..., or {letters[-1]}"
+
+
 def build_messages(rec, video_root, nframes, no_video=False):
     options = rec["options"]
     is_yesno = all(o.strip().strip(".").lower() in ("yes", "no") for o in options)
+    # still-image records (image_1..N view images) share the text scaffold but
+    # speak of "views" and attach image items instead of video clips
+    is_image = num_images(rec) > 0
+    unit = "views" if is_image else "videos"
     if is_yesno:
         option_prompt = ("Select the best answer to the following yes-no question based on "
-                         "all the listed videos.")
+                         f"all the listed {unit}.")
         post = "Provide only the single word (Yes or No) within the <answer> </answer> tags."
     else:
+        letters = letters_for(options)
         option_prompt = ("Select the best answer to the following multiple-choice question "
-                         "based on all the listed videos.")
-        post = "Provide only the single option letter (A, B, C, or D) within the <answer> </answer> tags."
+                         f"based on all the listed {unit}.")
+        post = (f"Provide only the single option letter ({_letters_phrase(letters)}) "
+                "within the <answer> </answer> tags.")
 
     question = rec["question"] + "\n" + "\n".join(options)
     full_prompt = option_prompt + "\n" + QUESTION_TEMPLATE.format(Question=question) + "\n" + post
 
-    # interleave a text marker before each video clip; with no_video (blind
+    # interleave a text marker before each clip/view; with no_video (blind
     # baseline) keep the prompt text identical but attach zero visual input
     content = []
     if not no_video:
-        for k, vp in enumerate(video_paths(rec, video_root), 1):
-            content.append({"type": "text", "text": f"Video {k}:"})
-            content.append({"type": "video", "video": vp, "nframes": nframes})
+        if is_image:
+            for k, ip in enumerate(image_paths(rec, video_root), 1):
+                content.append({"type": "text", "text": f"View {k}:"})
+                content.append({"type": "image", "image": ip})
+        else:
+            for k, vp in enumerate(video_paths(rec, video_root), 1):
+                content.append({"type": "text", "text": f"Video {k}:"})
+                content.append({"type": "video", "video": vp, "nframes": nframes})
     content.append({"type": "text", "text": full_prompt})
     return [{"role": "user", "content": content}], is_yesno
 

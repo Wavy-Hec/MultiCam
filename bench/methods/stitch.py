@@ -94,6 +94,21 @@ def compose_montage(frames: List[Optional[Image.Image]], labels: List[str],
     return canvas
 
 
+def build_image_montage(image_paths: List[str], cell_px: int = 448,
+                        label_prefix: str = "View") -> List[Image.Image]:
+    """Still-image variant: tile the K view images of one question into a single
+    labeled grid montage (no temporal axis — T=1 by construction). A view that
+    fails to open becomes a black cell, mirroring decode_aligned_frames."""
+    frames: List[Optional[Image.Image]] = []
+    for ip in image_paths:
+        try:
+            frames.append(Image.open(ip).convert("RGB"))
+        except Exception:
+            frames.append(None)
+    labels = [f"{label_prefix} {i + 1}" for i in range(len(image_paths))]
+    return [compose_montage(frames, labels, cell_w=cell_px, cell_h=cell_px)]
+
+
 def build_montages(video_paths: List[str], nframes: int = 8, T: Optional[int] = None,
                    cell_px: int = 448, label_prefix: str = "Camera") -> List[Image.Image]:
     """Decode the K clips and compose ``T`` grid montages (one per aligned timestep).

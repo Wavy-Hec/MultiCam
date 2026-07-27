@@ -24,6 +24,7 @@ class QwenBackend(Backend):
         from qwen_vl_utils import process_vision_info
         self._pvi = process_vision_info
         self._vid_id = self.processor.tokenizer.convert_tokens_to_ids("<|video_pad|>")
+        self._img_id = self.processor.tokenizer.convert_tokens_to_ids("<|image_pad|>")
 
     def generate(self, messages, max_new_tokens, *, seed=None, temperature=0.0) -> GenOut:
         proc = self.processor
@@ -40,6 +41,8 @@ class QwenBackend(Backend):
                       return_tensors="pt", **video_kwargs).to(self.model.device)
         total = int(inputs.input_ids.shape[1])
         vid = int((inputs.input_ids[0] == self._vid_id).sum())
+        if self._img_id is not None:
+            vid += int((inputs.input_ids[0] == self._img_id).sum())
         do_sample = temperature is not None and temperature > 0
         if do_sample and seed is not None:
             torch.manual_seed(seed)

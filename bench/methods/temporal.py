@@ -24,7 +24,7 @@ import math
 from decord import VideoReader, cpu
 
 from .base import Method, Result, result_fields
-from ..reuse import (build_messages, parse_choice, gt_choice, video_paths,
+from ..reuse import (build_messages, parse_choice, gt_choice, letters_of, video_paths,
                      extract_think)
 
 PREFIX = (
@@ -184,7 +184,8 @@ class TemporalWeightedMethod(Method):
             content.append({"type": "video", "video": vp, "nframes": n_k})
         content.append({"type": "text", "text": scaffold})
 
-        gold = gt_choice(rec["answer"], yn)
+        letters = letters_of(rec)
+        gold = gt_choice(rec["answer"], yn, letters=letters)
         alloc_meta = {
             "weighting": self.weighting,
             "budget": self.budget,
@@ -212,7 +213,7 @@ class TemporalWeightedMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn)
+            pred = parse_choice(g.text, yn, letters=letters)
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,

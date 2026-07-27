@@ -6,7 +6,8 @@ per-stream calls, as actually run here) and ``perception_latency_par_s``
 (``max`` over them, the estimate under a truly parallel distributed system).
 """
 from .base import Method, Result, result_fields
-from ..reuse import build_messages, parse_choice, gt_choice, video_paths
+from ..reuse import (build_messages, gt_choice, image_paths, letters_of,
+                     num_images, parse_choice, video_paths)
 
 PERCEPTION_PROMPT = (
     "You are looking at ONE {unit} only. Describe what is visible that is relevant to the "
@@ -14,13 +15,26 @@ PERCEPTION_PROMPT = (
     "timestamps at which events occur. If nothing relevant is visible, say so plainly. "
     "Do NOT try to answer the question yet.\n\nQuestion: {q}"
 )
+# Still-image variant: several categories (relative direction, camera pose) are
+# inherently joint across views — the per-view pass must describe rather than
+# guess, and state plainly what a single view cannot determine.
+PERCEPTION_PROMPT_IMAGE = (
+    "You are looking at ONE camera view (View {k}) of a scene that is also seen by "
+    "other cameras. Describe what is visible that is relevant to the question below: "
+    "people and objects, their positions relative to this camera (left/right, "
+    "near/far), and the apparent camera viewpoint. If the question cannot be judged "
+    "from this view alone, describe what IS visible and say plainly what this view "
+    "cannot determine. Do NOT try to answer the question yet.\n\nQuestion: {q}"
+)
 AGGREGATE_PREFIX = ("You are given independent descriptions of each {unit}. Reason over ALL "
                     "of them together to answer.\n\n")
 # 'camera' keeps the original MEVA phrasing byte-identical; 'video' mirrors
 # centralized's montage_kind fix for sets whose questions say "Video k" —
 # calling independent clips "camera views" there is a documented ~5-pt
-# labeling artifact.
-STREAM_KINDS = {"camera": ("Camera", "camera view"), "video": ("Video", "video clip")}
+# labeling artifact. 'view' is the still-image multi-view labeling (forced for
+# image records regardless of --stream-kind, matching their question text).
+STREAM_KINDS = {"camera": ("Camera", "camera view"), "video": ("Video", "video clip"),
+                "view": ("View", "camera view")}
 
 
 class PerStreamMethod(Method):
@@ -36,38 +50,50 @@ class PerStreamMethod(Method):
 
     def answer(self, rec, video_root, seed=None) -> Result:
         f = result_fields(rec)
-        paths = video_paths(rec, video_root)
+        letters = letters_of(rec)
+        is_image = num_images(rec) > 0
+        if is_image:
+            paths = image_paths(rec, video_root)
+            label, unit = STREAM_KINDS["view"]
+        else:
+            paths = video_paths(rec, video_root)
+            label, unit = self._label, self._unit
         # reuse build_messages to get the exact text-only answer scaffold + yes/no flag
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
         base_text = base_msgs[0]["content"][0]["text"]
-        gold = gt_choice(rec["answer"], yn)
+        gold = gt_choice(rec["answer"], yn, letters=letters)
 
         descs, lat_per, in_tok, vid_tok, out_tok, calls = [], [], 0, 0, 0, 0
         try:
             # --- per-stream perception ---
             for k, vp in enumerate(paths, 1):
+                if is_image:
+                    visual = {"type": "image", "image": vp}
+                    prompt = PERCEPTION_PROMPT_IMAGE.format(k=k, q=rec["question"])
+                else:
+                    visual = {"type": "video", "video": vp, "nframes": self.nframes}
+                    prompt = PERCEPTION_PROMPT.format(unit=unit, q=rec["question"])
                 msg = [{"role": "user", "content": [
-                    {"type": "text", "text": f"{self._label} {k}:"},
-                    {"type": "video", "video": vp, "nframes": self.nframes},
-                    {"type": "text", "text": PERCEPTION_PROMPT.format(unit=self._unit,
-                                                                      q=rec["question"])},
+                    {"type": "text", "text": f"{label} {k}:"},
+                    visual,
+                    {"type": "text", "text": prompt},
                 ]}]
                 g = self.backend.generate(msg, max_new_tokens=self.perception_max_new_tokens,
                                           seed=seed, temperature=self.temperature)
-                descs.append(f"{self._label} {k}:\n{g.text.strip()}")
+                descs.append(f"{label} {k}:\n{g.text.strip()}")
                 lat_per.append(g.latency_s)
                 in_tok += g.input_tokens; vid_tok += g.video_tokens; out_tok += g.output_tokens
                 calls += 1
 
             # --- aggregator (text-only reasoning over the descriptions) ---
-            agg_text = (AGGREGATE_PREFIX.format(unit=self._unit)
+            agg_text = (AGGREGATE_PREFIX.format(unit=unit)
                         + "\n\n".join(descs) + "\n\n" + base_text)
             agg_msg = [{"role": "user", "content": [{"type": "text", "text": agg_text}]}]
             g = self.backend.generate(agg_msg, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
             calls += 1
             in_tok += g.input_tokens; out_tok += g.output_tokens
-            pred = parse_choice(g.text, yn)
+            pred = parse_choice(g.text, yn, letters=letters)
 
             serial = sum(lat_per) + g.latency_s
             return Result(
