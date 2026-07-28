@@ -200,11 +200,12 @@ class TemporalWeightedMethod(Method):
 
     def answer(self, rec, video_root, seed=None) -> Result:
         f = result_fields(rec)
+        letters = letters_of(rec)
         try:
             content, yn, gold, alloc_meta = self._prepare(rec, video_root)
         except Exception as e:
             gold = gt_choice(rec["answer"], all(o.strip().strip(".").lower() in ("yes", "no")
-                                                for o in rec["options"]))
+                                                for o in rec["options"]), letters=letters)
             return Result(**f, method=self.name, backend=self.backend.name,
                           prediction="", gold=gold, correct=False, abstained=True,
                           seed=seed, temperature=self.temperature, num_model_calls=1,
