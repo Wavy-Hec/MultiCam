@@ -17,7 +17,8 @@
 #SBATCH --output=analysis/logs/%A_%a.bench.out
 #SBATCH --error=analysis/logs/%A_%a.bench.err
 #SBATCH -N 1
-#SBATCH -p sxmq,gpuq
+### gpuq belongs to the physics group — do not submit there without permission.
+#SBATCH -p sxmq,gpul40q
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=6
 #SBATCH --time=08:00:00
