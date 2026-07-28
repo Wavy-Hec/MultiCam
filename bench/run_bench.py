@@ -84,6 +84,7 @@ def make_method(mname, backend, args):
         return PerStreamMethod(backend, nframes=args.nframes,
                                max_new_tokens=args.max_new_tokens,
                                temperature=args.temperature,
+                               perception_max_new_tokens=args.perception_max_new_tokens,
                                stream_kind=args.stream_kind)
     if mname == "temporal_weighted":
         return TemporalWeightedMethod(backend, budget=args.budget, floor=args.floor,
@@ -149,6 +150,9 @@ def main():
     ap.add_argument("--video-root", default=DEFAULT_VIDEO_ROOT)
     ap.add_argument("--nframes", type=int, default=8)
     ap.add_argument("--max-new-tokens", type=int, default=8192)
+    ap.add_argument("--perception-max-new-tokens", type=int, default=1024,
+                    help="per_stream: token cap for each per-view perception call "
+                         "(1024 truncates thinking backends mid-<think>; raise for those)")
     ap.add_argument("--passes", type=int, default=4, help="independent sampled passes for std")
     ap.add_argument("--seeds", default="1,2,3,4", help="comma seeds; len must cover --passes")
     ap.add_argument("--temperature", type=float, default=0.7)

@@ -48,6 +48,8 @@ BUDGET=${BUDGET:-64}                   # temporal_weighted: TOTAL frames per que
 FLOOR=${FLOOR:-2}                      # temporal_weighted: per-clip minimum frames
 WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
 MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-8192}
+PERCEPTION_MAX_NEW_TOKENS=${PERCEPTION_MAX_NEW_TOKENS:-1024}  # per_stream per-view cap (raise for thinking backends)
+CELL_PX=${CELL_PX:-448}                # montage cell size (raise so centralized isn't token-starved vs native)
 INTERNVL_MAX_TILES=${INTERNVL_MAX_TILES:-1}
 VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. roots under data/)
 CHUNK=${CHUNK:-0}
@@ -78,5 +80,6 @@ python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$B
     --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" --stream-kind "$STREAM_KIND" \
     --budget "$BUDGET" --floor "$FLOOR" --weighting "$WEIGHTING" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
+    --perception-max-new-tokens "$PERCEPTION_MAX_NEW_TOKENS" --cell-px "$CELL_PX" \
     --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"
 echo "DONE @ $(date '+%F %T')"
