@@ -9,8 +9,8 @@ are built once and cached, so the 4 sampling passes reuse identical pixels.
 """
 from .base import Method, Result, result_fields
 from .stitch import build_image_montage, build_montages
-from ..reuse import (build_messages, gt_choice, image_paths, letters_of,
-                     num_images, parse_choice, video_paths)
+from ..reuse import (build_messages, extract_think, gt_choice, image_paths,
+                     letters_of, num_images, parse_choice, video_paths)
 
 # "camera" — MEVA-style synchronized multi-view (default, unchanged).
 MONTAGE_PREFIX_CAMERA = (
@@ -104,6 +104,7 @@ class CentralizedMethod(Method):
                 latency_s=g.latency_s,
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
+                response_text=g.text, think=extract_think(g.text),
             )
         except Exception as e:  # keep the sweep alive; record the failure
             return Result(**f, method=self.name, backend=self.backend.name,

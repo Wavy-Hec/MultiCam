@@ -9,7 +9,7 @@ It is the production ``build_messages(no_video=False)`` path, wrapped as a
 Method with per-question timing + seed/temperature plumbing.
 """
 from .base import Method, Result, result_fields
-from ..reuse import build_messages, gt_choice, letters_of, parse_choice
+from ..reuse import build_messages, extract_think, gt_choice, letters_of, parse_choice
 
 
 class CVBenchNativeMethod(Method):
@@ -33,6 +33,7 @@ class CVBenchNativeMethod(Method):
                 latency_s=g.latency_s,
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
+                response_text=g.text, think=extract_think(g.text),
             )
         except Exception as e:
             return Result(**f, method=self.name, backend=self.backend.name,

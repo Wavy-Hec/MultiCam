@@ -6,8 +6,8 @@ per-stream calls, as actually run here) and ``perception_latency_par_s``
 (``max`` over them, the estimate under a truly parallel distributed system).
 """
 from .base import Method, Result, result_fields
-from ..reuse import (build_messages, gt_choice, image_paths, letters_of,
-                     num_images, parse_choice, video_paths)
+from ..reuse import (build_messages, extract_think, gt_choice, image_paths,
+                     letters_of, num_images, parse_choice, video_paths)
 
 PERCEPTION_PROMPT = (
     "You are looking at ONE {unit} only. Describe what is visible that is relevant to the "
@@ -108,6 +108,10 @@ class PerStreamMethod(Method):
                 aggregate_latency_s=g.latency_s,
                 input_tokens=in_tok, video_tokens=vid_tok, output_tokens=out_tok,
                 num_model_calls=calls,
+                # aggregator trace + the per-view descriptions it reasoned over,
+                # so blind-perception vs bad-aggregation failures are separable
+                response_text=g.text, think=extract_think(g.text),
+                frame_alloc={"perception_texts": descs},
             )
         except Exception as e:
             return Result(**f, method=self.name, backend=self.backend.name,
