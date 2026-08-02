@@ -111,9 +111,16 @@ def fig_arrangement():
     l.append("random guessing (25.9 MVU-Eval, 33.3 All-Angles)")
     ax.legend(h, l, loc="upper left", bbox_to_anchor=(-0.01, 1.24), ncol=4,
               frameon=False, fontsize=9.5, handlelength=1.4)
+    b32 = S.get("budget32") or {}
+    if b32.get("cvbench_native"):
+        gap = max(abs(b32[k]["acc"] - S["arrangement"]["mvu_full"][k]["acc"])
+                  for k in ("cvbench_native", "centralized", "per_stream"))
+        note = f"the matched fixed-32 rerun (slide on unmatched budgets) lands within {gap:.1f} points of every arm here."
+    else:
+        note = "a matched 32-frame rerun is queued (job 72241)."
     header(fig, "Does the arrangement matter?",
            "The 3 conditions on the same questions, 4 passes each. My run feeds 8 frames per video (16–104 per question),\n"
-           "not the reference slides' fixed 32-frame budget — a matched 32-frame rerun is queued (job 72241).")
+           f"not the reference slides' fixed 32-frame budget — {note}")
     p = S["arrangement"]["perm"]
     footer(fig, f"centralized is within {abs(p['cvbench_native-centralized']['delta']):.1f} points of sequential on MVU-Eval "
                 f"(p={p['cvbench_native-centralized']['p']:.2f}, not significant).\n"
@@ -251,9 +258,15 @@ def fig_budget():
     header(fig, "What is wrong: the budgets were not matched",
            "Two protocol gaps found while rebuilding the reference slides from my run (measured from the real result\n"
            "rows, not the configs).")
+    b32 = S.get("budget32") or {}
+    if b32.get("cvbench_native"):
+        tail = (f"The fixed-32 rerun answers it: seq {b32['cvbench_native']['acc']:.1f} / "
+                f"stitch {b32['centralized']['acc']:.1f} / decentral {b32['per_stream']['acc']:.1f} —\n"
+                "same story at the matched budget (centralized still rounds to 26–36 frames on its montage grid).")
+    else:
+        tail = "The corrected fixed-32 rerun of all\nthree arms is queued (job 72241)."
     footer(fig, "“Same images at the same budget” does not hold in my run: stitching squeezes into 0.63× the tokens, and every\n"
-                "question's frame count floats with its view count instead of a fixed 32. The corrected fixed-32 rerun of all\n"
-                "three arms is queued (job 72241).")
+                f"question's frame count floats with its view count instead of a fixed 32. {tail}")
     fig.savefig(os.path.join(OUT, "fig5_budget.png"))
     plt.close(fig)
 

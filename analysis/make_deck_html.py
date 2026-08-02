@@ -41,35 +41,40 @@ if b32_done:
       <td>{b['cvbench_native']['acc']:.1f} / {b['centralized']['acc']:.1f} / {b['per_stream']['acc']:.1f}</td>
       <td><span class="chip ok">matched protocol</span></td></tr>"""
 
+b32_cap = ("Stitching ran at 0.63× the tokens and the frame count floats with view count — "
+           + (f"the fixed-32 rerun ({S['budget32']['cvbench_native']['acc']:.1f} / "
+              f"{S['budget32']['centralized']['acc']:.1f} / {S['budget32']['per_stream']['acc']:.1f}) "
+              "confirms the story holds at a matched budget."
+              if b32_done else "the fixed-32 rerun is queued."))
+
 SLIDES = [
-    ("fig1_arrangement.png", "01", "Does the arrangement matter?",
+    ("fig1_arrangement.png", "Does the arrangement matter?",
      f"sequential {seq:.1f} · stitching {cen:.1f} · decentralized {dec:.1f} on the full 1,824 questions — "
      "the only significant gap is decentralized falling ~9 points behind."),
-    ("fig2_sync.png", "02", "Does synchronization matter?",
+    ("fig2_sync.png", "Does synchronization matter?",
      f"Stitching moves accuracy {sy['delta']:+.2f} on the 128 true 6-camera rigs and {un['delta']:+.2f} "
      "elsewhere — same shape as the reference deck, neither significant."),
-    ("fig3_pertask.png", "03", "Per-task stitching effect",
+    ("fig3_pertask.png", "Per-task stitching effect",
      f"No task survives correction. The reference deck's Counting +6.83 reverses here ({cnt['delta']:+.2f})."),
-    ("fig4_clip.png", "04", "The clip experiment at full scale",
+    ("fig4_clip.png", "The clip experiment at full scale",
      "Frame selection ties uniform sampling; picking one clip collapses — selection never beats use-everything."),
-    ("fig5_budget.png", "05", "What is wrong: unmatched budgets",
-     "Stitching ran at 0.63× the tokens and the frame count floats with view count — the fixed-32 rerun is queued."),
-    ("fig6_blind.png", "06", "Do the images even help?",
+    ("fig5_budget.png", "What is wrong: unmatched budgets", b32_cap),
+    ("fig6_blind.png", "Do the images even help?",
      "Blind (no-image) floor — " + ("computed from the finished runs." if blind_done
                                     else "runs in flight (jobs 72235/72236); panel updates when they land.")),
-    ("fig7_singleview.png", "07", "Does picking the right view matter?",
+    ("fig7_singleview.png", "Does picking the right view matter?",
      "Best/random/worst single view on the 545 no-view-named questions — "
      + ("computed from the finished sweep." if sv_done else "sweep in flight (job 72240).")),
-    ("fig8_census.png", "08", "What the benchmark is made of",
+    ("fig8_census.png", "What the benchmark is made of",
      "70% of questions name their videos; only 7% are truly synchronized; the answer key is balanced."),
 ]
 
 cards = "\n".join(f"""
   <section class="slide">
-    <div class="eyebrow">SLIDE {num} · {title}</div>
+    <div class="eyebrow">SLIDE {i + 1:02d} · {title}</div>
     <div class="imgcard"><img alt="{title}" src="data:image/png;base64,{b64(fn)}"></div>
     <p class="cap">{cap}</p>
-  </section>""" for fn, num, title, cap in SLIDES)
+  </section>""" for i, (fn, title, cap) in enumerate(SLIDES))
 
 pending_bits = []
 if not blind_done: pending_bits.append("blind (72235/72236)")
