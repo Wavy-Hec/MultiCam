@@ -159,6 +159,7 @@ pending_bits = []
 if not blind_done: pending_bits.append("blind (72235/72236)")
 if not sv_done: pending_bits.append("single-view (72240)")
 if not b32_done: pending_bits.append("fixed-32 rerun (72241)")
+if not pp_done: pending_bits.append("paper-parity 32/video arms")
 status = ("All runs finished — every panel shows final data."
           if not pending_bits else
           "In flight: " + ", ".join(pending_bits) + ". Panels regenerate when each lands.")
