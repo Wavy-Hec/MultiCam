@@ -71,6 +71,7 @@ class CentralizedMethod(Method):
             paths = image_paths(rec, video_root)
             montages = build_image_montage(paths, cell_px=self.cell_px, label_prefix="View")
             prefix = MONTAGE_PREFIX_VIEW
+            alloc = {"kind": "image_montage", "K": len(paths)}
         else:
             paths = video_paths(rec, video_root)
             t = self.T
@@ -79,15 +80,18 @@ class CentralizedMethod(Method):
             montages = build_montages(paths, nframes=max(self.nframes, t), T=t,
                                       cell_px=self.cell_px, label_prefix=self._label)
             prefix = self._prefix
+            alloc = {"kind": "montage", "T": t, "K": len(paths),
+                     "frames_total": t * len(paths),
+                     "total_frames": self.total_frames or None}
         gold = gt_choice(rec["answer"], yn, letters=letters_of(rec))
-        self._cache = {key: (montages, scaffold, yn, gold, len(paths), prefix)}  # last rec only
+        self._cache = {key: (montages, scaffold, yn, gold, len(paths), prefix, alloc)}  # last rec only
         return self._cache[key]
 
     def answer(self, rec, video_root, seed=None) -> Result:
         f = result_fields(rec)
         letters = letters_of(rec)
         try:
-            montages, scaffold, yn, gold, k, prefix = self._prepare(rec, video_root)
+            montages, scaffold, yn, gold, k, prefix, alloc = self._prepare(rec, video_root)
         except Exception as e:
             gold = gt_choice(rec["answer"], all(o.strip().strip(".").lower() in ("yes", "no")
                                                 for o in rec["options"]), letters=letters)
@@ -113,6 +117,7 @@ class CentralizedMethod(Method):
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
                 response_text=g.text, think=extract_think(g.text),
+                frame_alloc=alloc,
             )
         except Exception as e:  # keep the sweep alive; record the failure
             return Result(**f, method=self.name, backend=self.backend.name,
