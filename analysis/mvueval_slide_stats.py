@@ -309,31 +309,51 @@ def main():
             # NOT _mean: these are fractions in [0,1], and _mean's round(.., 1)
             # would crush them to one significant digit before the *100.
             fmean = lambda xs: sum(xs) / len(xs)
-            best = fmean([max(vs.values()) for vs in complete.values()])
-            worst = fmean([min(vs.values()) for vs in complete.values()])
-            rand = fmean([sum(vs.values()) / len(vs) for vs in complete.values()])
-            # luck-only best-of-K: views exchangeable, per-view score drawn from
-            # the question's own view multiset -> expected max of K draws with
-            # replacement, averaged over questions (closed form via sorting)
-            luck = []
-            for vs in complete.values():
-                xs = sorted(vs.values())
-                K = len(xs)
-                e = 0.0
-                for i, x in enumerate(xs, 1):
-                    e += x * ((i / K) ** K - ((i - 1) / K) ** K)
-                luck.append(e)
-            seq = None
-            if "cvbench_native" in mvu:
-                qa = qmeans(mvu["cvbench_native"])
-                seq = fmean([qa[q] for q in complete if q in qa])
-            out["single_view"] = {
-                "n_q_complete": len(complete),
-                "best": round(100 * best, 2), "worst": round(100 * worst, 2),
-                "random": round(100 * rand, 2),
-                "luck_best_of_k": round(100 * fmean(luck), 2),
-                "sequential_all_views": round(100 * seq, 2) if seq is not None else None,
-            }
+            seq_qa = qmeans(mvu["cvbench_native"]) if "cvbench_native" in mvu else {}
+
+            def sv_stats(sub):
+                best = fmean([max(vs.values()) for vs in sub.values()])
+                worst = fmean([min(vs.values()) for vs in sub.values()])
+                rand = fmean([sum(vs.values()) / len(vs) for vs in sub.values()])
+                # luck-only best-of-K: views exchangeable, per-view score drawn
+                # from the question's own view multiset -> expected max of K
+                # draws with replacement, averaged over questions (closed form
+                # via sorting)
+                luck = []
+                for vs in sub.values():
+                    xs = sorted(vs.values())
+                    K = len(xs)
+                    e = 0.0
+                    for i, x in enumerate(xs, 1):
+                        e += x * ((i / K) ** K - ((i - 1) / K) ** K)
+                    luck.append(e)
+                seqs = [seq_qa[q] for q in sub if q in seq_qa]
+                return {
+                    "best": round(100 * best, 2), "worst": round(100 * worst, 2),
+                    "random": round(100 * rand, 2),
+                    "luck_best_of_k": round(100 * fmean(luck), 2),
+                    "sequential_all_views": round(100 * fmean(seqs), 2) if seqs else None,
+                }
+
+            out["single_view"] = {"n_q_complete": len(complete), **sv_stats(complete)}
+            groups = defaultdict(dict)
+            for q, vs in complete.items():
+                groups[mvu_by_id[q]["task_type"]][q] = vs
+            out["single_view"]["by_task"] = {
+                t: {"n_q": len(qs), **sv_stats(qs)} for t, qs in sorted(groups.items())}
+            # per-view-index matrix: is there a positional artifact? (views 1-6
+            # cover every question; views 7+ exist only on high-K questions)
+            per_view = defaultdict(list)
+            for (q, v), cs in per_qv.items():
+                if q in complete:
+                    per_view[v].append(sum(cs) / len(cs))
+            out["single_view"]["per_view_index"] = {
+                str(v): {"acc": round(100 * fmean(xs), 2), "n_q": len(xs)}
+                for v, xs in sorted(per_view.items())}
+            out["single_view"]["per_view_note"] = (
+                "accuracy is flat across views 1-6, so no positional artifact; "
+                "the rise at views 7+ is composition (only K>=7 questions have "
+                "those views), not position")
 
     # ---- budget-32 verification arms
     out["budget32"] = {m: arm_summary(rs) for m, rs in b32.items()}

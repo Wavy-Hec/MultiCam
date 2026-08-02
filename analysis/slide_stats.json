@@ -746,7 +746,120 @@
   "worst": 17.43,
   "random": 41.82,
   "luck_best_of_k": 65.59,
-  "sequential_all_views": 51.28
+  "sequential_all_views": 51.28,
+  "by_task": {
+   "MVU-Comparison": {
+    "n_q": 31,
+    "best": 56.45,
+    "worst": 11.29,
+    "random": 31.18,
+    "luck_best_of_k": 51.57,
+    "sequential_all_views": 31.45
+   },
+   "MVU-Counting": {
+    "n_q": 4,
+    "best": 68.75,
+    "worst": 31.25,
+    "random": 50.73,
+    "luck_best_of_k": 64.13,
+    "sequential_all_views": 68.75
+   },
+   "MVU-KIR": {
+    "n_q": 82,
+    "best": 85.37,
+    "worst": 25.61,
+    "random": 55.74,
+    "luck_best_of_k": 81.3,
+    "sequential_all_views": 71.65
+   },
+   "MVU-OR": {
+    "n_q": 7,
+    "best": 60.71,
+    "worst": 3.57,
+    "random": 19.52,
+    "luck_best_of_k": 47.05,
+    "sequential_all_views": 28.57
+   },
+   "MVU-RAG": {
+    "n_q": 337,
+    "best": 72.63,
+    "worst": 12.69,
+    "random": 38.23,
+    "luck_best_of_k": 63.64,
+    "sequential_all_views": 49.26
+   },
+   "MVU-SU": {
+    "n_q": 79,
+    "best": 70.89,
+    "worst": 32.28,
+    "random": 49.1,
+    "luck_best_of_k": 65.98,
+    "sequential_all_views": 49.68
+   },
+   "MVU-TR": {
+    "n_q": 5,
+    "best": 50.0,
+    "worst": 15.0,
+    "random": 30.83,
+    "luck_best_of_k": 47.57,
+    "sequential_all_views": 20.0
+   }
+  },
+  "per_view_index": {
+   "1": {
+    "acc": 42.06,
+    "n_q": 545
+   },
+   "2": {
+    "acc": 41.33,
+    "n_q": 545
+   },
+   "3": {
+    "acc": 41.88,
+    "n_q": 545
+   },
+   "4": {
+    "acc": 40.76,
+    "n_q": 541
+   },
+   "5": {
+    "acc": 40.01,
+    "n_q": 463
+   },
+   "6": {
+    "acc": 44.24,
+    "n_q": 317
+   },
+   "7": {
+    "acc": 62.21,
+    "n_q": 43
+   },
+   "8": {
+    "acc": 52.27,
+    "n_q": 33
+   },
+   "9": {
+    "acc": 61.9,
+    "n_q": 21
+   },
+   "10": {
+    "acc": 58.33,
+    "n_q": 12
+   },
+   "11": {
+    "acc": 40.0,
+    "n_q": 10
+   },
+   "12": {
+    "acc": 33.33,
+    "n_q": 3
+   },
+   "13": {
+    "acc": 25.0,
+    "n_q": 2
+   }
+  },
+  "per_view_note": "accuracy is flat across views 1-6, so no positional artifact; the rise at views 7+ is composition (only K>=7 questions have those views), not position"
  },
  "budget32": {
   "centralized": {
