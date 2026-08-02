@@ -41,12 +41,17 @@ class PerStreamMethod(Method):
     name = "per_stream"
 
     def __init__(self, backend, nframes=8, max_new_tokens=8192, temperature=0.0,
-                 perception_max_new_tokens=1024, stream_kind="camera"):
+                 perception_max_new_tokens=1024, stream_kind="camera",
+                 total_frames=0):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
                          temperature=temperature)
         self.perception_max_new_tokens = perception_max_new_tokens
         self._label, self._unit = STREAM_KINDS[stream_kind]
         self.stream_kind = stream_kind
+        # total_frames > 0: one TOTAL frame budget per question split evenly
+        # across the per-view perception calls (the mentor's fixed-budget
+        # protocol), instead of a flat nframes per view
+        self.total_frames = total_frames
 
     def answer(self, rec, video_root, seed=None) -> Result:
         f = result_fields(rec)
@@ -63,6 +68,11 @@ class PerStreamMethod(Method):
         base_text = base_msgs[0]["content"][0]["text"]
         gold = gt_choice(rec["answer"], yn, letters=letters)
 
+        per_view = None
+        if self.total_frames and not is_image and paths:
+            from .temporal import allocate_frames
+            per_view = allocate_frames([1] * len(paths), budget=self.total_frames, floor=1)
+
         descs, lat_per, in_tok, vid_tok, out_tok, calls = [], [], 0, 0, 0, 0
         try:
             # --- per-stream perception ---
@@ -71,7 +81,8 @@ class PerStreamMethod(Method):
                     visual = {"type": "image", "image": vp}
                     prompt = PERCEPTION_PROMPT_IMAGE.format(k=k, q=rec["question"])
                 else:
-                    visual = {"type": "video", "video": vp, "nframes": self.nframes}
+                    nf = per_view[k - 1] if per_view else self.nframes
+                    visual = {"type": "video", "video": vp, "nframes": nf}
                     prompt = PERCEPTION_PROMPT.format(unit=unit, q=rec["question"])
                 msg = [{"role": "user", "content": [
                     {"type": "text", "text": f"{label} {k}:"},
@@ -111,7 +122,9 @@ class PerStreamMethod(Method):
                 # aggregator trace + the per-view descriptions it reasoned over,
                 # so blind-perception vs bad-aggregation failures are separable
                 response_text=g.text, think=extract_think(g.text),
-                frame_alloc={"perception_texts": descs},
+                frame_alloc=({"perception_texts": descs} if per_view is None else
+                             {"perception_texts": descs, "total_frames": self.total_frames,
+                              "per_view": per_view}),
             )
         except Exception as e:
             return Result(**f, method=self.name, backend=self.backend.name,

@@ -9,14 +9,32 @@ It is the production ``build_messages(no_video=False)`` path, wrapped as a
 Method with per-question timing + seed/temperature plumbing.
 """
 from .base import Method, Result, result_fields
+from .temporal import allocate_frames
 from ..reuse import build_messages, extract_think, gt_choice, letters_of, parse_choice
 
 
 class CVBenchNativeMethod(Method):
     name = "cvbench_native"
 
+    def __init__(self, backend, nframes=8, max_new_tokens=8192, temperature=0.0,
+                 total_frames=0):
+        super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
+                         temperature=temperature)
+        # total_frames > 0 switches from a flat per-clip nframes to one TOTAL
+        # frame budget per question, split evenly across its clips (the
+        # mentor's fixed-budget protocol; per-clip counts land in frame_alloc)
+        self.total_frames = total_frames
+
     def answer(self, rec, video_root, seed=None) -> Result:
         messages, yn = build_messages(rec, video_root, self.nframes, no_video=False)
+        alloc = None
+        if self.total_frames:
+            vids = [c for c in messages[0]["content"] if c.get("type") == "video"]
+            if vids:
+                per = allocate_frames([1] * len(vids), budget=self.total_frames, floor=1)
+                for item, n in zip(vids, per):
+                    item["nframes"] = n
+                alloc = {"total_frames": self.total_frames, "per_view": per}
         f = result_fields(rec)
         letters = letters_of(rec)
         gold = gt_choice(rec["answer"], yn, letters=letters)
@@ -34,6 +52,7 @@ class CVBenchNativeMethod(Method):
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
                 response_text=g.text, think=extract_think(g.text),
+                frame_alloc=alloc,
             )
         except Exception as e:
             return Result(**f, method=self.name, backend=self.backend.name,

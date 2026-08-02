@@ -43,10 +43,15 @@ class CentralizedMethod(Method):
     name = "centralized"
 
     def __init__(self, backend, nframes=8, max_new_tokens=8192, temperature=0.0,
-                 montage_frames=0, cell_px=448, montage_kind="camera"):
+                 montage_frames=0, cell_px=448, montage_kind="camera",
+                 total_frames=0):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
                          temperature=temperature)
         self.T = montage_frames if montage_frames and montage_frames > 0 else nframes
+        # total_frames > 0: hold the TOTAL source-frame count (T montages x K
+        # cells) fixed per question by setting T = round(total/K) per record
+        # (the mentor's fixed-budget protocol)
+        self.total_frames = total_frames
         self.cell_px = cell_px
         self.montage_kind = montage_kind  # "camera" (synced views) | "video" (independent clips)
         self._prefix = MONTAGE_PREFIXES[montage_kind]
@@ -68,7 +73,10 @@ class CentralizedMethod(Method):
             prefix = MONTAGE_PREFIX_VIEW
         else:
             paths = video_paths(rec, video_root)
-            montages = build_montages(paths, nframes=self.nframes, T=self.T,
+            t = self.T
+            if self.total_frames:
+                t = max(1, round(self.total_frames / len(paths)))
+            montages = build_montages(paths, nframes=max(self.nframes, t), T=t,
                                       cell_px=self.cell_px, label_prefix=self._label)
             prefix = self._prefix
         gold = gt_choice(rec["answer"], yn, letters=letters_of(rec))
