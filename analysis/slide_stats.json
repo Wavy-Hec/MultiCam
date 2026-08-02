@@ -1,0 +1,869 @@
+{
+ "meta": {
+  "backend": "InternVL3-8B",
+  "passes": 4,
+  "protocol": "4-pass std; per-question mean over passes for paired tests",
+  "perm": {
+   "n": 20000,
+   "seed": 20260730,
+   "test": "question-level sign-flip"
+  },
+  "mvu_n": 1824,
+  "aab_n": 170,
+  "sync_n": 128,
+  "unrelated_n": 1696,
+  "noview_n": 545
+ },
+ "arrangement": {
+  "mvu_full": {
+   "cvbench_native": {
+    "acc": 52.87828947368421,
+    "pass_std": 0.40566470907205976,
+    "n_rows": 7296,
+    "n_q": 1824,
+    "by_task": {
+     "MVU-Comparison": {
+      "acc": 66.48148148148148,
+      "n_q": 135
+     },
+     "MVU-Counting": {
+      "acc": 57.59911894273128,
+      "n_q": 227
+     },
+     "MVU-ICL": {
+      "acc": 30.03048780487805,
+      "n_q": 164
+     },
+     "MVU-KIR": {
+      "acc": 40.30249110320285,
+      "n_q": 281
+     },
+     "MVU-OR": {
+      "acc": 50.992063492063494,
+      "n_q": 126
+     },
+     "MVU-RAG": {
+      "acc": 49.336283185840706,
+      "n_q": 339
+     },
+     "MVU-SU": {
+      "acc": 48.88268156424581,
+      "n_q": 179
+     },
+     "MVU-TR": {
+      "acc": 70.37533512064343,
+      "n_q": 373
+     }
+    },
+    "tokens": {
+     "video_mean": 9650.5,
+     "video_median": 10240,
+     "input_mean": 10125.6
+    }
+   },
+   "centralized": {
+    "acc": 51.94627192982456,
+    "pass_std": 0.4849727525480847,
+    "n_rows": 7296,
+    "n_q": 1824,
+    "by_task": {
+     "MVU-Comparison": {
+      "acc": 62.96296296296296,
+      "n_q": 135
+     },
+     "MVU-Counting": {
+      "acc": 54.73568281938326,
+      "n_q": 227
+     },
+     "MVU-ICL": {
+      "acc": 31.554878048780488,
+      "n_q": 164
+     },
+     "MVU-KIR": {
+      "acc": 38.52313167259786,
+      "n_q": 281
+     },
+     "MVU-OR": {
+      "acc": 52.182539682539684,
+      "n_q": 126
+     },
+     "MVU-RAG": {
+      "acc": 48.89380530973451,
+      "n_q": 339
+     },
+     "MVU-SU": {
+      "acc": 49.720670391061454,
+      "n_q": 179
+     },
+     "MVU-TR": {
+      "acc": 69.10187667560322,
+      "n_q": 373
+     }
+    },
+    "tokens": {
+     "video_mean": 6104.7,
+     "video_median": 7168,
+     "input_mean": 6427.8
+    }
+   },
+   "per_stream": {
+    "acc": 43.98300438596491,
+    "pass_std": 1.1684032458323175,
+    "n_rows": 7296,
+    "n_q": 1824,
+    "by_task": {
+     "MVU-Comparison": {
+      "acc": 38.888888888888886,
+      "n_q": 135
+     },
+     "MVU-Counting": {
+      "acc": 39.757709251101325,
+      "n_q": 227
+     },
+     "MVU-ICL": {
+      "acc": 33.53658536585366,
+      "n_q": 164
+     },
+     "MVU-KIR": {
+      "acc": 40.569395017793596,
+      "n_q": 281
+     },
+     "MVU-OR": {
+      "acc": 49.007936507936506,
+      "n_q": 126
+     },
+     "MVU-RAG": {
+      "acc": 44.6165191740413,
+      "n_q": 339
+     },
+     "MVU-SU": {
+      "acc": 46.64804469273743,
+      "n_q": 179
+     },
+     "MVU-TR": {
+      "acc": 52.01072386058981,
+      "n_q": 373
+     }
+    },
+    "tokens": {
+     "video_mean": 9650.5,
+     "video_median": 10240,
+     "input_mean": 10959.4
+    }
+   }
+  },
+  "aab170": {
+   "cvbench_native": {
+    "acc": 44.11764705882353,
+    "pass_std": 3.6499040135267222,
+    "n_rows": 680,
+    "n_q": 170,
+    "by_task": {
+     "AAB-Attribute-Identification": {
+      "acc": 63.23529411764706,
+      "n_q": 34
+     },
+     "AAB-Camera-Pose-Estimation": {
+      "acc": 37.5,
+      "n_q": 14
+     },
+     "AAB-Counting": {
+      "acc": 39.705882352941174,
+      "n_q": 17
+     },
+     "AAB-Manipulation": {
+      "acc": 34.285714285714285,
+      "n_q": 35
+     },
+     "AAB-Relative-Direction": {
+      "acc": 32.5,
+      "n_q": 30
+     },
+     "AAB-Relative-Distance": {
+      "acc": 49.375,
+      "n_q": 40
+     }
+    },
+    "tokens": {
+     "video_mean": 1956.1,
+     "video_median": 1536,
+     "input_mean": 2201.6
+    }
+   },
+   "centralized": {
+    "acc": 39.26470588235294,
+    "pass_std": 2.8325529829791507,
+    "n_rows": 680,
+    "n_q": 170,
+    "by_task": {
+     "AAB-Attribute-Identification": {
+      "acc": 52.94117647058823,
+      "n_q": 34
+     },
+     "AAB-Camera-Pose-Estimation": {
+      "acc": 42.857142857142854,
+      "n_q": 14
+     },
+     "AAB-Counting": {
+      "acc": 23.529411764705884,
+      "n_q": 17
+     },
+     "AAB-Manipulation": {
+      "acc": 33.57142857142857,
+      "n_q": 35
+     },
+     "AAB-Relative-Direction": {
+      "acc": 39.166666666666664,
+      "n_q": 30
+     },
+     "AAB-Relative-Distance": {
+      "acc": 38.125,
+      "n_q": 40
+     }
+    },
+    "tokens": {
+     "video_mean": 861.4,
+     "video_median": 768,
+     "input_mean": 1148.5
+    }
+   },
+   "per_stream": {
+    "acc": 46.3235294117647,
+    "pass_std": 1.463216819274441,
+    "n_rows": 680,
+    "n_q": 170,
+    "by_task": {
+     "AAB-Attribute-Identification": {
+      "acc": 60.294117647058826,
+      "n_q": 34
+     },
+     "AAB-Camera-Pose-Estimation": {
+      "acc": 42.857142857142854,
+      "n_q": 14
+     },
+     "AAB-Counting": {
+      "acc": 42.64705882352941,
+      "n_q": 17
+     },
+     "AAB-Manipulation": {
+      "acc": 30.0,
+      "n_q": 35
+     },
+     "AAB-Relative-Direction": {
+      "acc": 33.333333333333336,
+      "n_q": 30
+     },
+     "AAB-Relative-Distance": {
+      "acc": 61.25,
+      "n_q": 40
+     }
+    },
+    "tokens": {
+     "video_mean": 1956.1,
+     "video_median": 1536,
+     "input_mean": 3123.7
+    }
+   }
+  },
+  "chance": {
+   "mvu_full": 25.88,
+   "aab170": 33.33
+  },
+  "majority_floor": {
+   "mvu_full": {
+    "acc": 25.49342105263158,
+    "letter": "A"
+   },
+   "aab170": {
+    "acc": 38.23529411764706,
+    "letter": "A"
+   }
+  },
+  "perm": {
+   "cvbench_native-centralized": {
+    "delta": 0.93,
+    "p": 0.216039198040098,
+    "n": 1824
+   },
+   "cvbench_native-per_stream": {
+    "delta": 8.9,
+    "p": 4.999750012499375e-05,
+    "n": 1824
+   },
+   "centralized-per_stream": {
+    "delta": 7.96,
+    "p": 4.999750012499375e-05,
+    "n": 1824
+   }
+  }
+ },
+ "clip": {
+  "frame_select": {
+   "acc": 52.35745614035088,
+   "pass_std": 0.27955150842065735,
+   "n_rows": 7296,
+   "n_q": 1824,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 62.03703703703704,
+     "n_q": 135
+    },
+    "MVU-Counting": {
+     "acc": 55.947136563876654,
+     "n_q": 227
+    },
+    "MVU-ICL": {
+     "acc": 30.48780487804878,
+     "n_q": 164
+    },
+    "MVU-KIR": {
+     "acc": 38.43416370106762,
+     "n_q": 281
+    },
+    "MVU-OR": {
+     "acc": 49.801587301587304,
+     "n_q": 126
+    },
+    "MVU-RAG": {
+     "acc": 49.926253687315636,
+     "n_q": 339
+    },
+    "MVU-SU": {
+     "acc": 51.815642458100555,
+     "n_q": 179
+    },
+    "MVU-TR": {
+     "acc": 70.10723860589812,
+     "n_q": 373
+    }
+   },
+   "tokens": {
+    "video_mean": 16221.5,
+    "video_median": 16384,
+    "input_mean": 16844.8
+   }
+  },
+  "clip_select_top1": {
+   "acc": 43.75,
+   "pass_std": 0.9312109512863498,
+   "n_rows": 7296,
+   "n_q": 1824,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 41.851851851851855,
+     "n_q": 135
+    },
+    "MVU-Counting": {
+     "acc": 40.969162995594715,
+     "n_q": 227
+    },
+    "MVU-ICL": {
+     "acc": 28.658536585365855,
+     "n_q": 164
+    },
+    "MVU-KIR": {
+     "acc": 38.612099644128115,
+     "n_q": 281
+    },
+    "MVU-OR": {
+     "acc": 43.84920634920635,
+     "n_q": 126
+    },
+    "MVU-RAG": {
+     "acc": 47.56637168141593,
+     "n_q": 339
+    },
+    "MVU-SU": {
+     "acc": 41.340782122905026,
+     "n_q": 179
+    },
+    "MVU-TR": {
+     "acc": 54.289544235924936,
+     "n_q": 373
+    }
+   },
+   "tokens": {
+    "video_mean": 15277.6,
+    "video_median": 16384,
+    "input_mean": 16083.8
+   }
+  },
+  "temporal_weighted": {
+   "acc": 51.83662280701754,
+   "pass_std": 0.927572605026789,
+   "n_rows": 7296,
+   "n_q": 1824,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 64.62962962962963,
+     "n_q": 135
+    },
+    "MVU-Counting": {
+     "acc": 55.06607929515418,
+     "n_q": 227
+    },
+    "MVU-ICL": {
+     "acc": 27.4390243902439,
+     "n_q": 164
+    },
+    "MVU-KIR": {
+     "acc": 40.30249110320285,
+     "n_q": 281
+    },
+    "MVU-OR": {
+     "acc": 54.96031746031746,
+     "n_q": 126
+    },
+    "MVU-RAG": {
+     "acc": 48.008849557522126,
+     "n_q": 339
+    },
+    "MVU-SU": {
+     "acc": 50.55865921787709,
+     "n_q": 179
+    },
+    "MVU-TR": {
+     "acc": 67.69436997319035,
+     "n_q": 373
+    }
+   },
+   "tokens": {
+    "video_mean": 16297.1,
+    "video_median": 16384,
+    "input_mean": 17208.4
+   }
+  }
+ },
+ "sync": {
+  "sync128": {
+   "cvbench_native": {
+    "acc": 44.7265625,
+    "n_q": 128
+   },
+   "centralized": {
+    "acc": 46.2890625,
+    "n_q": 128
+   },
+   "per_stream": {
+    "acc": 43.5546875,
+    "n_q": 128
+   },
+   "stitch_delta": {
+    "delta": 1.56,
+    "p": 0.5588220588970552,
+    "n": 128
+   }
+  },
+  "unrelated": {
+   "cvbench_native": {
+    "acc": 53.4935141509434,
+    "n_q": 1696
+   },
+   "centralized": {
+    "acc": 52.373231132075475,
+    "n_q": 1696
+   },
+   "per_stream": {
+    "acc": 44.01533018867924,
+    "n_q": 1696
+   },
+   "stitch_delta": {
+    "delta": -1.12,
+    "p": 0.15459227038648068,
+    "n": 1696
+   }
+  },
+  "sync_task_mix": {
+   "MVU-KIR": 10,
+   "MVU-SU": 78,
+   "MVU-Comparison": 31,
+   "MVU-Counting": 1,
+   "MVU-OR": 3,
+   "MVU-TR": 5
+  }
+ },
+ "per_task": {
+  "MVU-Comparison": {
+   "delta": -3.52,
+   "p": 0.22608869556522174,
+   "n": 135,
+   "holm_significant": false
+  },
+  "MVU-Counting": {
+   "delta": -2.86,
+   "p": 0.33423328833558325,
+   "n": 227,
+   "holm_significant": false
+  },
+  "MVU-ICL": {
+   "delta": 1.52,
+   "p": 0.5608719564021799,
+   "n": 164,
+   "holm_significant": false
+  },
+  "MVU-KIR": {
+   "delta": -1.78,
+   "p": 0.3368331583420829,
+   "n": 281,
+   "holm_significant": false
+  },
+  "MVU-OR": {
+   "delta": 1.19,
+   "p": 0.6990650467476626,
+   "n": 126,
+   "holm_significant": false
+  },
+  "MVU-RAG": {
+   "delta": -0.44,
+   "p": 0.8270086495675216,
+   "n": 339,
+   "holm_significant": false
+  },
+  "MVU-SU": {
+   "delta": 0.84,
+   "p": 0.7568621568921554,
+   "n": 179,
+   "holm_significant": false
+  },
+  "MVU-TR": {
+   "delta": -1.27,
+   "p": 0.4065296735163242,
+   "n": 373,
+   "holm_significant": false
+  }
+ },
+ "blind": {
+  "mvu_full": {
+   "acc": 30.482456140350877,
+   "pass_std": 0.3698118849570179,
+   "n_rows": 7296,
+   "n_q": 1824,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 33.51851851851852,
+     "n_q": 135
+    },
+    "MVU-Counting": {
+     "acc": 22.797356828193834,
+     "n_q": 227
+    },
+    "MVU-ICL": {
+     "acc": 28.048780487804876,
+     "n_q": 164
+    },
+    "MVU-KIR": {
+     "acc": 25.889679715302492,
+     "n_q": 281
+    },
+    "MVU-OR": {
+     "acc": 25.595238095238095,
+     "n_q": 126
+    },
+    "MVU-RAG": {
+     "acc": 36.65191740412979,
+     "n_q": 339
+    },
+    "MVU-SU": {
+     "acc": 34.21787709497207,
+     "n_q": 179
+    },
+    "MVU-TR": {
+     "acc": 32.84182305630027,
+     "n_q": 373
+    }
+   },
+   "tokens": {
+    "video_mean": 0.0,
+    "video_median": 0,
+    "input_mean": 230.0
+   }
+  },
+  "images_add": {
+   "delta": 22.4,
+   "p": 4.999750012499375e-05,
+   "n": 1824
+  },
+  "images_add_by_task": {
+   "MVU-Comparison": {
+    "delta": 32.96,
+    "p": 4.999750012499375e-05,
+    "n": 135
+   },
+   "MVU-Counting": {
+    "delta": 34.8,
+    "p": 4.999750012499375e-05,
+    "n": 227
+   },
+   "MVU-ICL": {
+    "delta": 1.98,
+    "p": 0.496125193740313,
+    "n": 164
+   },
+   "MVU-KIR": {
+    "delta": 14.41,
+    "p": 4.999750012499375e-05,
+    "n": 281
+   },
+   "MVU-OR": {
+    "delta": 25.4,
+    "p": 4.999750012499375e-05,
+    "n": 126
+   },
+   "MVU-RAG": {
+    "delta": 12.68,
+    "p": 4.999750012499375e-05,
+    "n": 339
+   },
+   "MVU-SU": {
+    "delta": 14.66,
+    "p": 4.999750012499375e-05,
+    "n": 179
+   },
+   "MVU-TR": {
+    "delta": 37.53,
+    "p": 4.999750012499375e-05,
+    "n": 373
+   }
+  },
+  "aab170": {
+   "acc": 33.23529411764706,
+   "pass_std": 2.3712522789113395,
+   "n_rows": 680,
+   "n_q": 170,
+   "by_task": {
+    "AAB-Attribute-Identification": {
+     "acc": 26.470588235294116,
+     "n_q": 34
+    },
+    "AAB-Camera-Pose-Estimation": {
+     "acc": 51.785714285714285,
+     "n_q": 14
+    },
+    "AAB-Counting": {
+     "acc": 35.294117647058826,
+     "n_q": 17
+    },
+    "AAB-Manipulation": {
+     "acc": 43.57142857142857,
+     "n_q": 35
+    },
+    "AAB-Relative-Direction": {
+     "acc": 23.333333333333332,
+     "n_q": 30
+    },
+    "AAB-Relative-Distance": {
+     "acc": 30.0,
+     "n_q": 40
+    }
+   },
+   "tokens": {
+    "video_mean": 0.0,
+    "video_median": 0,
+    "input_mean": 230.1
+   }
+  },
+  "aab170_images_add": {
+   "delta": 10.88,
+   "p": 0.0012999350032498376,
+   "n": 170
+  }
+ },
+ "single_view": {
+  "n_q_complete": 545,
+  "best": 72.98,
+  "worst": 17.43,
+  "random": 41.82,
+  "luck_best_of_k": 65.59,
+  "sequential_all_views": 51.28
+ },
+ "budget32": {
+  "centralized": {
+   "acc": 52.17927631578947,
+   "pass_std": 0.2884808823992489,
+   "n_rows": 7296,
+   "n_q": 1824,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 64.25925925925925,
+     "n_q": 135
+    },
+    "MVU-Counting": {
+     "acc": 57.37885462555066,
+     "n_q": 227
+    },
+    "MVU-ICL": {
+     "acc": 30.640243902439025,
+     "n_q": 164
+    },
+    "MVU-KIR": {
+     "acc": 38.16725978647687,
+     "n_q": 281
+    },
+    "MVU-OR": {
+     "acc": 54.96031746031746,
+     "n_q": 126
+    },
+    "MVU-RAG": {
+     "acc": 48.82005899705015,
+     "n_q": 339
+    },
+    "MVU-SU": {
+     "acc": 49.86033519553072,
+     "n_q": 179
+    },
+    "MVU-TR": {
+     "acc": 67.89544235924933,
+     "n_q": 373
+    }
+   },
+   "tokens": {
+    "video_mean": 10545.8,
+    "video_median": 10240,
+    "input_mean": 10880.6
+   }
+  },
+  "cvbench_native": {
+   "acc": 52.53563596491228,
+   "pass_std": 0.26399890740485393,
+   "n_rows": 7296,
+   "n_q": 1824,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 65.92592592592592,
+     "n_q": 135
+    },
+    "MVU-Counting": {
+     "acc": 56.27753303964758,
+     "n_q": 227
+    },
+    "MVU-ICL": {
+     "acc": 30.03048780487805,
+     "n_q": 164
+    },
+    "MVU-KIR": {
+     "acc": 38.43416370106762,
+     "n_q": 281
+    },
+    "MVU-OR": {
+     "acc": 50.3968253968254,
+     "n_q": 126
+    },
+    "MVU-RAG": {
+     "acc": 48.15634218289085,
+     "n_q": 339
+    },
+    "MVU-SU": {
+     "acc": 49.58100558659218,
+     "n_q": 179
+    },
+    "MVU-TR": {
+     "acc": 72.05093833780161,
+     "n_q": 373
+    }
+   },
+   "tokens": {
+    "video_mean": 8192.0,
+    "video_median": 8192,
+    "input_mean": 8635.2
+   }
+  },
+  "per_stream": {
+   "acc": 44.68201754385965,
+   "pass_std": 0.38180888917719746,
+   "n_rows": 7296,
+   "n_q": 1824,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 37.03703703703704,
+     "n_q": 135
+    },
+    "MVU-Counting": {
+     "acc": 44.38325991189427,
+     "n_q": 227
+    },
+    "MVU-ICL": {
+     "acc": 33.53658536585366,
+     "n_q": 164
+    },
+    "MVU-KIR": {
+     "acc": 40.3914590747331,
+     "n_q": 281
+    },
+    "MVU-OR": {
+     "acc": 48.01587301587302,
+     "n_q": 126
+    },
+    "MVU-RAG": {
+     "acc": 44.76401179941003,
+     "n_q": 339
+    },
+    "MVU-SU": {
+     "acc": 46.229050279329606,
+     "n_q": 179
+    },
+    "MVU-TR": {
+     "acc": 53.820375335120644,
+     "n_q": 373
+    }
+   },
+   "tokens": {
+    "video_mean": 8192.0,
+    "video_median": 8192,
+    "input_mean": 9469.9
+   }
+  },
+  "stitch_delta": {
+   "delta": -0.36,
+   "p": 0.6362681865906704,
+   "n": 1824
+  }
+ },
+ "forensics": {
+  "nframes_per_video": 8,
+  "frames_per_question": "8 x K (16..104), NOT a fixed 32 total",
+  "native_video_tokens_median": 10240,
+  "centralized_video_tokens_median": 7168,
+  "centralized_over_native_token_ratio": 0.633
+ },
+ "defects": {
+  "mvu_names_video": {
+   "total": 1824,
+   "names_a_video": 1279,
+   "no_video_named": 545,
+   "note": "a view-discarding method is structurally penalized on the named-video questions (options like 'A. Video 1')"
+  },
+  "mvu_gold_letter_dist": {
+   "A": 465,
+   "B": 463,
+   "C": 402,
+   "D": 368,
+   "E": 60,
+   "F": 21,
+   "G": 10,
+   "H": 5,
+   "I": 15,
+   "J": 14,
+   "K": 1
+  },
+  "mvu_option_count_dist": {
+   "2": 123,
+   "3": 92,
+   "4": 1394,
+   "5": 71,
+   "6": 38,
+   "7": 3,
+   "8": 1,
+   "9": 13,
+   "10": 88,
+   "11": 1
+  },
+  "sync128_task_mix": {
+   "MVU-KIR": 10,
+   "MVU-SU": 78,
+   "MVU-Comparison": 31,
+   "MVU-Counting": 1,
+   "MVU-OR": 3,
+   "MVU-TR": 5
+  }
+ }
+}

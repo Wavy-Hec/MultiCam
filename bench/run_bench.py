@@ -22,6 +22,8 @@ from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
 from .methods.cvbench_native import CVBenchNativeMethod
 from .methods.temporal import TemporalWeightedMethod
+from .methods.blind import BlindMethod
+from .methods.single_view import SingleViewMethod
 from .methods.clip_select import (SummarySelectMethod, ClipScoreSelectMethod,
                                   FrameSelectMethod)
 from .backends.qwen import QwenBackend, QWEN_ALIASES
@@ -30,6 +32,7 @@ from . import metrics
 METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
            "cvbench_native": CVBenchNativeMethod,
            "temporal_weighted": TemporalWeightedMethod,
+           "blind": BlindMethod,
            # (adaptive_content / adaptive_query — the within-clip frame-selection
            # ablation — were retired 2026-07-02 after losing/tying uniform; archived
            # result: git show 6ef38ac^:analysis/adaptive_frames_experiment.md §B.)
@@ -46,6 +49,9 @@ METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
 # clip_select_top2, clip_select_siglip_top1. The matched string becomes the
 # method's recorded name, so scorer variants never collide in rows/resume keys.
 CLIP_SELECT_RE = re.compile(r"^clip_select(?:_(?P<tag>[a-z0-9]+))?_top(?P<m>\d+)$")
+# single_view<i>: feed only view/clip i (methods/single_view.py); records with
+# fewer than i views are skipped, so single_view1..13 sweeps a mixed-K pool.
+SINGLE_VIEW_RE = re.compile(r"^single_view(?P<i>\d+)$")
 # frame_select: global top-budget frame selection across ALL clips (optional
 # scorer tag, e.g. frame_select_siglip); the budget comes from --budget.
 FRAME_SELECT_RE = re.compile(r"^frame_select(?:_(?P<tag>[a-z0-9]+))?$")
@@ -79,13 +85,26 @@ def make_method(mname, backend, args):
                                  max_new_tokens=args.max_new_tokens,
                                  temperature=args.temperature,
                                  montage_frames=args.montage_frames, cell_px=args.cell_px,
-                                 montage_kind=args.montage_kind)
+                                 montage_kind=args.montage_kind,
+                                 total_frames=args.total_frames)
     if mname == "per_stream":
         return PerStreamMethod(backend, nframes=args.nframes,
                                max_new_tokens=args.max_new_tokens,
                                temperature=args.temperature,
                                perception_max_new_tokens=args.perception_max_new_tokens,
-                               stream_kind=args.stream_kind)
+                               stream_kind=args.stream_kind,
+                               total_frames=args.total_frames)
+    if mname == "cvbench_native":
+        return CVBenchNativeMethod(backend, nframes=args.nframes,
+                                   max_new_tokens=args.max_new_tokens,
+                                   temperature=args.temperature,
+                                   total_frames=args.total_frames)
+    sv = SINGLE_VIEW_RE.match(mname)
+    if sv:
+        return SingleViewMethod(backend, view_idx=int(sv.group("i")),
+                                nframes=args.nframes,
+                                max_new_tokens=args.max_new_tokens,
+                                temperature=args.temperature, name=mname)
     if mname == "temporal_weighted":
         return TemporalWeightedMethod(backend, budget=args.budget, floor=args.floor,
                                       weighting=args.weighting, nframes=args.nframes,
@@ -158,6 +177,10 @@ def main():
     ap.add_argument("--temperature", type=float, default=0.7)
     ap.add_argument("--budget", type=int, default=64,
                     help="temporal_weighted: TOTAL frames per question, split across clips")
+    ap.add_argument("--total-frames", type=int, default=0,
+                    help="centralized/cvbench_native/per_stream: hold the TOTAL frame "
+                         "count per question fixed (split evenly across its clips) "
+                         "instead of a flat --nframes per clip; 0 = off")
     ap.add_argument("--floor", type=int, default=2,
                     help="temporal_weighted: per-clip minimum frames")
     ap.add_argument("--weighting", default="duration", choices=["duration", "even"],
@@ -209,9 +232,10 @@ def main():
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
     for m in methods:
         if (m not in METHODS and not CLIP_SELECT_RE.match(m)
-                and not FRAME_SELECT_RE.match(m)):
+                and not FRAME_SELECT_RE.match(m) and not SINGLE_VIEW_RE.match(m)):
             raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)} "
-                             f"or clip_select[_<scorer>]_top<m> or frame_select[_<scorer>]")
+                             f"or clip_select[_<scorer>]_top<m> or frame_select[_<scorer>] "
+                             f"or single_view<i>")
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()][: args.passes]
     if len(seeds) < args.passes:
         raise SystemExit(f"need >= {args.passes} seeds, got {seeds}")
@@ -242,6 +266,8 @@ def main():
                         if (rec["id"], method.name, backend.name, pi) not in done]
                 for rec, pass_idx, seed in tqdm(jobs, desc=f"{mname}/{backend.name}"):
                     res = method.answer(rec, args.video_root, seed=seed)
+                    if res is None:  # single_view<i> on a record with < i views
+                        continue
                     res.pass_idx = pass_idx
                     fh.write(json.dumps(res.to_dict(), ensure_ascii=False) + "\n")
                     fh.flush()

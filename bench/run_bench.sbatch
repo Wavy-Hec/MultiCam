@@ -43,6 +43,7 @@ PASSES=${PASSES:-4}
 SEEDS=${SEEDS:-1,2,3,4}
 TEMPERATURE=${TEMPERATURE:-0.7}
 MONTAGE_FRAMES=${MONTAGE_FRAMES:-0}
+TOTAL_FRAMES=${TOTAL_FRAMES:-0}        # >0: fixed TOTAL frames/question for native/centralized/per_stream
 MONTAGE_KIND=${MONTAGE_KIND:-camera}   # montage labels: 'camera' | 'video' | 'view' (still-image sets force 'view')
 STREAM_KIND=${STREAM_KIND:-camera}     # per_stream labels: 'camera' | 'video' | 'view' (still-image sets force 'view')
 BUDGET=${BUDGET:-64}                   # temporal_weighted: TOTAL frames per question
@@ -79,6 +80,7 @@ echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=$BUDGET weightin
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
     --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" --stream-kind "$STREAM_KIND" \
+    --total-frames "$TOTAL_FRAMES" \
     --budget "$BUDGET" --floor "$FLOOR" --weighting "$WEIGHTING" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
     --perception-max-new-tokens "$PERCEPTION_MAX_NEW_TOKENS" --cell-px "$CELL_PX" \
