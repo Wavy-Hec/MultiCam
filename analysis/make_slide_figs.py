@@ -578,6 +578,87 @@ def fig_frame_budget():
     plt.close(fig)
 
 
+# ── fig 12: which tasks can measure a vision harness? ───────────────────────────
+def fig_task_relevance():
+    tr = S.get("task_relevance")
+    if not tr:
+        placeholder("fig12_task_relevance.png", "Which tasks can measure the harness?",
+                    "needs the task_relevance section — rerun analysis/mvueval_slide_stats.py")
+        return
+    PRETTY = {"MVU-Counting": "Counting", "MVU-OR": "Object recognition",
+              "MVU-SU": "Spatial understanding", "MVU-ICL": "In-context learning",
+              "MVU-RAG": "Retrieval", "MVU-KIR": "Knowledge reasoning",
+              "MVU-Comparison": "Comparison", "MVU-TR": "Temporal reasoning"}
+    items = sorted(tr.items(), key=lambda kv: kv[1]["images_add"]["delta"],
+                   reverse=True)
+    n = len(items)
+    ys = range(n - 1, -1, -1)
+
+    fig = plt.figure(**FIG_KW)
+    # panel A: images_add per task (vision-dependence)
+    ax = fig.add_axes([0.24, 0.14, 0.30, 0.60])
+    for y, (t, d) in zip(ys, items):
+        ia = d["images_add"]
+        sig = ia["p"] is not None and ia["p"] < 0.05
+        color = (POS if ia["delta"] >= 0 else NEG) if sig else BASE
+        ax.barh([y], [ia["delta"]], height=0.6, color=color)
+        ax.text(ia["delta"] + (0.9 if ia["delta"] >= 0 else -0.9), y,
+                f"{ia['delta']:+.1f}" + ("" if sig else f"  p={ia['p']:.2f}"),
+                va="center", ha=("left" if ia["delta"] >= 0 else "right"),
+                fontsize=9, color=INK)
+    ax.axvline(0, color=INK, linewidth=1)
+    ax.set_yticks(list(ys))
+    ax.set_yticklabels([f"{PRETTY.get(t, t)}  (n={d['n_q']})" for t, d in items],
+                       fontsize=9.5, color=INK2)
+    ax.set_xlim(-6, 46)
+    ax.grid(axis="x", color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True); ax.tick_params(length=0)
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_title("what the images add, points", fontsize=10.5, color=INK2, pad=8)
+
+    # panel B: blind margin over chance (text-solvability)
+    ax2 = fig.add_axes([0.60, 0.14, 0.20, 0.60])
+    for y, (t, d) in zip(ys, items):
+        v = d["blind_acc"] - d["chance"]
+        ax2.barh([y], [v], height=0.6, color=DEC)
+        ax2.text(v + (0.4 if v >= 0 else -0.4), y, f"{v:+.1f}", va="center",
+                 ha=("left" if v >= 0 else "right"), fontsize=9, color=INK)
+    ax2.axvline(0, color=INK, linewidth=1)
+    ax2.set_yticks(list(ys)); ax2.set_yticklabels([])
+    ax2.set_xlim(-6, 26)
+    ax2.grid(axis="x", color=GRID, linewidth=0.8)
+    ax2.set_axisbelow(True); ax2.tick_params(length=0)
+    for s in ax2.spines.values():
+        s.set_visible(False)
+    ax2.set_title("blind margin over chance", fontsize=10.5, color=INK2, pad=8)
+
+    # panel C: view-selection headroom (text column, only where n allows)
+    ax3 = fig.add_axes([0.84, 0.14, 0.12, 0.60])
+    ax3.set_xlim(0, 1); ax3.set_ylim(-0.6, n - 0.4)
+    for y, (t, d) in zip(ys, items):
+        sv = d.get("sv")
+        if sv and sv["n_q"] >= 30:
+            txt = f"+{sv['best'] - sv['sequential_all_views']:.0f}  (n={sv['n_q']})"
+            c = INK
+        else:
+            txt, c = "—", MUTED
+        ax3.text(0.05, y, txt, va="center", fontsize=9.5, color=c)
+    ax3.axis("off")
+    ax3.set_title("view-selection\nheadroom", fontsize=10.5, color=INK2, pad=8)
+
+    icl = tr["MVU-ICL"]["images_add"]
+    header(fig, "Which tasks can measure the harness?",
+           "All 8 MVU-Eval tasks, no cherry-picking — three kinds of evidence per task: does vision help at all,\n"
+           "how much is solvable from text alone, and how much does choosing the right view add.")
+    footer(fig, f"In-context learning is the one task where images do not measurably help "
+                f"({icl['delta']:+.1f}, p={icl['p']:.2f}) — it cannot score a vision harness.\n"
+                "Every other task is vision-dependent; where the sweep has the n to measure it, "
+                "comparison and retrieval carry the largest view-selection headroom.")
+    fig.savefig(os.path.join(OUT, "fig12_task_relevance.png"))
+    plt.close(fig)
+
+
 # ── fig 8: defects/census table ─────────────────────────────────────────────────
 def fig_defects():
     d = S["defects"]
@@ -614,5 +695,5 @@ def fig_defects():
 if __name__ == "__main__":
     fig_arrangement(); fig_sync(); fig_pertask(); fig_clip(); fig_budget()
     fig_blind(); fig_singleview(); fig_defects(); fig_headroom()
-    fig_singleview_tasks(); fig_frame_budget()
+    fig_singleview_tasks(); fig_frame_budget(); fig_task_relevance()
     print("wrote", OUT, ":", sorted(os.listdir(OUT)))
