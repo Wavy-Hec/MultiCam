@@ -21,6 +21,10 @@ def b64(name):
         return base64.b64encode(f.read()).decode()
 
 
+REPO = os.path.dirname(HERE)
+SAMPLER_FIGS = os.path.join(REPO, "bench", "results", "figs_repq_sampler")
+
+
 mvu = S["arrangement"]["mvu_full"]
 seq, cen, dec = (mvu[k]["acc"] for k in ("cvbench_native", "centralized", "per_stream"))
 sy, un = S["sync"]["sync128"]["stitch_delta"], S["sync"]["unrelated"]["stitch_delta"]
@@ -105,10 +109,31 @@ if svt:
                    f"(best view {d0['best']:.1f} vs all views {d0['sequential_all_views']:.1f}, n={d0['n_q']}); "
                    "view slots 1–6 score flat, so the sweep has no positional artifact."))
 
+# qualitative contact sheets (rendered by bench/make_input_examples.py from the
+# REAL recorded frame selections — regenerate there, not here)
+if os.path.isdir(SAMPLER_FIGS):
+    def _sheet(name):
+        with open(os.path.join(SAMPLER_FIGS, name), "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    if os.path.exists(os.path.join(SAMPLER_FIGS, "mvu_5_frameselect.png")):
+        SLIDES.append((os.path.join(SAMPLER_FIGS, "mvu_5_frameselect.png"),
+                       "What the CLIP frame sampler keeps — a good case",
+                       "A counting question over 3 room clips. The sampler scores 96 candidate frames "
+                       "against the question text and keeps the top 64 (32/13/19 per clip) — every room "
+                       "stays visible and the model answers correctly on all 4 passes. Frames shown are "
+                       "the actual recorded selection, not an illustration."))
+    if os.path.exists(os.path.join(SAMPLER_FIGS, "mvu_178_frameselect.png")):
+        SLIDES.append((os.path.join(SAMPLER_FIGS, "mvu_178_frameselect.png"),
+                       "What the CLIP frame sampler keeps — the failure mode",
+                       "The gold answer is Video 2, and the sampler kept ZERO frames of Video 2 — "
+                       "with no per-clip floor it silently deleted the evidence, so the model went 0/4. "
+                       "This is why global frame selection has a hard ceiling on questions whose answer "
+                       "lives in one specific clip."))
+
 cards = "\n".join(f"""
   <section class="slide">
     <div class="eyebrow">SLIDE {i + 1:02d} · {title}</div>
-    <div class="imgcard"><img alt="{title}" src="data:image/png;base64,{b64(fn)}"></div>
+    <div class="imgcard"><img alt="{title}" src="data:image/png;base64,{b64(fn) if not os.path.isabs(fn) else base64.b64encode(open(fn, 'rb').read()).decode()}"></div>
     <p class="cap">{cap}</p>
   </section>""" for i, (fn, title, cap) in enumerate(SLIDES))
 

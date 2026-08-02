@@ -52,3 +52,17 @@ exports/
 /Video-R1/src/r1-v/eval_results/
 /lmms-eval/res/
 /data/
+
+# Regenerable deck/doc artifacts (rebuilt by make_slide_figs.py / make_repq_doc.py /
+# clip_selection_diagnostic.py from tracked scripts + result rows; files stay on disk)
+/analysis/figs_deck/
+/analysis/repq_doc.html
+/analysis/repq_doc.md
+/analysis/repq_doc_manifest.json
+/analysis/repq_doc_slack.txt
+/analysis/sampler_diag.json
+
+# Working notes / dated runbooks / reference decks — on-disk only, not for git
+/MULTICAM_STATUS.md
+/RUNBOOK_*.md
+/*.pdf
