@@ -31,9 +31,15 @@ LEGS = {
     "allangles_task1_qwen3vl_PARTIAL": "bench_allangles_egohumans_qa_cvbench_aabfull_shard*.jsonl",
     "mvueval_full_task1_internvl3":   "bench_mvueval_qa_internvl_mvufull_shard*.jsonl",
     "mvueval_full_clipexp_internvl3": "bench_mvueval_qa_internvl_mvufullclip_shard*.jsonl",
+    "mvueval_full_budget32_internvl3": "bench_mvueval_qa_internvl_mvufull32_shard*.jsonl",
+    "mvueval_full_blind_internvl3":   "bench_mvueval_qa_internvl_mvublind*shard*.jsonl",
+    "mvueval_singleview_internvl3":   "bench_mvueval_noview_subset_internvl_mvusv_shard*.jsonl",
+    "allangles_blind_internvl3":      "bench_allangles_egohumans_qa_internvl_aabblind*.jsonl",
+    # paper-parity arms (32 frames/video) — empty-glob-skipped until they land
+    "mvueval_full_parity32pv_internvl3": "bench_mvueval_qa_internvl_mvupp32*_shard*.jsonl",
 }
 SUBSETS = ["analysis/mvueval_dev_subset.json", "analysis/mvueval_qa.json",
-           "analysis/allangles_egohumans_qa.json"]
+           "analysis/allangles_egohumans_qa.json", "analysis/mvueval_noview_subset.json"]
 
 README = """# MultiCam benchmark results — handoff bundle
 
@@ -56,6 +62,14 @@ leg) is comparable question-by-question via the shared `id` field.
   clip_select_top1 (best single video), temporal_weighted (uniform); 32
   candidate frames per clip; InternVL max_tiles=1 on these legs
 - per_stream: per-view perception (1024-token cap) -> text-only aggregator
+- budget32 leg: TOTAL_FRAMES=32 split evenly across a question's clips (native/
+  per_stream exact; centralized rounds to 26-36 via its montage grid)
+- blind legs: identical prompt, zero visual input
+- singleview leg: single_view<i> keeps only view i (8 frames), swept i=1..K, on
+  the 545-question no-video-named subset (subsets/mvueval_noview_subset.json)
+- parity32pv leg: NFRAMES=32 per video, no total cap — the MVU-Eval paper's own
+  frame budget (arXiv 2511.07250: 32/video, <=720px, vLLM); ours feeds 448 px
+  single-tile frames via HF chat, so it is frame-BUDGET parity only
 - MVU-Eval dev = 100 q (chance 24.8 / always-A floor 37.0); full = 1,824 q
   (chance 25.9 / floor 25.5). All-Angles EgoHumans = 170 q (chance 33.3 /
   floor 38.2).
