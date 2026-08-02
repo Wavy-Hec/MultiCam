@@ -104,6 +104,28 @@ def paired_perm(rows_a, rows_b, qids=None, n_perm=N_PERM):
     return 100.0 * obs, p, len(d)
 
 
+def contingency(rows_vision, rows_blind, qids=None):
+    """Joint blind x vision quadrant, PROBABILISTIC convention: per question the
+    pass-mean correctness with images (v) and without (b) are treated as
+    marginal probabilities, quadrant mass = their products (v*b, v*(1-b), ...),
+    averaged over questions. NOT majority-vote, NOT single-pass pairing — the
+    strict (4/4) and lenient (>=1/4) conventions give very different numbers."""
+    qv, qb = qmeans(rows_vision), qmeans(rows_blind)
+    common = set(qv) & set(qb)
+    if qids is not None:
+        common &= set(qids)
+    if not common:
+        return None
+    n = len(common)
+    return {
+        "n_q": n,
+        "right_both": round(100 * sum(qv[q] * qb[q] for q in common) / n, 2),
+        "vision_helped": round(100 * sum(qv[q] * (1 - qb[q]) for q in common) / n, 2),
+        "vision_hurt": round(100 * sum((1 - qv[q]) * qb[q] for q in common) / n, 2),
+        "wrong_both": round(100 * sum((1 - qv[q]) * (1 - qb[q]) for q in common) / n, 2),
+    }
+
+
 def holm(pvals):
     """Holm-Bonferroni: {key: p} -> {key: significant_at_.05}."""
     items = sorted(pvals.items(), key=lambda kv: kv[1])
@@ -250,6 +272,18 @@ def main():
                 d, p, n = paired_perm(mvu["cvbench_native"], rows, qids=ids)
                 per[t] = {"delta": round(d, 2), "p": p, "n": n}
             seg["images_add_by_task"] = per
+            seg["contingency"] = {
+                "convention": "probabilistic pass-pair: per question the 4-pass "
+                              "mean correctness with and without images are "
+                              "treated as probabilities; quadrant mass = their "
+                              "products, averaged over questions",
+                "arms": {"vision": "mvufull cvbench_native", "blind": "mvublind blind"},
+                "overall": contingency(mvu["cvbench_native"], rows),
+                "by_task": {t: contingency(
+                                mvu["cvbench_native"], rows,
+                                qids={r["id"] for r in mvu_pool if r["task_type"] == t})
+                            for t in sorted({r["task_type"] for r in mvu_pool})},
+            }
         out["blind"] = seg
     if "blind" in aabblind:
         out["blind"]["aab170"] = arm_summary(aabblind["blind"])

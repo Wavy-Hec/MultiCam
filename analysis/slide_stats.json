@@ -625,6 +625,78 @@
     "n": 373
    }
   },
+  "contingency": {
+   "convention": "probabilistic pass-pair: per question the 4-pass mean correctness with and without images are treated as probabilities; quadrant mass = their products, averaged over questions",
+   "arms": {
+    "vision": "mvufull cvbench_native",
+    "blind": "mvublind blind"
+   },
+   "overall": {
+    "n_q": 1824,
+    "right_both": 20.77,
+    "vision_helped": 32.11,
+    "vision_hurt": 9.71,
+    "wrong_both": 37.41
+   },
+   "by_task": {
+    "MVU-Comparison": {
+     "n_q": 135,
+     "right_both": 24.91,
+     "vision_helped": 41.57,
+     "vision_hurt": 8.61,
+     "wrong_both": 24.91
+    },
+    "MVU-Counting": {
+     "n_q": 227,
+     "right_both": 14.32,
+     "vision_helped": 43.28,
+     "vision_hurt": 8.48,
+     "wrong_both": 33.92
+    },
+    "MVU-ICL": {
+     "n_q": 164,
+     "right_both": 12.69,
+     "vision_helped": 17.34,
+     "vision_hurt": 15.36,
+     "wrong_both": 54.61
+    },
+    "MVU-KIR": {
+     "n_q": 281,
+     "right_both": 14.9,
+     "vision_helped": 25.4,
+     "vision_hurt": 10.99,
+     "wrong_both": 48.71
+    },
+    "MVU-OR": {
+     "n_q": 126,
+     "right_both": 13.99,
+     "vision_helped": 37.0,
+     "vision_hurt": 11.61,
+     "wrong_both": 37.4
+    },
+    "MVU-RAG": {
+     "n_q": 339,
+     "right_both": 25.68,
+     "vision_helped": 23.65,
+     "vision_hurt": 10.97,
+     "wrong_both": 39.69
+    },
+    "MVU-SU": {
+     "n_q": 179,
+     "right_both": 23.95,
+     "vision_helped": 24.93,
+     "vision_hurt": 10.27,
+     "wrong_both": 40.85
+    },
+    "MVU-TR": {
+     "n_q": 373,
+     "right_both": 27.46,
+     "vision_helped": 42.91,
+     "vision_hurt": 5.38,
+     "wrong_both": 24.25
+    }
+   }
+  },
   "aab170": {
    "acc": 33.23529411764706,
    "pass_std": 2.3712522789113395,
