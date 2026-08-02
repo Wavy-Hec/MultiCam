@@ -76,6 +76,15 @@ if con:
                    f"(images made them worse), {con['wrong_both']:.1f} points are wrong either way — "
                    "out of reach for any frame selector."))
 
+fb = S.get("frame_budget") or {}
+pp_done = any(p.get("status") == "done" for p in fb.get("points", []))
+if fb:
+    fb_cap = (f"Accuracy at three per-question frame budgets vs the paper's published InternVL3-8B "
+              f"{S['paper']['internvl3_8b']['overall']:.1f} — "
+              + ("the paper-parity (32/video) point shows whether their own protocol costs accuracy."
+                 if pp_done else "the 32-frames-per-video paper-parity arm is queued; the panel updates when it lands."))
+    SLIDES.append(("fig11_framebudget.png", "Does the frame budget explain anything?", fb_cap))
+
 svt = (S.get("single_view") or {}).get("by_task")
 if svt:
     big = sorted(((t, d) for t, d in svt.items() if d["n_q"] >= 30),
@@ -92,6 +101,49 @@ cards = "\n".join(f"""
     <div class="imgcard"><img alt="{title}" src="data:image/png;base64,{b64(fn)}"></div>
     <p class="cap">{cap}</p>
   </section>""" for i, (fn, title, cap) in enumerate(SLIDES))
+
+TASK_ORDER = ["MVU-OR", "MVU-ICL", "MVU-SU", "MVU-TR", "MVU-Counting",
+              "MVU-KIR", "MVU-Comparison", "MVU-RAG"]
+PRETTY = {"MVU-Counting": "Counting", "MVU-OR": "Object recognition",
+          "MVU-SU": "Spatial understanding", "MVU-ICL": "In-context learning",
+          "MVU-RAG": "Retrieval (RAG)", "MVU-KIR": "Knowledge reasoning",
+          "MVU-Comparison": "Comparison", "MVU-TR": "Temporal reasoning"}
+
+paper_table = ""
+if S.get("paper"):
+    P = S["paper"]
+    ours8 = S["arrangement"]["mvu_full"]["cvbench_native"]
+    pp_nat = (S.get("parity32pv") or {}).get("cvbench_native")
+    pend = '<span class="chip">pending</span>'
+
+    def _row(name, paper_v, ours8_v, pp_v):
+        return (f"<tr><td>{name}</td><td>{paper_v}</td><td>{ours8_v}</td>"
+                f"<td>{pp_v}</td></tr>")
+
+    rows = [_row("<b>Overall</b>", f"{P['internvl3_8b']['overall']:.1f}",
+                 f"<b>{ours8['acc']:.1f}</b>",
+                 f"<b>{pp_nat['acc']:.1f}</b>" if pp_nat else pend)]
+    for t in TASK_ORDER:
+        rows.append(_row(PRETTY[t], f"{P['internvl3_8b']['by_task'][t]:.1f}",
+                         f"{ours8['by_task'][t]['acc']:.1f}",
+                         f"{pp_nat['by_task'][t]['acc']:.1f}" if pp_nat else pend))
+    rows.append(_row("Random / human", f"{P['random']:.1f} / {P['human']:.1f}",
+                     f"{S['arrangement']['chance']['mvu_full']:.1f} / —", "—"))
+    paper_table = f"""<section>
+    <h2>Ours vs the MVU-Eval paper (InternVL3-8B, {P['source']})</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Accuracy, percent</th><th>Paper<br>(32 frames/video, ≤720px, vLLM)</th>
+          <th>Ours, 8 frames/video<br>(448px tiles, HF chat)</th>
+          <th>Ours, 32 frames/video<br>(paper-parity budget)</th></tr>
+      {''.join(rows)}
+    </table></div>
+    <p class="cap">Our sequential arm beats the paper's published number while feeding a fraction of the
+    frames, so harness differences (prompt, frame resolution, decoding, answer parsing) dominate the frame
+    budget on this benchmark. The parity column isolates the budget alone — same harness, their frame count.
+    Sampling also differs: ours is 4 passes at temperature 0.7; the paper's decoding is not matched.
+    Open item: the paper reports Qwen2.5-VL-7B at {P['qwen2_5_vl_7b']['overall']:.1f}, ABOVE its InternVL
+    number — the reverse of every ordering we measure; a Qwen run in this harness would resolve it.</p>
+  </section>"""
 
 pending_bits = []
 if not blind_done: pending_bits.append("blind (72235/72236)")
@@ -197,6 +249,8 @@ footer {{ color:var(--muted); font-size:.85rem; border-top:1px solid var(--line)
       {b32_row}
     </table></div>
   </section>
+
+  {paper_table}
 
   <footer>
     Regenerate after new runs land: <code>python3 analysis/mvueval_slide_stats.py</code> →

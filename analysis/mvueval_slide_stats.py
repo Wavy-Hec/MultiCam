@@ -38,6 +38,25 @@ NUSC = re.compile(r"^scene-\d{4}_CAM_[A-Z_]+\.mp4$")
 N_PERM = 20000
 PERM_SEED = 20260730
 
+# MVU-Eval paper reference numbers (arXiv 2511.07250, NeurIPS 2025 D&B track),
+# reported at 32 frames PER VIDEO, frames resized to a <=720px long side,
+# served via vLLM. The ONLY place published numbers may be transcribed.
+PAPER = {
+    "source": "arXiv 2511.07250",
+    "protocol": "32 frames per video, uniform, long side <=720px, vLLM",
+    "internvl3_8b": {
+        "overall": 41.7,
+        "by_task": {"MVU-OR": 41.3, "MVU-SU": 44.1, "MVU-Counting": 31.3,
+                    "MVU-Comparison": 54.8, "MVU-KIR": 34.5, "MVU-ICL": 26.8,
+                    "MVU-RAG": 43.7, "MVU-TR": 52.5}},
+    "qwen2_5_vl_7b": {
+        "overall": 51.9,
+        "by_task": {"MVU-OR": 50.8, "MVU-SU": 55.3, "MVU-Counting": 62.1,
+                    "MVU-Comparison": 65.2, "MVU-KIR": 32.4, "MVU-ICL": 29.3,
+                    "MVU-RAG": 49.3, "MVU-TR": 66.8}},
+    "random": 26.0, "human": 93.6,
+}
+
 
 # ---------------------------------------------------------------- loading
 def load_rows(pattern):
@@ -198,6 +217,11 @@ def main():
     aabblind = by_method(load_rows("bench_allangles_egohumans_qa_internvl_aabblind*.jsonl"))
     b32 = by_method(load_rows("bench_mvueval_qa_internvl_mvufull32_shard*.jsonl"))
     sv = by_method(load_rows("bench_mvueval_noview_subset_internvl_mvusv_shard*.jsonl"))
+    # paper-parity arms (32 frames PER VIDEO): native and per_stream run under
+    # separate tags; merge them into one method->rows map
+    pp = by_method(load_rows("bench_mvueval_qa_internvl_mvupp32_shard*.jsonl"))
+    for m, rs in by_method(load_rows("bench_mvueval_qa_internvl_mvupp32ps_shard*.jsonl")).items():
+        pp.setdefault(m, []).extend(rs)
 
     out = {"meta": {
         "backend": "InternVL3-8B", "passes": 4,
@@ -360,6 +384,54 @@ def main():
     if "cvbench_native" in b32 and "centralized" in b32:
         d, p, n = paired_perm(b32["centralized"], b32["cvbench_native"])
         out["budget32"]["stitch_delta"] = {"delta": round(d, 2), "p": p, "n": n}
+
+    # ---- paper-parity arms (32/video) + the frame-budget story
+    out["paper"] = PAPER
+    out["parity32pv"] = {m: arm_summary(rs) for m, rs in pp.items()}
+    for m, key in (("cvbench_native", "vs_8pv"), ("per_stream", "vs_8pv_per_stream")):
+        if m in pp and m in mvu:
+            d, p, n = paired_perm(pp[m], mvu[m])
+            out["parity32pv"][key] = {"delta": round(d, 2), "p": p, "n": n}
+
+    k_of = {r["id"]: len(vids_of(r)) for r in mvu_pool}
+    le4 = {q for q, k in k_of.items() if k <= 4}
+    ge5 = {q for q, k in k_of.items() if k >= 5}
+    mean_k = sum(k_of.values()) / len(k_of)
+
+    def _slice(rows, ids):
+        sub = [r for r in rows if r["id"] in ids]
+        return {"acc": round(acc(sub), 2) if sub else None,
+                "n_q": len({r["id"] for r in sub})}
+
+    def budget_arms(src):
+        arms = {}
+        for m in ("cvbench_native", "per_stream"):
+            if src.get(m):
+                s = arm_summary(src[m])
+                arms[m] = {"acc": s["acc"], "pass_std": s["pass_std"],
+                           "n_q": s["n_q"],
+                           "by_k": {"k_le_4": _slice(src[m], le4),
+                                    "k_ge_5": _slice(src[m], ge5)}}
+        return arms
+
+    pp_arms = budget_arms(pp)
+    out["frame_budget"] = {
+        "mean_k": round(mean_k, 3),
+        "k_split": {"n_le_4": len(le4), "n_ge_5": len(ge5)},
+        "points": [
+            {"label": "fixed 32 total", "frames_per_q_mean": 32.0,
+             "arms": budget_arms(b32)},
+            {"label": "8 per video", "frames_per_q_mean": round(8 * mean_k, 1),
+             "arms": budget_arms(mvu)},
+            {"label": "32 per video (paper parity)",
+             "frames_per_q_mean": round(32 * mean_k, 1),
+             "arms": pp_arms, "status": "done" if pp_arms else "queued"},
+        ],
+        "caveat": "budget-32 centralized feeds 26-36 frames from montage-grid "
+                  "rounding; native/per_stream are exact. Parity is frame-BUDGET "
+                  "parity only: our pipeline feeds 448px single-tile frames via "
+                  "HF chat vs the paper's <=720px under vLLM.",
+    }
 
     # ---- forensics: the deck's "same images at the same budget" check
     if "cvbench_native" in mvu and "centralized" in mvu:
