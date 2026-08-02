@@ -1003,6 +1003,127 @@
    "n": 1824
   }
  },
+ "paper": {
+  "source": "arXiv 2511.07250",
+  "protocol": "32 frames per video, uniform, long side <=720px, vLLM",
+  "internvl3_8b": {
+   "overall": 41.7,
+   "by_task": {
+    "MVU-OR": 41.3,
+    "MVU-SU": 44.1,
+    "MVU-Counting": 31.3,
+    "MVU-Comparison": 54.8,
+    "MVU-KIR": 34.5,
+    "MVU-ICL": 26.8,
+    "MVU-RAG": 43.7,
+    "MVU-TR": 52.5
+   }
+  },
+  "qwen2_5_vl_7b": {
+   "overall": 51.9,
+   "by_task": {
+    "MVU-OR": 50.8,
+    "MVU-SU": 55.3,
+    "MVU-Counting": 62.1,
+    "MVU-Comparison": 65.2,
+    "MVU-KIR": 32.4,
+    "MVU-ICL": 29.3,
+    "MVU-RAG": 49.3,
+    "MVU-TR": 66.8
+   }
+  },
+  "random": 26.0,
+  "human": 93.6
+ },
+ "parity32pv": {},
+ "frame_budget": {
+  "mean_k": 4.712,
+  "k_split": {
+   "n_le_4": 847,
+   "n_ge_5": 977
+  },
+  "points": [
+   {
+    "label": "fixed 32 total",
+    "frames_per_q_mean": 32.0,
+    "arms": {
+     "cvbench_native": {
+      "acc": 52.53563596491228,
+      "pass_std": 0.26399890740485393,
+      "n_q": 1824,
+      "by_k": {
+       "k_le_4": {
+        "acc": 58.5,
+        "n_q": 847
+       },
+       "k_ge_5": {
+        "acc": 47.36,
+        "n_q": 977
+       }
+      }
+     },
+     "per_stream": {
+      "acc": 44.68201754385965,
+      "pass_std": 0.38180888917719746,
+      "n_q": 1824,
+      "by_k": {
+       "k_le_4": {
+        "acc": 45.81,
+        "n_q": 847
+       },
+       "k_ge_5": {
+        "acc": 43.71,
+        "n_q": 977
+       }
+      }
+     }
+    }
+   },
+   {
+    "label": "8 per video",
+    "frames_per_q_mean": 37.7,
+    "arms": {
+     "cvbench_native": {
+      "acc": 52.87828947368421,
+      "pass_std": 0.40566470907205976,
+      "n_q": 1824,
+      "by_k": {
+       "k_le_4": {
+        "acc": 58.26,
+        "n_q": 847
+       },
+       "k_ge_5": {
+        "acc": 48.21,
+        "n_q": 977
+       }
+      }
+     },
+     "per_stream": {
+      "acc": 43.98300438596491,
+      "pass_std": 1.1684032458323175,
+      "n_q": 1824,
+      "by_k": {
+       "k_le_4": {
+        "acc": 45.72,
+        "n_q": 847
+       },
+       "k_ge_5": {
+        "acc": 42.48,
+        "n_q": 977
+       }
+      }
+     }
+    }
+   },
+   {
+    "label": "32 per video (paper parity)",
+    "frames_per_q_mean": 150.8,
+    "arms": {},
+    "status": "queued"
+   }
+  ],
+  "caveat": "budget-32 centralized feeds 26-36 frames from montage-grid rounding; native/per_stream are exact. Parity is frame-BUDGET parity only: our pipeline feeds 448px single-tile frames via HF chat vs the paper's <=720px under vLLM."
+ },
  "forensics": {
   "nframes_per_video": 8,
   "frames_per_question": "8 x K (16..104), NOT a fixed 32 total",

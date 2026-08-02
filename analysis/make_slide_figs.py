@@ -493,6 +493,91 @@ def fig_singleview_tasks():
     plt.close(fig)
 
 
+# ── fig 11: the frame-budget story vs the paper's protocol ──────────────────────
+def fig_frame_budget():
+    fb = S.get("frame_budget")
+    if not fb or not any(p["arms"] for p in fb["points"]):
+        placeholder("fig11_framebudget.png", "Does the frame budget explain anything?",
+                    "needs the frame_budget section — rerun analysis/mvueval_slide_stats.py")
+        return
+    paper = S["paper"]
+    pts = fb["points"]
+    xt = [f"{p['label']}\n(≈{p['frames_per_q_mean']:.0f} frames/question)" for p in pts]
+    fig = plt.figure(**FIG_KW)
+
+    # left: overall accuracy per budget point, native + per_stream
+    ax = fig.add_axes([0.08, 0.16, 0.50, 0.56])
+    for m, label, color in (("cvbench_native", "sequential (native)", SEQ),
+                            ("per_stream", "decentralized (per-stream)", DEC)):
+        xs, ys, es = [], [], []
+        for i, p in enumerate(pts):
+            a = p["arms"].get(m)
+            if a:
+                xs.append(i); ys.append(a["acc"]); es.append(a["pass_std"] or 0)
+        if xs:
+            ax.errorbar(xs, ys, yerr=es, color=color, linewidth=2, marker="o",
+                        markersize=5, capsize=3, label=label)
+            for x, y in zip(xs, ys):
+                ax.annotate(f"{y:.1f}", (x, y), textcoords="offset points",
+                            xytext=(0, 9), fontsize=9.5, color=INK, ha="center")
+    queued = [i for i, p in enumerate(pts) if p.get("status") == "queued"]
+    for i in queued:
+        ax.text(i, 54, "parity run\nqueued", ha="center", fontsize=9.5,
+                color=MUTED, style="italic")
+    pi = paper["internvl3_8b"]["overall"]
+    ax.axhline(pi, color=NEG, linestyle=(0, (4, 3)), linewidth=1.6)
+    ax.text(len(pts) - 0.55, pi + 0.5, f"paper's InternVL3-8B: {pi:.1f}\n(their 32/video protocol)",
+            fontsize=9, color=NEG, ha="right")
+    ax.axhline(paper["random"], color=MUTED, linestyle=(0, (4, 3)), linewidth=1.2)
+    ax.text(len(pts) - 0.55, paper["random"] + 0.5, f"random: {paper['random']:.1f}",
+            fontsize=9, color=MUTED, ha="right")
+    ax.set_xticks(range(len(pts)))
+    ax.set_xticklabels(xt, fontsize=9.5, color=INK2)
+    ax.set_xlim(-0.35, len(pts) - 0.65)
+    style(ax, ymax=62)
+    ax.set_ylim(20, 62)
+    ax.set_ylabel("accuracy, percent")
+    ax.legend(loc="lower left", frameon=False, fontsize=9.5)
+
+    # right: the context-overflow facet (native, K<=4 vs K>=5)
+    ax2 = fig.add_axes([0.67, 0.16, 0.29, 0.56])
+    W = 0.34
+    ks = fb["k_split"]
+    for j, (kk, label, color) in enumerate(
+            (("k_le_4", f"K≤4 (n={ks['n_le_4']}) — fits the context", CEN),
+             ("k_ge_5", f"K≥5 (n={ks['n_ge_5']}) — overflows at 32/video", NEG))):
+        xs, ys = [], []
+        for i, p in enumerate(pts):
+            a = p["arms"].get("cvbench_native")
+            if a and a["by_k"][kk]["acc"] is not None:
+                xs.append(i + (j - 0.5) * W); ys.append(a["by_k"][kk]["acc"])
+        b = ax2.bar(xs, ys, width=W, color=color, label=label)
+        for x, y in zip(xs, ys):
+            ax2.text(x, y + 0.7, f"{y:.1f}", ha="center", fontsize=8.5, color=INK)
+    ax2.set_xticks(range(len(pts)))
+    ax2.set_xticklabels(["32 total", "8/video", "32/video"], fontsize=9.5, color=INK2)
+    style(ax2, ymax=78)
+    ax2.set_title("sequential, split by view count", fontsize=10.5, color=INK2, pad=8)
+    ax2.legend(loc="upper left", frameon=False, fontsize=8.5, handlelength=1.2)
+
+    have_parity = not queued
+    header(fig, "Does the frame budget explain anything?",
+           "The same questions at three per-question frame budgets, InternVL3-8B, 4 passes. The paper's own\n"
+           f"protocol is 32 frames per video (mean K={fb['mean_k']:.1f} → ≈{pts[2]['frames_per_q_mean']:.0f} frames); "
+           "at K≥5 that exceeds the model's 32k context window.")
+    if have_parity:
+        nat = pts[2]["arms"].get("cvbench_native", {})
+        footer(fig, f"At the paper's own budget our sequential arm scores {nat.get('acc', 0):.1f} vs their published "
+                    f"{pi:.1f}. The right panel shows whether any change\nconcentrates in the K≥5 questions whose "
+                    "visual tokens overflow the context window — the signature of overflow, not frame count.")
+    else:
+        footer(fig, f"Our runs beat the paper's published {pi:.1f} at BOTH tested budgets while feeding fewer frames. "
+                    "The 32/video paper-parity arm is queued;\nif accuracy drops there — concentrated in K≥5 — the "
+                    "paper's low InternVL number is a context-overflow artifact of its own protocol.")
+    fig.savefig(os.path.join(OUT, "fig11_framebudget.png"))
+    plt.close(fig)
+
+
 # ── fig 8: defects/census table ─────────────────────────────────────────────────
 def fig_defects():
     d = S["defects"]
@@ -529,5 +614,5 @@ def fig_defects():
 if __name__ == "__main__":
     fig_arrangement(); fig_sync(); fig_pertask(); fig_clip(); fig_budget()
     fig_blind(); fig_singleview(); fig_defects(); fig_headroom()
-    fig_singleview_tasks()
+    fig_singleview_tasks(); fig_frame_budget()
     print("wrote", OUT, ":", sorted(os.listdir(OUT)))
