@@ -347,6 +347,72 @@ def fig_singleview():
     plt.close(fig)
 
 
+# ── fig 9: selector headroom (blind x vision joint contingency) ─────────────────
+def fig_headroom():
+    con = (S.get("blind") or {}).get("contingency")
+    if not con or not con.get("overall"):
+        placeholder("fig9_headroom.png", "How many points can a selector still add?",
+                    "needs the blind x vision contingency — rerun analysis/mvueval_slide_stats.py\n"
+                    "once the blind and mvufull rows are on disk")
+        return
+    PRETTY = {"MVU-Counting": "Counting", "MVU-OR": "Object recognition",
+              "MVU-SU": "Spatial understanding", "MVU-ICL": "In-context learning",
+              "MVU-RAG": "Retrieval", "MVU-KIR": "Knowledge reasoning",
+              "MVU-Comparison": "Comparison", "MVU-TR": "Temporal reasoning"}
+    fig = plt.figure(**FIG_KW)
+
+    def stack(ax, y, c, height=0.5, labels=True):
+        right = c["right_both"] + c["vision_helped"]
+        segs = [(right, SEQ), (c["vision_hurt"], NEG), (c["wrong_both"], BASE)]
+        x = 0.0
+        for v, color in segs:
+            ax.barh([y], [v], left=x, height=height, color=color)
+            if labels and v > 4:
+                ax.text(x + v / 2, y, f"{v:.1f}", va="center", ha="center",
+                        fontsize=9.5, color=("white" if color == SEQ else INK))
+            x += v
+
+    # top: overall, one wide bar
+    ax = fig.add_axes([0.26, 0.615, 0.68, 0.095])
+    stack(ax, 0, con["overall"], height=0.9)
+    ax.set_xlim(0, 100); ax.set_ylim(-0.6, 0.6)
+    ax.set_yticks([0]); ax.set_yticklabels(["all 1,824\nquestions"], fontsize=10, color=INK2)
+    ax.set_xticks([]); [s.set_visible(False) for s in ax.spines.values()]
+    ax.tick_params(length=0)
+
+    # bottom: per task, sorted by recoverable share
+    items = sorted(((t, c) for t, c in con["by_task"].items() if c),
+                   key=lambda kv: kv[1]["vision_hurt"], reverse=True)
+    ax2 = fig.add_axes([0.26, 0.135, 0.68, 0.42])
+    for i, (t, c) in enumerate(items):
+        stack(ax2, len(items) - 1 - i, c, height=0.62)
+    ax2.set_xlim(0, 100); ax2.set_ylim(-0.6, len(items) - 0.4)
+    ax2.set_yticks(range(len(items) - 1, -1, -1))
+    ax2.set_yticklabels([f"{PRETTY.get(t, t)}  (n={c['n_q']})" for t, c in items],
+                        fontsize=9.5, color=INK2)
+    ax2.set_xticks(range(0, 101, 25))
+    ax2.set_xticklabels(["0", "25", "50", "75", "100%\nof questions"], fontsize=9, color=MUTED)
+    ax2.grid(axis="x", color=GRID, linewidth=0.8)
+    ax2.set_axisbelow(True); ax2.tick_params(length=0)
+    for s in ax2.spines.values():
+        s.set_visible(False)
+
+    import matplotlib.patches as mpatches
+    fig.legend(handles=[mpatches.Patch(color=SEQ, label="right with images"),
+                        mpatches.Patch(color=NEG, label="recoverable (blind right, images wrong)"),
+                        mpatches.Patch(color=BASE, label="wrong either way")],
+               loc="upper left", bbox_to_anchor=(0.24, 0.815), ncol=3, frameon=False,
+               fontsize=9.5, handlelength=1.2, columnspacing=1.4)
+    o = con["overall"]
+    header(fig, "How many points can a selector still add?",
+           "blind and sequential compared question by question (probabilistic over the 4 passes:\n"
+           "per-question pass-mean correctness with and without images, quadrant mass = their products).")
+    footer(fig, f"Only {o['vision_hurt']:.1f} points sit where the images made the answer worse than showing nothing — that is the frame-\n"
+                f"selection headroom. {o['wrong_both']:.1f} points are wrong with AND without images; no selector reaches those.")
+    fig.savefig(os.path.join(OUT, "fig9_headroom.png"))
+    plt.close(fig)
+
+
 # ── fig 8: defects/census table ─────────────────────────────────────────────────
 def fig_defects():
     d = S["defects"]
@@ -382,5 +448,5 @@ def fig_defects():
 
 if __name__ == "__main__":
     fig_arrangement(); fig_sync(); fig_pertask(); fig_clip(); fig_budget()
-    fig_blind(); fig_singleview(); fig_defects()
+    fig_blind(); fig_singleview(); fig_defects(); fig_headroom()
     print("wrote", OUT, ":", sorted(os.listdir(OUT)))

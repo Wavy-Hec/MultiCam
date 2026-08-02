@@ -69,6 +69,13 @@ SLIDES = [
      "70% of questions name their videos; only 7% are truly synchronized; the answer key is balanced."),
 ]
 
+con = (S.get("blind") or {}).get("contingency", {}).get("overall")
+if con:
+    SLIDES.append(("fig9_headroom.png", "How many points can a selector still add?",
+                   f"Question-by-question blind vs sequential: {con['vision_hurt']:.1f} points are recoverable "
+                   f"(images made them worse), {con['wrong_both']:.1f} points are wrong either way — "
+                   "out of reach for any frame selector."))
+
 cards = "\n".join(f"""
   <section class="slide">
     <div class="eyebrow">SLIDE {i + 1:02d} · {title}</div>
