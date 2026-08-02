@@ -198,9 +198,14 @@ class InternVL3Backend(Backend):
         if do_sample:
             gen_cfg.update(temperature=temperature, top_p=0.9)
         t0 = time.perf_counter()
-        with torch.no_grad():
-            response = self.model.chat(self.tokenizer, pixel_values, question, gen_cfg,
-                                       num_patches_list=npl, history=None, return_history=True)[0]
+        try:
+            with torch.no_grad():
+                response = self.model.chat(self.tokenizer, pixel_values, question, gen_cfg,
+                                           num_patches_list=npl, history=None, return_history=True)[0]
+        except torch.cuda.OutOfMemoryError:
+            # hand the next (smaller) question a clean allocator
+            torch.cuda.empty_cache()
+            raise
         dt = time.perf_counter() - t0
 
         # best-effort token accounting (not directly comparable to Qwen's <|video_pad|>):
