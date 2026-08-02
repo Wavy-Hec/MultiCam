@@ -413,6 +413,86 @@ def fig_headroom():
     plt.close(fig)
 
 
+# ── fig 10: single-view per task + per-view-index sanity ────────────────────────
+def fig_singleview_tasks():
+    sv = S.get("single_view") or {}
+    if not sv.get("by_task"):
+        placeholder("fig10_singleview_tasks.png", "Where does picking the view pay off?",
+                    "needs single_view.by_task — rerun analysis/mvueval_slide_stats.py")
+        return
+    PRETTY = {"MVU-Counting": "Counting", "MVU-OR": "Object recognition",
+              "MVU-SU": "Spatial understanding", "MVU-ICL": "In-context learning",
+              "MVU-RAG": "Retrieval", "MVU-KIR": "Knowledge reasoning",
+              "MVU-Comparison": "Comparison", "MVU-TR": "Temporal reasoning"}
+    SMALL_N = 30
+    items = sorted(sv["by_task"].items(),
+                   key=lambda kv: kv[1]["best"] - (kv[1]["sequential_all_views"] or 0),
+                   reverse=True)
+    fig = plt.figure(**FIG_KW)
+
+    # left: per-task dumbbell, all-views -> best view
+    ax = fig.add_axes([0.24, 0.14, 0.38, 0.62])
+    for i, (t, d) in enumerate(items):
+        y = len(items) - 1 - i
+        tiny = d["n_q"] < SMALL_N
+        c_best, c_seq = (MUTED, MUTED) if tiny else (GREEN, SEQ)
+        s = d["sequential_all_views"]
+        ax.plot([s, d["best"]], [y, y], color=(GRID if tiny else BASE),
+                linewidth=2, zorder=1)
+        ax.scatter([s], [y], color=c_seq, s=42, zorder=2)
+        ax.scatter([d["best"]], [y], color=c_best, s=42, zorder=2)
+        if not tiny:
+            ax.text(d["best"] + 2, y, f"+{d['best'] - s:.0f}", va="center",
+                    fontsize=9.5, color=INK)
+    ax.set_yticks(range(len(items) - 1, -1, -1))
+    ax.set_yticklabels([f"{PRETTY.get(t, t)}  (n={d['n_q']})" for t, d in items],
+                       fontsize=9.5, color=INK2)
+    for i, (t, d) in enumerate(items):     # gray out the tiny-n tick labels
+        if d["n_q"] < SMALL_N:
+            ax.get_yticklabels()[i].set_color(MUTED)
+    ax.set_xlim(0, 100)
+    ax.grid(axis="x", color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True); ax.tick_params(length=0)
+    for s_ in ax.spines.values():
+        s_.set_visible(False)
+    ax.set_xlabel("accuracy, percent")
+    ax.set_title("all views (black) → best single view (green)", fontsize=10.5,
+                 color=INK2, pad=8)
+
+    # right: accuracy by view index (positional-artifact check)
+    pv = sv.get("per_view_index") or {}
+    ax2 = fig.add_axes([0.70, 0.14, 0.26, 0.62])
+    idx = sorted(int(v) for v in pv)
+    ax2.plot(idx, [pv[str(v)]["acc"] for v in idx], color=SEQ, linewidth=2,
+             marker="o", markersize=4)
+    for v in idx:
+        if v in (1, 7) or v == idx[-1]:
+            ax2.annotate(f"n={pv[str(v)]['n_q']}", (v, pv[str(v)]["acc"]),
+                         textcoords="offset points", xytext=(0, 8),
+                         fontsize=8.5, color=MUTED, ha="center")
+    ax2.axvspan(6.5, max(idx) + 0.5, color=GRID, alpha=0.5, zorder=0)
+    ax2.text(6.7, 20, "only high-K questions\nhave views 7+", fontsize=8.5,
+             color=MUTED, va="bottom")
+    ax2.set_xlabel("view index"); ax2.set_ylim(0, 75)
+    ax2.grid(axis="y", color=GRID, linewidth=0.8)
+    ax2.set_axisbelow(True); ax2.tick_params(length=0)
+    for s_ in ("top", "right"):
+        ax2.spines[s_].set_visible(False)
+    ax2.set_title("accuracy by view slot", fontsize=10.5, color=INK2, pad=8)
+
+    big = [(t, d) for t, d in items if d["n_q"] >= SMALL_N]
+    lead = ", ".join(f"{PRETTY.get(t, t)} +{d['best'] - d['sequential_all_views']:.0f}"
+                     for t, d in big[:2])
+    header(fig, "Where does picking the view pay off?",
+           f"The {sv['n_q_complete']}-question single-view sweep split by task. Gray rows have too few "
+           f"questions to read (n<{SMALL_N});\nthey are shown, not hidden.")
+    footer(fig, f"The view-selection headroom concentrates in {lead}.\n"
+                "Right panel: flat across slots 1–6 → no positional artifact; the swings at 7+ are "
+                "question composition at tiny n, not position.")
+    fig.savefig(os.path.join(OUT, "fig10_singleview_tasks.png"))
+    plt.close(fig)
+
+
 # ── fig 8: defects/census table ─────────────────────────────────────────────────
 def fig_defects():
     d = S["defects"]
@@ -449,4 +529,5 @@ def fig_defects():
 if __name__ == "__main__":
     fig_arrangement(); fig_sync(); fig_pertask(); fig_clip(); fig_budget()
     fig_blind(); fig_singleview(); fig_defects(); fig_headroom()
+    fig_singleview_tasks()
     print("wrote", OUT, ":", sorted(os.listdir(OUT)))

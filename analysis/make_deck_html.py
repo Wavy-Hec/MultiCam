@@ -76,6 +76,16 @@ if con:
                    f"(images made them worse), {con['wrong_both']:.1f} points are wrong either way — "
                    "out of reach for any frame selector."))
 
+svt = (S.get("single_view") or {}).get("by_task")
+if svt:
+    big = sorted(((t, d) for t, d in svt.items() if d["n_q"] >= 30),
+                 key=lambda kv: kv[1]["best"] - kv[1]["sequential_all_views"], reverse=True)
+    t0, d0 = big[0]
+    SLIDES.append(("fig10_singleview_tasks.png", "Where does picking the view pay off?",
+                   f"The single-view sweep split by task: the biggest headroom is {t0} "
+                   f"(best view {d0['best']:.1f} vs all views {d0['sequential_all_views']:.1f}, n={d0['n_q']}); "
+                   "view slots 1–6 score flat, so the sweep has no positional artifact."))
+
 cards = "\n".join(f"""
   <section class="slide">
     <div class="eyebrow">SLIDE {i + 1:02d} · {title}</div>
