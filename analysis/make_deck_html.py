@@ -76,6 +76,16 @@ if con:
                    f"(images made them worse), {con['wrong_both']:.1f} points are wrong either way — "
                    "out of reach for any frame selector."))
 
+tr = S.get("task_relevance")
+if tr:
+    icl = tr["MVU-ICL"]["images_add"]
+    vis = sorted(((t, d["images_add"]["delta"]) for t, d in tr.items()),
+                 key=lambda kv: kv[1], reverse=True)
+    SLIDES.append(("fig12_task_relevance.png", "Which tasks can measure the harness?",
+                   f"All 8 tasks, three kinds of evidence each. {vis[0][0]} is the most vision-dependent "
+                   f"({vis[0][1]:+.1f} from images); MVU-ICL is the one task where images do not measurably "
+                   f"help ({icl['delta']:+.1f}, p={icl['p']:.2f})."))
+
 fb = S.get("frame_budget") or {}
 pp_done = any(p.get("status") == "done" for p in fb.get("points", []))
 if fb:

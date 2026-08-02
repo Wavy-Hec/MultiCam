@@ -433,6 +433,23 @@ def main():
                   "HF chat vs the paper's <=720px under vLLM.",
     }
 
+    # ---- task relevance: which tasks CAN measure a vision harness?
+    # (pure assembly of already-computed pieces — the non-cherry-picked answer
+    # to "which task accuracies count": show all 8 with the evidence per task)
+    if out.get("blind", {}).get("images_add_by_task") and \
+            out.get("single_view", {}).get("by_task"):
+        native_bt = out["arrangement"]["mvu_full"]["cvbench_native"]["by_task"]
+        blind_bt = out["blind"]["mvu_full"]["by_task"]
+        out["task_relevance"] = {t: {
+            "n_q": len([r for r in mvu_pool if r["task_type"] == t]),
+            "chance": round(chance_floor(
+                [r for r in mvu_pool if r["task_type"] == t]), 2),
+            "native_acc": native_bt[t]["acc"],
+            "blind_acc": blind_bt[t]["acc"],
+            "images_add": out["blind"]["images_add_by_task"][t],
+            "sv": out["single_view"]["by_task"].get(t),
+        } for t in sorted({r["task_type"] for r in mvu_pool})}
+
     # ---- forensics: the deck's "same images at the same budget" check
     if "cvbench_native" in mvu and "centralized" in mvu:
         nv = arm_summary(mvu["cvbench_native"])["tokens"]
