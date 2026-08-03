@@ -139,9 +139,10 @@ def main():
            f"slide_stats.json): wrong-both {ct['wrong_both']:.1f}%, images "
            f"hurt {ct['vision_hurt']:.1f}%, images helped "
            f"{ct['vision_helped']:.1f}%, right regardless "
-           f"{ct['right_both']:.1f}%. The 50–65% figure only appears "
-           "under a strict all-4-passes-wrong convention nobody had written "
-           "down.", {"size": 14, "color": INK2})]],
+           f"{ct['right_both']:.1f}%. The 50–65% figure only appears if a "
+           "question counts as wrong unless all 4 passes get it right — a "
+           "convention nobody had written down (that gives 59.9%).",
+           {"size": 14, "color": INK2})]],
         space_after=10)
 
     # ---- the 14 result slides, same order as the html deck ----------------
@@ -157,9 +158,10 @@ def main():
     ours8 = S["arrangement"]["mvu_full"]["cvbench_native"]
     pp = S["parity32pv"]["cvbench_native"]
     s = new_slide(prs, f"Ours vs the MVU-Eval paper ({P['source']})",
-                  "InternVL3-8B. Paper: 32 frames/video, ≤720px, vLLM. "
-                  "Ours: 448px tiles, HF chat, 4 passes at temperature 0.7 "
-                  "(decoding not matched).")
+                  "InternVL3-8B. Paper: 32 frames/video at 448×448 (their "
+                  "InternVL setting), direct-answer prompting. Ours: 448px "
+                  "tiles, thinking prompts, 4 passes at temperature 0.7 — "
+                  "prompting/decoding are the unmatched part.")
     rows = [("Accuracy, percent", "Paper", "Ours, 8/video",
              "Ours, 32/video (parity)")]
     rows.append(("Overall", f"{P['internvl3_8b']['overall']:.1f}",

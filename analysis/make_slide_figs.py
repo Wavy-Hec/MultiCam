@@ -546,13 +546,15 @@ def fig_frame_budget():
     ax.set_ylabel("accuracy, percent")
     ax.legend(loc="lower left", frameon=False, fontsize=9.5)
 
-    # right: the context-overflow facet (native, K<=4 vs K>=5)
+    # right: the long-context facet (native, K<=4 vs K>=5). At 32/video the
+    # K=4 prompts already total ~34k tokens (visual alone = 32,768 = the full
+    # pre-trained window); K>=5 runs 1.3-3.4x past it on dynamic-NTK rope.
     ax2 = fig.add_axes([0.67, 0.16, 0.29, 0.56])
     W = 0.34
     ks = fb["k_split"]
     for j, (kk, label, color) in enumerate(
-            (("k_le_4", f"K≤4 (n={ks['n_le_4']}) — fits the context", CEN),
-             ("k_ge_5", f"K≥5 (n={ks['n_ge_5']}) — overflows at 32/video", NEG))):
+            (("k_le_4", f"K≤4 (n={ks['n_le_4']}) — ≤34k tokens, at the window", CEN),
+             ("k_ge_5", f"K≥5 (n={ks['n_ge_5']}) — 42k–112k, deep past it", NEG))):
         xs, ys = [], []
         for i, p in enumerate(pts):
             a = p["arms"].get("cvbench_native")
@@ -571,17 +573,17 @@ def fig_frame_budget():
     header(fig, "Does the frame budget explain anything?",
            "The same questions at three per-question frame budgets, InternVL3-8B, 4 passes. The paper's own\n"
            f"protocol is 32 frames per video (mean K={fb['mean_k']:.1f} → ≈{pts[2]['frames_per_q_mean']:.0f} frames); "
-           "at K≥5 that exceeds the model's 32k context window.")
+           "even K=4 fills the 32k window, K≥5 runs far past it.")
     if have_parity:
         nat = pts[2]["arms"].get("cvbench_native", {})
         tag = " (PRELIMINARY — the arrays are still draining)" if prelim else ""
         footer(fig, f"At the paper's own budget our sequential arm scores {nat.get('acc', 0):.1f}{tag} vs their published "
-                    f"{pi:.1f}. The right panel shows whether any change\nconcentrates in the K≥5 questions whose "
-                    "visual tokens overflow the context window — the signature of overflow, not frame count.")
+                    f"{pi:.1f}. The right panel shows whether any change\nconcentrates in K≥5, which runs deepest past "
+                    "the pre-trained window — long-context degradation, not frame count.")
     else:
         footer(fig, f"Our runs beat the paper's published {pi:.1f} at BOTH tested budgets while feeding fewer frames. "
                     "The 32/video paper-parity arm is queued;\nif accuracy drops there — concentrated in K≥5 — the "
-                    "paper's low InternVL number is a context-overflow artifact of its own protocol.")
+                    "paper's low InternVL number is a long-context artifact of its own protocol.")
     fig.savefig(os.path.join(OUT, "fig11_framebudget.png"))
     plt.close(fig)
 
