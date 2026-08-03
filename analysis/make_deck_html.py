@@ -90,6 +90,9 @@ if tr:
                    f"({vis[0][1]:+.1f} from images); MVU-ICL is the one task where images do not measurably "
                    f"help ({icl['delta']:+.1f}, p={icl['p']:.2f})."))
 
+cnt_tail = ("the fixed-32 rerun confirms the reversal at a matched budget."
+            if b32_done else "the fixed-32 rerun decides it.")
+
 fb = S.get("frame_budget") or {}
 pp_done = any(p.get("status") == "done" for p in fb.get("points", []))
 pp_prelim = any(p.get("status") == "preliminary" for p in fb.get("points", []))
@@ -103,6 +106,19 @@ if fb:
         pp_bit = "the 32-frames-per-video paper-parity arm is queued; the panel updates when it lands."
     fb_cap = (f"Accuracy at three per-question frame budgets vs the paper's published InternVL3-8B "
               f"{S['paper']['internvl3_8b']['overall']:.1f} — " + pp_bit)
+
+pp_tldr = ""
+if pp_done:
+    ppn = S["parity32pv"]["cvbench_native"]
+    ppd = S["parity32pv"]["vs_8pv"]
+    _pi = S["paper"]["internvl3_8b"]["overall"]
+    pp_tldr = (
+        f'<p><b>Frame budget is dead as the explanation of the paper\'s {_pi:.1f}.</b> At their own '
+        f'32-frames-per-video protocol, sequential scores {ppn["acc"]:.1f} ({ppd["delta"]:+.2f} vs 8/video, '
+        f'p&lt;0.0001) — still {ppn["acc"] - _pi:+.1f} over their published number, so harness quality, '
+        'not frames, separates the runs. The small drop is ~2.6 points of frame dilution (the '
+        'never-overflowing per-stream control loses the same) plus a context-overflow penalty that '
+        'grows with view count (slide 11).</p>')
     SLIDES.append(("fig11_framebudget.png", "Does the frame budget explain anything?", fb_cap))
 
 svt = (S.get("single_view") or {}).get("by_task")
@@ -272,7 +288,8 @@ footer {{ color:var(--muted); font-size:.85rem; border-top:1px solid var(--line)
     <p><b>The sync story replicates in shape:</b> stitching {sy['delta']:+.2f} on the 128 synchronized rigs,
     {un['delta']:+.2f} on unrelated clips — neither significant.</p>
     <p><b>The reference deck's one surviving result reverses:</b> Counting stitch delta is {cnt['delta']:+.2f}
-    in my run vs their +6.83 — likely the unmatched frame budget (slide 05); the fixed-32 rerun decides it.</p>
+    in my run vs their +6.83 — likely the unmatched frame budget (slide 05); {cnt_tail}</p>
+    {pp_tldr}
   </div>
 
   {cards}
