@@ -521,9 +521,16 @@ def fig_frame_budget():
                 ax.annotate(f"{y:.1f}", (x, y), textcoords="offset points",
                             xytext=(0, 9), fontsize=9.5, color=INK, ha="center")
     queued = [i for i, p in enumerate(pts) if p.get("status") == "queued"]
+    prelim = [i for i, p in enumerate(pts) if p.get("status") == "preliminary"]
     for i in queued:
         ax.text(i, 54, "parity run\nqueued", ha="center", fontsize=9.5,
                 color=MUTED, style="italic")
+    for i in prelim:
+        rows = pts[i].get("rows_in") or {}
+        exp = pts[i].get("rows_expected_per_arm") or 0
+        pct = (100 * min(rows.values()) / exp) if rows and exp else 0
+        ax.text(i, 22.5, f"preliminary — runs in flight\n({pct:.0f}% of rows in)",
+                ha="center", fontsize=9, color=MUTED, style="italic")
     pi = paper["internvl3_8b"]["overall"]
     ax.axhline(pi, color=NEG, linestyle=(0, (4, 3)), linewidth=1.6)
     ax.text(len(pts) - 0.55, pi + 0.5, f"paper's InternVL3-8B: {pi:.1f}\n(their 32/video protocol)",
@@ -567,7 +574,8 @@ def fig_frame_budget():
            "at K≥5 that exceeds the model's 32k context window.")
     if have_parity:
         nat = pts[2]["arms"].get("cvbench_native", {})
-        footer(fig, f"At the paper's own budget our sequential arm scores {nat.get('acc', 0):.1f} vs their published "
+        tag = " (PRELIMINARY — the arrays are still draining)" if prelim else ""
+        footer(fig, f"At the paper's own budget our sequential arm scores {nat.get('acc', 0):.1f}{tag} vs their published "
                     f"{pi:.1f}. The right panel shows whether any change\nconcentrates in the K≥5 questions whose "
                     "visual tokens overflow the context window — the signature of overflow, not frame count.")
     else:

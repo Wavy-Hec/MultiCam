@@ -1035,7 +1035,116 @@
   "random": 26.0,
   "human": 93.6
  },
- "parity32pv": {},
+ "parity32pv": {
+  "cvbench_native": {
+   "acc": 49.5910780669145,
+   "pass_std": 0.30812826553980466,
+   "n_rows": 6725,
+   "n_q": 1683,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 63.46153846153846,
+     "n_q": 117
+    },
+    "MVU-Counting": {
+     "acc": 50.33783783783784,
+     "n_q": 222
+    },
+    "MVU-ICL": {
+     "acc": 31.914893617021278,
+     "n_q": 154
+    },
+    "MVU-KIR": {
+     "acc": 37.007168458781365,
+     "n_q": 279
+    },
+    "MVU-OR": {
+     "acc": 52.58620689655172,
+     "n_q": 116
+    },
+    "MVU-RAG": {
+     "acc": 47.13322091062395,
+     "n_q": 297
+    },
+    "MVU-SU": {
+     "acc": 47.5,
+     "n_q": 170
+    },
+    "MVU-TR": {
+     "acc": 65.3201219512195,
+     "n_q": 328
+    }
+   },
+   "tokens": {
+    "video_mean": 38880.6,
+    "video_median": 40960,
+    "input_mean": 40151.0
+   }
+  },
+  "per_stream": {
+   "acc": 40.9684011947807,
+   "pass_std": 0.842641603461117,
+   "n_rows": 6361,
+   "n_q": 1592,
+   "by_task": {
+    "MVU-Comparison": {
+     "acc": 36.23853211009175,
+     "n_q": 109
+    },
+    "MVU-Counting": {
+     "acc": 33.60091743119266,
+     "n_q": 218
+    },
+    "MVU-ICL": {
+     "acc": 35.23131672597865,
+     "n_q": 142
+    },
+    "MVU-KIR": {
+     "acc": 37.5,
+     "n_q": 278
+    },
+    "MVU-OR": {
+     "acc": 44.1588785046729,
+     "n_q": 107
+    },
+    "MVU-RAG": {
+     "acc": 44.28044280442804,
+     "n_q": 271
+    },
+    "MVU-SU": {
+     "acc": 39.09531502423263,
+     "n_q": 155
+    },
+    "MVU-TR": {
+     "acc": 50.40064102564103,
+     "n_q": 312
+    }
+   },
+   "tokens": {
+    "video_mean": 38947.1,
+    "video_median": 40960,
+    "input_mean": 40965.9
+   }
+  },
+  "completeness": {
+   "rows_expected_per_arm": 7296,
+   "rows_in": {
+    "cvbench_native": 6725,
+    "per_stream": 6361
+   },
+   "final": false
+  },
+  "vs_8pv": {
+   "delta": -2.69,
+   "p": 9.99950002499875e-05,
+   "n": 1683
+  },
+  "vs_8pv_per_stream": {
+   "delta": -2.73,
+   "p": 0.000199990000499975,
+   "n": 1592
+  }
+ },
  "frame_budget": {
   "mean_k": 4.712,
   "k_split": {
@@ -1118,8 +1227,44 @@
    {
     "label": "32 per video (paper parity)",
     "frames_per_q_mean": 150.8,
-    "arms": {},
-    "status": "queued"
+    "arms": {
+     "cvbench_native": {
+      "acc": 49.5910780669145,
+      "pass_std": 0.30812826553980466,
+      "n_q": 1683,
+      "by_k": {
+       "k_le_4": {
+        "acc": 55.9,
+        "n_q": 770
+       },
+       "k_ge_5": {
+        "acc": 44.27,
+        "n_q": 913
+       }
+      }
+     },
+     "per_stream": {
+      "acc": 40.9684011947807,
+      "pass_std": 0.842641603461117,
+      "n_q": 1592,
+      "by_k": {
+       "k_le_4": {
+        "acc": 42.74,
+        "n_q": 728
+       },
+       "k_ge_5": {
+        "acc": 39.48,
+        "n_q": 864
+       }
+      }
+     }
+    },
+    "status": "preliminary",
+    "rows_in": {
+     "cvbench_native": 6725,
+     "per_stream": 6361
+    },
+    "rows_expected_per_arm": 7296
    }
   ],
   "caveat": "budget-32 centralized feeds 26-36 frames from montage-grid rounding; native/per_stream are exact. Parity is frame-BUDGET parity only: our pipeline feeds 448px single-tile frames via HF chat vs the paper's <=720px under vLLM."
