@@ -12,7 +12,7 @@ Design: one set of **store-mode zip shards per source dataset**
 videos via HTTP range requests — nobody has to download terabytes to look at
 20 failure cases. `shards/shard_index.csv` maps each video to its shard.
 
-## For the uploader (Adi — or anyone who can read `/nas/mars/...`)
+## For the uploader (anyone who can read `/nas/mars/...`)
 
 ```bash
 # one-time setup (any python >= 3.8)
@@ -43,7 +43,7 @@ settings page (or create it under a shared HF org).
 `package_and_upload.py` is self-contained — copying this one file to the NAS
 machine is enough.
 
-## For consumers (Hector, Adi)
+## For consumers
 
 ```bash
 pip install -U huggingface_hub remotezip
@@ -66,9 +66,9 @@ Videos land under
 `video_paths` in the QA JSONs resolve against the release root unchanged.
 Point eval code at that root.
 
-Suggested split: one dataset per person (e.g. Hector: MEVA, Adi: Ego-Exo4D),
-same task — question-type breakdown, then qualitative failure cases with a
-thinking model, then accuracy vs num-cameras.
+Suggested split: one dataset per person (e.g. MEVA and Ego-Exo4D each get an
+owner), same task — question-type breakdown, then qualitative failure cases
+with a thinking model, then accuracy vs num-cameras.
 
 ## Licensing — read before sharing
 
