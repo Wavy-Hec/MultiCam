@@ -622,6 +622,134 @@ def fig_frameselect(dataset, rec, root, msum, alloc, cell_px, out_path):
     return out.size, tiles_total * 256
 
 
+def fig_frameselect_slide(dataset, rec, root, msum, alloc, cell_px, out_path,
+                          max_cells=6, cell=220):
+    """Slide-friendly re-render of fig_frameselect: at most ``max_cells`` large
+    thumbnails per clip (evenly subsampled from the kept frames), a verdict
+    banner, and the gold clip highlighted. Same recorded frame_alloc replay —
+    CLIP is not re-run and nothing is re-selected."""
+    import re as _re
+    paths = video_paths(rec, root)
+    fs = FrameSelectMethod(None, budget=int(alloc.get("budget", 64)),
+                           candidates_per_video=int(alloc.get("candidates_per_video", 32)),
+                           cell_px=cell_px)
+    times = {int(v): ts for v, ts in (alloc.get("selected_times_s") or {}).items()}
+    gold_letter = str(rec.get("answer", "")).strip().upper()
+    gold_opt = next((str(o).strip() for o in rec.get("options", [])
+                     if str(o).strip().upper().startswith((gold_letter + ".",
+                                                           gold_letter + ")"))), "")
+    gm = _re.search(r"VIDEO\s+(\d+)", gold_opt.upper())
+    gold_v = int(gm.group(1)) if gm else None
+    fsum = msum.get("frame_select") or {}
+    n_pass, n_ok = fsum.get("n") or 0, fsum.get("correct") or 0
+    good = n_pass > 0 and n_ok == n_pass
+    GREEN, GREEN_BG = (23, 105, 46), (223, 240, 225)
+    RED, RED_BG = (165, 25, 25), (250, 229, 229)
+    INK, MUT = (18, 18, 18), (95, 95, 95)
+
+    LEFT, PAD, GAP = 330, 12, 16
+    width = LEFT + max_cells * cell + (max_cells - 1) * PAD + 24
+    f_q, f_sub, f_ban = font(30, bold=True), font(21), font(26, bold=True)
+    f_row, f_note, f_t = font(26, bold=True), font(19), font(16)
+
+    row_imgs = []
+    for i, vp in enumerate(paths, 1):
+        want = list(times.get(i, []))
+        shown = want
+        if len(want) > max_cells:
+            idx = sorted({round(j * (len(want) - 1) / (max_cells - 1))
+                          for j in range(max_cells)})
+            shown = [want[j] for j in idx]
+        cands = fs._candidates(vp) if shown else []
+        cells = []
+        for t in shown:
+            if not cands:
+                break
+            j = min(range(len(cands)),
+                    key=lambda a: abs((cands[a][0] if cands[a][0] is not None else 0.0)
+                                      - (t if t is not None else 0.0)))
+            tile = delivered_tiles(fs._resize(cands[j][1]), 1)[0]
+            cells.append((tile.resize((cell, cell)), f"t={t}s"))
+        row_imgs.append((i, len(want), cells))
+
+    q_lines = wrap_px("Q: " + rec["question"], f_q, width - 40)
+    banner_h = 56
+    head_h = 16 + len(q_lines) * (f_q.size + 6) + 10 + f_sub.size + 18 + banner_h + 14
+    row_h = cell + 12
+    height = head_h + len(row_imgs) * (row_h + GAP) + 44
+
+    im = Image.new("RGB", (width, height), (250, 250, 248))
+    d = ImageDraw.Draw(im)
+    y = 16
+    for ln in q_lines:
+        d.text((20, y), ln, fill=INK, font=f_q)
+        y += f_q.size + 6
+    preds = ",".join(fsum.get("preds") or [])
+    d.text((20, y + 4),
+           f"gold: {gold_letter}. {gold_opt.split('.', 1)[-1].strip()}   |   "
+           f"CLIP sampler kept {alloc.get('n_selected')} of "
+           f"{alloc.get('n_candidates')} candidate frames   |   "
+           f"sampler-arm answers: [{preds}]", fill=MUT, font=f_sub)
+    y += f_sub.size + 18
+    if good:
+        btxt = (f"GOOD CASE — every clip keeps frames; the model answered "
+                f"correctly on {n_ok}/{n_pass} passes")
+        bfg, bbg = GREEN, GREEN_BG
+    else:
+        btxt = (f"FAILURE — the sampler kept 0 frames of the GOLD clip "
+                f"(Video {gold_v}); the model was wrong on all {n_pass} passes")
+        bfg, bbg = RED, RED_BG
+    d.rectangle([12, y, width - 12, y + banner_h], fill=bbg, outline=bfg, width=3)
+    d.text((28, y + (banner_h - f_ban.size) // 2 - 2), btxt, fill=bfg, font=f_ban)
+    y += banner_h + 14
+
+    for i, n_kept, cells in row_imgs:
+        is_gold = (i == gold_v)
+        band = GREEN_BG if (is_gold and n_kept) else (RED_BG if is_gold
+                                                      else (238, 238, 244))
+        d.rectangle([0, y, LEFT - 10, y + row_h - 1], fill=band)
+        d.text((16, y + 10), f"Video {i}", fill=INK, font=f_row)
+        ny = y + 10 + f_row.size + 8
+        if is_gold:
+            label(d, (16, ny), "GOLD" if n_kept else "GOLD — DELETED",
+                  font(20, bold=True), fill=(255, 255, 255),
+                  bg=(GREEN if n_kept else RED), pad=6)
+            ny += 40
+        note = (f"{n_kept} of {alloc.get('n_selected')} frames kept"
+                + (f" — showing {len(cells)}" if n_kept > len(cells) else ""))
+        for lnn in wrap_px(note, f_note, LEFT - 32):
+            d.text((16, ny), lnn, fill=MUT, font=f_note)
+            ny += f_note.size + 4
+        x = LEFT
+        if cells:
+            for cimg, clabel in cells:
+                im.paste(cimg, (x, y))
+                d.rectangle([x, y, x + cell - 1, y + cell - 1],
+                            outline=(175, 175, 175))
+                label(d, (x + 4, y + cell - f_t.size - 12), clabel, f_t)
+                x += cell + PAD
+        else:
+            bw = max_cells * cell + (max_cells - 1) * PAD
+            d.rectangle([x, y, x + bw - 1, y + cell - 1], fill=RED_BG,
+                        outline=RED, width=4)
+            msg1 = "0 frames kept — the sampler deleted the evidence"
+            msg2 = f"(this clip is the gold answer: {gold_letter}. Video {i})"
+            fm1, fm2 = font(30, bold=True), font(22)
+            d.text((int(x + (bw - _MEASURE.textlength(msg1, font=fm1)) // 2),
+                    y + cell // 2 - 40), msg1, fill=RED, font=fm1)
+            d.text((int(x + (bw - _MEASURE.textlength(msg2, font=fm2)) // 2),
+                    y + cell // 2 + 6), msg2, fill=RED, font=fm2)
+        if is_gold:
+            d.rectangle([0, y, width - 1, y + row_h - 1],
+                        outline=(GREEN if n_kept else RED), width=4)
+        y += row_h + GAP
+    d.text((20, y + 4), "Frames shown are the actual recorded selection "
+                        "(frame_alloc replay); CLIP scores not re-run.",
+           fill=MUT, font=font(16))
+    im.save(out_path, "PNG")
+    return im.size
+
+
 # --------------------------------------------------------------------------- #
 
 
@@ -752,6 +880,12 @@ def main():
                     stem + "_frameselect.png")
                 entry["frame_select_alloc"] = alloc
                 print(f"        frameselect{s4}")
+                s5 = fig_frameselect_slide(dsname, rec, root, msum, alloc,
+                                           args.cell_px,
+                                           stem + "_frameselect_slide.png")
+                entry["figures"]["frame_select_slide"] = os.path.basename(
+                    stem + "_frameselect_slide.png")
+                print(f"        frameselect_slide{s5}")
             else:
                 print(f"        (no frame_alloc row for {qid}; frameselect skipped)")
 

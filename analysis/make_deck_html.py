@@ -134,18 +134,20 @@ if svt:
 # qualitative contact sheets (rendered by bench/make_input_examples.py from the
 # REAL recorded frame selections — regenerate there, not here)
 if os.path.isdir(SAMPLER_FIGS):
-    def _sheet(name):
-        with open(os.path.join(SAMPLER_FIGS, name), "rb") as f:
-            return base64.b64encode(f.read()).decode()
+    def _sam(name):
+        # prefer the slide-optimized render (large frames, verdict banner)
+        slide = os.path.join(SAMPLER_FIGS, name.replace("_frameselect.png",
+                                                        "_frameselect_slide.png"))
+        return slide if os.path.exists(slide) else os.path.join(SAMPLER_FIGS, name)
     if os.path.exists(os.path.join(SAMPLER_FIGS, "mvu_5_frameselect.png")):
-        SLIDES.append((os.path.join(SAMPLER_FIGS, "mvu_5_frameselect.png"),
+        SLIDES.append((_sam("mvu_5_frameselect.png"),
                        "What the CLIP frame sampler keeps — a good case",
                        "A counting question over 3 room clips. The sampler scores 96 candidate frames "
                        "against the question text and keeps the top 64 (32/13/19 per clip) — every room "
                        "stays visible and the model answers correctly on all 4 passes. Frames shown are "
                        "the actual recorded selection, not an illustration."))
     if os.path.exists(os.path.join(SAMPLER_FIGS, "mvu_178_frameselect.png")):
-        SLIDES.append((os.path.join(SAMPLER_FIGS, "mvu_178_frameselect.png"),
+        SLIDES.append((_sam("mvu_178_frameselect.png"),
                        "What the CLIP frame sampler keeps — the failure mode",
                        "The gold answer is Video 2, and the sampler kept ZERO frames of Video 2 — "
                        "with no per-clip floor it silently deleted the evidence, so the model went 0/4. "
