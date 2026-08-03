@@ -92,11 +92,17 @@ if tr:
 
 fb = S.get("frame_budget") or {}
 pp_done = any(p.get("status") == "done" for p in fb.get("points", []))
+pp_prelim = any(p.get("status") == "preliminary" for p in fb.get("points", []))
 if fb:
+    if pp_done:
+        pp_bit = "the paper-parity (32/video) point shows whether their own protocol costs accuracy."
+    elif pp_prelim:
+        pp_bit = ("the paper-parity (32/video) point is PRELIMINARY — the arrays are still "
+                  "draining; it finalizes on the next regen.")
+    else:
+        pp_bit = "the 32-frames-per-video paper-parity arm is queued; the panel updates when it lands."
     fb_cap = (f"Accuracy at three per-question frame budgets vs the paper's published InternVL3-8B "
-              f"{S['paper']['internvl3_8b']['overall']:.1f} — "
-              + ("the paper-parity (32/video) point shows whether their own protocol costs accuracy."
-                 if pp_done else "the 32-frames-per-video paper-parity arm is queued; the panel updates when it lands."))
+              f"{S['paper']['internvl3_8b']['overall']:.1f} — " + pp_bit)
     SLIDES.append(("fig11_framebudget.png", "Does the frame budget explain anything?", fb_cap))
 
 svt = (S.get("single_view") or {}).get("by_task")
@@ -150,6 +156,10 @@ if S.get("paper"):
     ours8 = S["arrangement"]["mvu_full"]["cvbench_native"]
     pp_nat = (S.get("parity32pv") or {}).get("cvbench_native")
     pend = '<span class="chip">pending</span>'
+    parity_hdr_mark = ('<br><span class="chip">PRELIMINARY — runs in flight</span>'
+                       if pp_prelim else "")
+    parity_cap_note = (" The parity column shows preliminary rows from the still-running "
+                       "arrays and finalizes on the next regen." if pp_prelim else "")
 
     def _row(name, paper_v, ours8_v, pp_v):
         return (f"<tr><td>{name}</td><td>{paper_v}</td><td>{ours8_v}</td>"
@@ -169,12 +179,13 @@ if S.get("paper"):
     <div class="tablewrap"><table>
       <tr><th>Accuracy, percent</th><th>Paper<br>(32 frames/video, ≤720px, vLLM)</th>
           <th>Ours, 8 frames/video<br>(448px tiles, HF chat)</th>
-          <th>Ours, 32 frames/video<br>(paper-parity budget)</th></tr>
+          <th>Ours, 32 frames/video<br>(paper-parity budget){parity_hdr_mark}</th></tr>
       {''.join(rows)}
     </table></div>
     <p class="cap">Our sequential arm beats the paper's published number while feeding a fraction of the
     frames, so harness differences (prompt, frame resolution, decoding, answer parsing) dominate the frame
-    budget on this benchmark. The parity column isolates the budget alone — same harness, their frame count.
+    budget on this benchmark. The parity column isolates the budget alone — same harness, their frame
+    count.{parity_cap_note}
     Sampling also differs: ours is 4 passes at temperature 0.7; the paper's decoding is not matched.
     Open item: the paper reports Qwen2.5-VL-7B at {P['qwen2_5_vl_7b']['overall']:.1f}, ABOVE its InternVL
     number — the reverse of every ordering we measure; a Qwen run in this harness would resolve it.</p>
@@ -184,7 +195,9 @@ pending_bits = []
 if not blind_done: pending_bits.append("blind (72235/72236)")
 if not sv_done: pending_bits.append("single-view (72240)")
 if not b32_done: pending_bits.append("fixed-32 rerun (72241)")
-if not pp_done: pending_bits.append("paper-parity 32/video arms")
+if not pp_done:
+    pending_bits.append("paper-parity 32/video arms"
+                        + (" (preliminary rows shown)" if pp_prelim else ""))
 status = ("All runs finished — every panel shows final data."
           if not pending_bits else
           "In flight: " + ", ".join(pending_bits) + ". Panels regenerate when each lands.")

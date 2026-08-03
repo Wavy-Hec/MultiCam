@@ -388,6 +388,14 @@ def main():
     # ---- paper-parity arms (32/video) + the frame-budget story
     out["paper"] = PAPER
     out["parity32pv"] = {m: arm_summary(rs) for m, rs in pp.items()}
+    # completeness: 4 passes x full pool per arm; while the arrays are still
+    # draining, downstream consumers must label these rows preliminary
+    pp_expected = 4 * len(mvu_pool)
+    pp_rows = {m: len(rs) for m, rs in pp.items()}
+    pp_final = bool(pp_rows) and all(
+        pp_rows.get(m, 0) >= pp_expected for m in ("cvbench_native", "per_stream"))
+    out["parity32pv"]["completeness"] = {
+        "rows_expected_per_arm": pp_expected, "rows_in": pp_rows, "final": pp_final}
     for m, key in (("cvbench_native", "vs_8pv"), ("per_stream", "vs_8pv_per_stream")):
         if m in pp and m in mvu:
             d, p, n = paired_perm(pp[m], mvu[m])
@@ -425,7 +433,10 @@ def main():
              "arms": budget_arms(mvu)},
             {"label": "32 per video (paper parity)",
              "frames_per_q_mean": round(32 * mean_k, 1),
-             "arms": pp_arms, "status": "done" if pp_arms else "queued"},
+             "arms": pp_arms,
+             "status": ("done" if pp_final else "preliminary") if pp_arms
+                       else "queued",
+             "rows_in": pp_rows, "rows_expected_per_arm": pp_expected},
         ],
         "caveat": "budget-32 centralized feeds 26-36 frames from montage-grid "
                   "rounding; native/per_stream are exact. Parity is frame-BUDGET "
