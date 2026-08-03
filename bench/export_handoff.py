@@ -68,8 +68,10 @@ leg) is comparable question-by-question via the shared `id` field.
 - singleview leg: single_view<i> keeps only view i (8 frames), swept i=1..K, on
   the 545-question no-video-named subset (subsets/mvueval_noview_subset.json)
 - parity32pv leg: NFRAMES=32 per video, no total cap — the MVU-Eval paper's own
-  frame budget (arXiv 2511.07250: 32/video, <=720px, vLLM); ours feeds 448 px
-  single-tile frames via HF chat, so it is frame-BUDGET parity only
+  frame budget (arXiv 2511.07250; their InternVL runs use 448x448, so ours at
+  448 px single-tile roughly matches resolution too); prompting/decoding are
+  NOT matched — the paper prompts a direct option letter, ours is
+  thinking-style via HF chat
 - MVU-Eval dev = 100 q (chance 24.8 / always-A floor 37.0); full = 1,824 q
   (chance 25.9 / floor 25.5). All-Angles EgoHumans = 170 q (chance 33.3 /
   floor 38.2).

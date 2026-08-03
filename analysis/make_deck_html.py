@@ -117,7 +117,7 @@ if pp_done:
         f'32-frames-per-video protocol, sequential scores {ppn["acc"]:.1f} ({ppd["delta"]:+.2f} vs 8/video, '
         f'p&lt;0.0001) — still {ppn["acc"] - _pi:+.1f} over their published number, so harness quality, '
         'not frames, separates the runs. The small drop is ~2.6 points of frame dilution (the '
-        'never-overflowing per-stream control loses the same) plus a context-overflow penalty that '
+        'never-overflowing per-stream control loses the same) plus a long-context penalty that '
         'grows with view count (slide 11).</p>')
     SLIDES.append(("fig11_framebudget.png", "Does the frame budget explain anything?", fb_cap))
 
@@ -193,8 +193,8 @@ if S.get("paper"):
     paper_table = f"""<section>
     <h2>Ours vs the MVU-Eval paper (InternVL3-8B, {P['source']})</h2>
     <div class="tablewrap"><table>
-      <tr><th>Accuracy, percent</th><th>Paper<br>(32 frames/video, ≤720px, vLLM)</th>
-          <th>Ours, 8 frames/video<br>(448px tiles, HF chat)</th>
+      <tr><th>Accuracy, percent</th><th>Paper<br>(32 frames/video, 448×448, direct answer)</th>
+          <th>Ours, 8 frames/video<br>(448px tiles, thinking prompts)</th>
           <th>Ours, 32 frames/video<br>(paper-parity budget){parity_hdr_mark}</th></tr>
       {''.join(rows)}
     </table></div>
@@ -202,7 +202,9 @@ if S.get("paper"):
     frames, so harness differences (prompt, frame resolution, decoding, answer parsing) dominate the frame
     budget on this benchmark. The parity column isolates the budget alone — same harness, their frame
     count.{parity_cap_note}
-    Sampling also differs: ours is 4 passes at temperature 0.7; the paper's decoding is not matched.
+    For InternVL3 the paper also used 448px frames, so resolution is roughly matched too; the unmatched part
+    is prompting and decoding — the paper asks for a direct option letter, ours uses thinking-style prompts
+    (4 passes at temperature 0.7), and that is likely a large share of the gap.
     Open item: the paper reports Qwen2.5-VL-7B at {P['qwen2_5_vl_7b']['overall']:.1f}, ABOVE its InternVL
     number — the reverse of every ordering we measure; a Qwen run in this harness would resolve it.</p>
   </section>"""

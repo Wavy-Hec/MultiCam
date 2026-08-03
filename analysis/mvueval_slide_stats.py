@@ -39,11 +39,14 @@ N_PERM = 20000
 PERM_SEED = 20260730
 
 # MVU-Eval paper reference numbers (arXiv 2511.07250, NeurIPS 2025 D&B track),
-# reported at 32 frames PER VIDEO, frames resized to a <=720px long side,
-# served via vLLM. The ONLY place published numbers may be transcribed.
+# reported at 32 frames PER VIDEO. Their Appendix B.2.1 runs the InternVL
+# series at 448x448 (the <=720px long-side setting applies to Qwen/LLaVA/etc.,
+# NOT InternVL3), prompting a DIRECT option letter (no CoT); decoding and
+# engine are unspecified. The ONLY place published numbers may be transcribed.
 PAPER = {
     "source": "arXiv 2511.07250",
-    "protocol": "32 frames per video, uniform, long side <=720px, vLLM",
+    "protocol": "32 frames per video, uniform, 448x448 for InternVL3, "
+                "direct-answer prompting",
     "internvl3_8b": {
         "overall": 41.7,
         "by_task": {"MVU-OR": 41.3, "MVU-SU": 44.1, "MVU-Counting": 31.3,
@@ -439,9 +442,11 @@ def main():
              "rows_in": pp_rows, "rows_expected_per_arm": pp_expected},
         ],
         "caveat": "budget-32 centralized feeds 26-36 frames from montage-grid "
-                  "rounding; native/per_stream are exact. Parity is frame-BUDGET "
-                  "parity only: our pipeline feeds 448px single-tile frames via "
-                  "HF chat vs the paper's <=720px under vLLM.",
+                  "rounding; native/per_stream are exact. Parity matches the "
+                  "paper's frame budget AND (for InternVL3) its 448px "
+                  "resolution; what is NOT matched is prompting/decoding — "
+                  "the paper prompts a direct option letter, ours is "
+                  "thinking-style at 4 passes, temp 0.7 via HF chat.",
     }
 
     # ---- task relevance: which tasks CAN measure a vision harness?
