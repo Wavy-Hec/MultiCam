@@ -1005,7 +1005,7 @@
  },
  "paper": {
   "source": "arXiv 2511.07250",
-  "protocol": "32 frames per video, uniform, long side <=720px, vLLM",
+  "protocol": "32 frames per video, uniform, 448x448 for InternVL3, direct-answer prompting",
   "internvl3_8b": {
    "overall": 41.7,
    "by_task": {
@@ -1267,7 +1267,7 @@
     "rows_expected_per_arm": 7296
    }
   ],
-  "caveat": "budget-32 centralized feeds 26-36 frames from montage-grid rounding; native/per_stream are exact. Parity is frame-BUDGET parity only: our pipeline feeds 448px single-tile frames via HF chat vs the paper's <=720px under vLLM."
+  "caveat": "budget-32 centralized feeds 26-36 frames from montage-grid rounding; native/per_stream are exact. Parity matches the paper's frame budget AND (for InternVL3) its 448px resolution; what is NOT matched is prompting/decoding \u2014 the paper prompts a direct option letter, ours is thinking-style at 4 passes, temp 0.7 via HF chat."
  },
  "task_relevance": {
   "MVU-Comparison": {
