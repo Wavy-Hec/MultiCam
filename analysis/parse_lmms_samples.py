@@ -48,8 +48,13 @@ def first_str(resps):
     return x if isinstance(x, str) else ""
 
 
+# Mirrors MAX_SLOTS in Video-R1/src/eval_thinking.py (kept as a literal so this
+# stays importable without the harness's torch dependency).
+MAX_SLOTS = 13
+
+
 def num_videos(doc):
-    return sum(1 for i in range(1, 5) if doc.get(f"video_{i}"))
+    return sum(1 for i in range(1, MAX_SLOTS + 1) if doc.get(f"video_{i}"))
 
 
 def main():

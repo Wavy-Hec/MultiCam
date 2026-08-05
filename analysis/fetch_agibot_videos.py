@@ -29,6 +29,8 @@ import sys
 import tarfile
 import urllib.request
 
+from convert_crossview import MAX_SLOTS  # how many video_i slots a record carries
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 DEFAULT_ROOT = os.path.join(REPO, "crossview-release-annotations", "crossview-release")
@@ -56,7 +58,7 @@ def agibot_targets(qa_path):
     for r in json.load(open(qa_path)):
         if r.get("source") != "agibot":
             continue
-        for i in range(1, 5):
+        for i in range(1, MAX_SLOTS + 1):
             vp = r.get(f"video_{i}")
             if not vp or "/agibot/" not in vp:
                 continue
