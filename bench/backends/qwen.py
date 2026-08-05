@@ -1,9 +1,15 @@
-"""Qwen-family VLM backend (Qwen3-VL-* Thinking/Instruct).
+"""Qwen-family VLM backend (Qwen3-VL-* Thinking/Instruct, Qwen2.5-VL-*).
 
 Mirrors the inference path in ``eval_thinking.py`` exactly (same
 ``process_vision_info`` call with ``return_video_metadata=True`` so the
 ``nframes`` sampling is preserved, same ``<|video_pad|>`` token accounting) so
 that the centralized method reproduces the existing harness's numbers.
+
+``return_video_metadata=True`` is right for BOTH families under transformers>=5:
+the Qwen2.5-VL processor derives ``second_per_grid_ts`` from that metadata
+(processing_qwen2_5_vl.py:100-116) and no longer reads qwen-vl-utils' legacy
+``fps`` back-compat kwarg. Patch size auto-detects (16px Qwen3-VL, 14px
+Qwen2.5-VL), so Qwen2.5-VL bills ~1.3x the visual tokens for identical input.
 """
 import time
 
@@ -64,5 +70,5 @@ class QwenBackend(Backend):
 QWEN_ALIASES = {
     "qwen3vl": "Qwen/Qwen3-VL-8B-Thinking",
     "qwen3vl-instruct": "Qwen/Qwen3-VL-8B-Instruct",
-    # "qwen25vl": "Qwen/Qwen2.5-VL-7B-Instruct",  # not cached offline; download first
+    "qwen25vl": "Qwen/Qwen2.5-VL-7B-Instruct",
 }

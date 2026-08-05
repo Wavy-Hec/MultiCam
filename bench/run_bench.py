@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import socket
 
 from .reuse import DEFAULT_VIDEO_ROOT
 from .methods.centralized import CentralizedMethod
@@ -160,6 +161,33 @@ def load_done(path):
     return done
 
 
+def existing_identity(path):
+    """(backends, datasets) already present in an output file we would append to."""
+    backends, datasets = set(), set()
+    if os.path.exists(path):
+        with open(path) as fh:
+            for line in fh:
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if r.get("backend"):
+                    backends.add(r["backend"])
+                if r.get("dataset"):
+                    datasets.add(r["dataset"])
+    return backends, datasets
+
+
+def run_identity(subset):
+    """(dataset, run_id, node) stamped onto every row of this run."""
+    dataset = os.path.splitext(os.path.basename(subset))[0]
+    jid = os.environ.get("SLURM_ARRAY_JOB_ID") or os.environ.get("SLURM_JOB_ID")
+    task = os.environ.get("SLURM_ARRAY_TASK_ID")
+    node = os.environ.get("SLURMD_NODENAME") or socket.gethostname()
+    run_id = f"slurm-{jid}" + (f"_{task}" if task else "") if jid else f"{node}-{os.getpid()}"
+    return dataset, run_id, node
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--subset", required=True)
@@ -221,6 +249,11 @@ def main():
     ap.add_argument("--chunk", type=int, default=0, help="number of shards (Slurm array)")
     ap.add_argument("--offset", type=int, default=0, help="this shard index in [0,chunk)")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--allow-mixed", action="store_true",
+                    help="permit appending to a file that already holds a different "
+                         "backend or dataset (default: refuse — filenames key on the "
+                         "conda env, not the model, so two backends sharing an env "
+                         "would silently land in one file)")
     args = ap.parse_args()
 
     data = json.load(open(args.subset))
@@ -245,8 +278,34 @@ def main():
         f"bench_{os.path.splitext(os.path.basename(args.subset))[0]}.jsonl")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     done = load_done(out)
+    dataset, run_id, node = run_identity(args.subset)
+
+    # Output filenames key on the conda ENV, not the model (run_bench.sbatch), so
+    # two backends sharing an env — Qwen2.5-VL and Qwen3-VL both run under
+    # 'cvbench' — would append into ONE file and silently pollute every
+    # glob-based leg in export_handoff.py. Rows stay distinguishable via
+    # `backend`, but the file does not. Refuse rather than mix.
+    prior_backends, prior_datasets = existing_identity(out)
+    # backend.name is the HF id basename, so resolve aliases the same way
+    want_backends = {
+        (QWEN_ALIASES.get(b) or INTERNVL_ALIASES.get(b) or b).rstrip("/").split("/")[-1]
+        for b in backends}
+    stray_b = prior_backends - want_backends
+    stray_d = prior_datasets - {dataset}
+    if (stray_b or stray_d) and not args.allow_mixed:
+        raise SystemExit(
+            f"refusing to append to {out}\n"
+            + (f"  it already holds backend(s) {sorted(stray_b)}; this run is "
+               f"{sorted(want_backends)}\n" if stray_b else "")
+            + (f"  it already holds dataset(s) {sorted(stray_d)}; this run is "
+               f"'{dataset}'\n" if stray_d else "")
+            + "  Set a distinct TAG (run_bench.sbatch) or --out so each "
+              "(dataset, backend) gets its own file.\n"
+              "  Pass --allow-mixed only if you genuinely intend one mixed file.")
+
     print(f"subset={args.subset} n={len(data)} methods={methods} backends={backends} "
           f"passes={args.passes} seeds={seeds} temp={args.temperature}")
+    print(f"dataset={dataset} run_id={run_id} node={node}")
     print(f"video_root={args.video_root}\nout={out} (already done: {len(done)})", flush=True)
 
     from tqdm import tqdm
@@ -269,6 +328,7 @@ def main():
                     if res is None:  # single_view<i> on a record with < i views
                         continue
                     res.pass_idx = pass_idx
+                    res.dataset, res.run_id, res.node = dataset, run_id, node
                     fh.write(json.dumps(res.to_dict(), ensure_ascii=False) + "\n")
                     fh.flush()
 
