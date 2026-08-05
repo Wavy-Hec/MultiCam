@@ -21,16 +21,10 @@ __pycache__/
 
 # Large fetched media & external release data — licensed/regenerable, do not commit
 /crossview-release-annotations/
-/Video-R1/src/r1-v/Evaluation/CVBench/
 
 # Regenerable analysis outputs, logs, media (rebuilt by analyze_failures.py /
-# curate_failure_examples.py / make_slides_v2.py from the tracked eval JSONs)
+# curate_failure_examples.py from the tracked eval JSONs)
 /analysis/logs/
-/analysis/failure_examples/
-/analysis/slides_v2_figs/
-# large per-question failure dumps (12M/685K); the curated digest stays tracked
-/analysis/crossview_meva1033_out/qwen3vl_failures.md
-/analysis/crossview_meva1033_out/internvl3_failures.md
 
 # Regenerable slide decks (binary) + eval-rerun contamination backups
 *.pptx
@@ -42,15 +36,10 @@ __pycache__/
 # Claude Code local config / runtime (per-user, not shared)
 /.claude/
 
-# Stray root-level screenshot (not referenced anywhere; do not commit)
-/image.png
-
-# local export bundles (figures/videos/markdown for Obsidian) — not for git
-exports/
-
 # eval output dumps — regenerable, outputs never in git (files stay on disk)
 /Video-R1/src/r1-v/eval_results/
 /lmms-eval/res/
+/lmms-eval/logs/
 /data/
 
 # Regenerable deck/doc artifacts (rebuilt by make_slide_figs.py / make_repq_doc.py /
@@ -62,7 +51,14 @@ exports/
 /analysis/repq_doc_slack.txt
 /analysis/sampler_diag.json
 
-# Working notes / dated runbooks / reference decks — on-disk only, not for git
-/MULTICAM_STATUS.md
-/RUNBOOK_*.md
-/*.pdf
+# Working notes, dated runbooks, reference decks — on-disk only. These carry
+# unpublished result numbers and are deliberately kept out of the public repo.
+# docs/task1_spec.md and docs/litreview_3branches.md stay TRACKED: they were
+# tracked under analysis/ before the move and carry no result numbers.
+/docs/MULTICAM_STATUS.md
+/docs/runbooks/
+/docs/reference/
+
+# Personal task lists / prompt scratchpads carrying unpublished numbers
+/CLAUDE_TASKS.md
+/Claude CLI Prompts*.md
