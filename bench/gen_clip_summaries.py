@@ -26,6 +26,7 @@ import os
 from .methods.clip_select import (SUMMARY_PROMPT, SUMMARY_PROMPT_VER,
                                   SUMMARY_NFRAMES, SUMMARY_MAX_NEW_TOKENS,
                                   summary_cache_files, _clip_meta)
+from .reuse import MAX_SLOTS
 
 DEFAULT_OUT = os.path.join(os.path.dirname(__file__), "results",
                            "clip_summaries_internvl3.jsonl")
@@ -43,7 +44,7 @@ def clip_list(args):
 
     if args.subset:
         for rec in json.load(open(args.subset)):
-            for i in range(1, 5):
+            for i in range(1, MAX_SLOTS + 1):
                 add(rec.get(f"video_{i}"))
     else:
         with open(args.manifest) as fh:

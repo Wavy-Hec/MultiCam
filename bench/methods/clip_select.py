@@ -47,13 +47,13 @@ import re
 import numpy as np
 from decord import VideoReader, cpu
 
-from .base import Method, Result, result_fields
+from .base import Method, Result, result_fields, require_video_record
 # ALL-branch prompt must be byte-identical to temporal_weighted:
 # PREFIX/MARKER/SPLIT_DESC are imported verbatim, and the budget split over
 # the selected clips reuses allocate_frames.
 from .temporal import allocate_frames, PREFIX, MARKER, SPLIT_DESC
 from ..reuse import (build_messages, parse_choice, gt_choice, letters_of, video_paths,
-                     extract_think)
+                     extract_think, MAX_SLOTS)
 
 
 def clip_scores(clip_bundle, text, pil_frames, batch=32):
@@ -275,9 +275,10 @@ def _clip_meta(vp):
 
 
 def _rel_keys(rec):
-    """The record's raw video_1..4 values, in video_paths() order — the summary
+    """The record's raw video_i values, in video_paths() order — the summary
     cache keys (they match the summary manifest lines exactly)."""
-    return [rec.get(f"video_{i}") for i in range(1, 5) if rec.get(f"video_{i}")]
+    return [rec.get(f"video_{i}") for i in range(1, MAX_SLOTS + 1)
+            if rec.get(f"video_{i}")]
 
 
 def summary_cache_files(path_or_glob):
@@ -371,6 +372,7 @@ class SummarySelectMethod(Method):
         key = rec.get("id")
         if key in self._cache:
             return self._cache[key]
+        require_video_record(rec, self.name)
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
@@ -528,6 +530,7 @@ class ClipScoreSelectMethod(Method):
         key = rec.get("id")
         if key in self._cache:
             return self._cache[key]
+        require_video_record(rec, self.name)
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
@@ -601,10 +604,16 @@ class FrameSelectMethod(Method):
 
     def __init__(self, backend, budget=64, candidates_per_video=32,
                  clip_model="openai/clip-vit-base-patch32", cell_px=448,
-                 nframes=8, max_new_tokens=8192, temperature=0.0, name=None):
+                 nframes=8, max_new_tokens=8192, temperature=0.0, name=None,
+                 floor=1):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
                          temperature=temperature)
         self.budget = int(budget)
+        # Per-clip minimum, so a global ranking can never starve a whole camera.
+        # The sibling arms get this via allocate_frames(floor=2); 1 is the least
+        # that satisfies "never keep 0 frames of any clip" while leaving the
+        # selector the most freedom.
+        self.floor = int(floor)
         self.candidates_per_video = int(candidates_per_video)
         self.clip_model_name = clip_model
         self.cell_px = int(cell_px)
@@ -650,6 +659,7 @@ class FrameSelectMethod(Method):
         key = rec.get("id")
         if key in self._cache:
             return self._cache[key]
+        require_video_record(rec, self.name)
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
@@ -664,6 +674,7 @@ class FrameSelectMethod(Method):
                 pool.append((i, t, im))
 
         fallback = None
+        floor, starved = 0, 0
         if not pool:
             sel = []
             fallback = "fallback:no_frames"
@@ -680,7 +691,32 @@ class FrameSelectMethod(Method):
                 order = list(range(0, len(pool), step))
             else:
                 order = sorted(range(len(pool)), key=lambda j: -float(scores[j]))
-            keep = order[:self.budget]
+
+            # A plain order[:budget] lets the pooled ranking starve whole clips:
+            # measured over the pre-fix rows, 39.9% lost >=1 camera view entirely
+            # (100% of rows at K=10-12; worst case 8 of 13 views gone), and the
+            # loss scales with K — the very axis these arms are compared on.
+            # Reserve each clip's own best `floor` frames first, then fill the
+            # remaining budget globally, preserving the selector's intent.
+            floor = max(0, min(self.floor, self.budget // K)) if K else 0
+            keep, per_clip = [], {}
+            if floor:
+                for j in order:
+                    v = pool[j][0]
+                    if per_clip.get(v, 0) < floor:
+                        keep.append(j)
+                        per_clip[v] = per_clip.get(v, 0) + 1
+            picked = set(keep)
+            for j in order:
+                if len(keep) >= self.budget:
+                    break
+                if j not in picked:
+                    keep.append(j)
+                    picked.add(j)
+            keep = keep[:self.budget]
+            # how many clips the floor rescued from getting nothing at all
+            starved = K - len({pool[j][0] for j in order[:self.budget]})
+
             sel = [(pool[j][0], pool[j][1], pool[j][2],
                     float(scores[j]) if scores is not None else None) for j in keep]
 
@@ -712,6 +748,11 @@ class FrameSelectMethod(Method):
             "selected_per_video": {v: len(by_video[v]) for v in sorted(by_video)},
             "candidates_decoded_per_video": per_video_cand,
             "selection_fallback": fallback,
+            # per-clip floor accounting: `floor_clips_rescued` counts the clips a
+            # plain global top-k would have left with zero frames.
+            "floor": floor,
+            "floor_clips_rescued": starved,
+            "floor_fired": bool(starved),
             "clip_model": self.clip_model_name,
             "selected_times_s": {v: [round(t, 2) if t is not None else None
                                      for t, _, _ in by_video[v]] for v in sorted(by_video)},
