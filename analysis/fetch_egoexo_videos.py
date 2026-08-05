@@ -34,16 +34,18 @@ import os
 import subprocess
 import sys
 
+from convert_crossview import MAX_SLOTS  # how many video_i slots a record carries
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 DEFAULT_ROOT = os.path.join(REPO, "crossview-release-annotations", "crossview-release")
 
 
 def egoexo_dest_paths(subset_path):
-    """Deduped <=4 release-relative video paths for Ego-Exo4D questions in the subset."""
+    """Deduped release-relative video paths for Ego-Exo4D questions in the subset."""
     seen, uniq = set(), []
     for r in json.load(open(subset_path)):
-        for i in range(1, 5):
+        for i in range(1, MAX_SLOTS + 1):
             vp = r.get(f"video_{i}")
             if vp and "/ego-exo4d/" in vp and vp not in seen:
                 seen.add(vp)

@@ -95,9 +95,16 @@ def extract_subtitles(video_path, subtitle_path):
     return subtitle_frames, total_frame
 
 
+# Mirrors MAX_SLOTS in Video-R1/src/eval_thinking.py — the number of video_i /
+# image_i slots a record may carry. .get() rather than [] below so subset JSONs
+# built before the slot extension (which stop at video_4) still load.
+MAX_SLOTS = 13
+
+
 def mvr_doc_to_visual(doc):
     cache_dir = os.path.join(base_cache_dir, cache_name)
-    return [cache_dir+"/"+doc[f"video_{i}"] for i in range(1, 5) if doc[f"video_{i}"] is not None]
+    return [cache_dir+"/"+doc[f"video_{i}"] for i in range(1, MAX_SLOTS + 1)
+            if doc.get(f"video_{i}") is not None]
 
 
 def mvr_doc_to_text(doc, lmms_eval_specific_kwargs=None):
@@ -288,7 +295,7 @@ THINK_INSTRUCTION = (
 
 
 def mvr_num_videos(doc):
-    return sum(1 for i in range(1, 5) if doc.get(f"video_{i}") is not None)
+    return sum(1 for i in range(1, MAX_SLOTS + 1) if doc.get(f"video_{i}") is not None)
 
 
 def mvr_doc_to_text_think(doc, lmms_eval_specific_kwargs=None):

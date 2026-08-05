@@ -3,18 +3,24 @@
 record schema so the existing eval harness can benchmark them side-by-side.
 
 Scope: sources MEVA + ego-exo4d + agibot, MCQ only, question types
-temporal / event_ordering / spatial. Each question is capped to <=4 cameras
-because both eval legs hard-code video_1..video_4:
+temporal / event_ordering / spatial. Each question is capped to `--max-cameras`
+views, which defaults to the harness's MAX_SLOTS (13) rather than the 4 this
+converter assumed before the harness gained its extra video_i slots:
   * MEVA   - the answer-bearing cameras are listed in metadata.requires_cameras
              (len 1-4, verified), mapped to their video_paths file and placed
              first, then padded -> capping never drops an answer camera.
+             MEVA questions range 1-16 views, so a cap of 13 still truncates the
+             750 questions that carry 14-16; those keep dropped_cameras>0.
   * ego-exo4d - no per-camera grounding exists, so the ego/aria view goes first
              and the rest follow in listed order; dropped_cameras>0 is flagged
              (the cap is lossy for these and should be read as a lower bound).
   * agibot - robot rig has only <=3 cams (head_color + hand_right/left_color),
              so the cap never drops a view -> cap_answer_safe by geometry (no
-             per-camera grounding, but nothing is dropped). nuscenes stays out:
-             fixed at 6 cams with no grounding -> 100% lossy under the <=4 cap.
+             per-camera grounding, but nothing is dropped). nuscenes stays
+             unwired for want of videos, not for want of slots: its fixed 6 cams
+             fit under the default cap, which the old <=4 cap made 100% lossy.
+
+Pass `--max-cameras 4` to reproduce records built before the slot extension.
 
 Outputs (under analysis/):
   crossview_qa.json            - full converted pool
@@ -39,6 +45,26 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 ANN = os.path.join(REPO, "crossview-release-annotations", "crossview-release",
                    "annotations", "multi-cam-dataset")
+EVAL_THINKING = os.path.join(REPO, "Video-R1", "src", "eval_thinking.py")
+
+
+def harness_max_slots(default=13):
+    """How many video_i slots the eval harness reads, scraped from its source.
+
+    Read textually rather than imported: eval_thinking pulls in torch, and this
+    converter is meant to run on a login node with no GPU deps. Keeping it
+    scraped (not copied) means a change to MAX_SLOTS can't silently desync the
+    records this script emits from the records the harness consumes.
+    """
+    try:
+        with open(EVAL_THINKING) as f:
+            m = re.search(r"^MAX_SLOTS\s*=\s*(\d+)", f.read(), re.M)
+        return int(m.group(1)) if m else default
+    except OSError:
+        return default
+
+
+MAX_SLOTS = harness_max_slots()
 
 # v1: which (source, file) pairs to read and which question types survive.
 SOURCE_FILES = {
@@ -63,9 +89,9 @@ def is_aria(path):
     return "aria" in os.path.basename(path).lower()
 
 
-def cap_cameras_meva(video_paths, metadata, stats):
+def cap_cameras_meva(video_paths, metadata, stats, cap):
     """Order = required cameras (from metadata.requires_cameras) first, then the
-    rest in listed order; take <=4. Returns (chosen_paths, n_required_mapped)."""
+    rest in listed order; take <=cap. Returns (chosen_paths, n_required_mapped)."""
     required = (metadata or {}).get("requires_cameras") or []
     chosen, seen = [], set()
     for cid in required:
@@ -77,25 +103,26 @@ def cap_cameras_meva(video_paths, metadata, stats):
         else:
             stats["unmapped_required"] += 1
     n_required_mapped = len(chosen)
-    if n_required_mapped > 4:
-        stats["skipped_required_gt4"] += 1
+    if n_required_mapped > cap:
+        stats["skipped_required_gt_cap"] += 1
     for vp in video_paths:
         if vp not in seen:
             chosen.append(vp)
             seen.add(vp)
-    return chosen[:4], n_required_mapped
+    return chosen[:cap], n_required_mapped
 
 
-def cap_cameras_ego(video_paths):
+def cap_cameras_ego(video_paths, cap):
     """Generic non-MEVA cap: ego/aria view first if present, then the rest in
-    listed order; take <=4. Serves ego-exo4d (aria-first) AND agibot (no aria, so
-    just listed order head_color/hand_right/hand_left; <=3 cams -> nothing dropped)."""
+    listed order; take <=cap. Serves ego-exo4d (aria-first) AND agibot (no aria,
+    so just listed order head_color/hand_right/hand_left; <=3 cams -> nothing
+    dropped at any supported cap)."""
     aria = [vp for vp in video_paths if is_aria(vp)]
     rest = [vp for vp in video_paths if not is_aria(vp)]
-    return (aria + rest)[:4]
+    return (aria + rest)[:cap]
 
 
-def convert(sources, meva_ext="mp4", require_local_root=None):
+def convert(sources, meva_ext="mp4", require_local_root=None, cap=MAX_SLOTS):
     stats = Counter()
     pool = []
     for source, files in SOURCE_FILES.items():
@@ -128,9 +155,10 @@ def convert(sources, meva_ext="mp4", require_local_root=None):
                 orig_num_cameras = len(video_paths)
 
                 if source == "meva":
-                    chosen, _ = cap_cameras_meva(video_paths, item.get("metadata"), stats)
+                    chosen, _ = cap_cameras_meva(video_paths, item.get("metadata"),
+                                                 stats, cap)
                 else:
-                    chosen = cap_cameras_ego(video_paths)
+                    chosen = cap_cameras_ego(video_paths, cap)
                 if not chosen:
                     stats["drop_no_video"] += 1
                     continue
@@ -149,7 +177,10 @@ def convert(sources, meva_ext="mp4", require_local_root=None):
                     # filled with a stable integer id after global sort
                     "id": None,
                     "task_type": task_type_of(source, qtype),
-                    "video_1": None, "video_2": None, "video_3": None, "video_4": None,
+                    # every harness slot is emitted (None-filled past the chosen
+                    # views) so readers that index doc["video_i"] directly cannot
+                    # KeyError on a question that uses fewer cameras than the cap.
+                    **{f"video_{i}": None for i in range(1, MAX_SLOTS + 1)},
                     "question": rec["question"],
                     "options": options,
                     "answer": ans,
@@ -177,7 +208,7 @@ def convert(sources, meva_ext="mp4", require_local_root=None):
                 # fetch drive a runnable subset; the eval never sees a missing file).
                 if require_local_root:
                     if any(not os.path.exists(os.path.join(require_local_root, out[f"video_{i}"]))
-                           for i in range(1, 5) if out[f"video_{i}"]):
+                           for i in range(1, MAX_SLOTS + 1) if out[f"video_{i}"]):
                         stats["drop_missing_local"] += 1
                         continue
                 pool.append(out)
@@ -191,7 +222,7 @@ def convert(sources, meva_ext="mp4", require_local_root=None):
 
 
 def num_videos(rec):
-    return sum(1 for i in range(1, 5) if rec.get(f"video_{i}"))
+    return sum(1 for i in range(1, MAX_SLOTS + 1) if rec.get(f"video_{i}"))
 
 
 def cam_bucket(n):
@@ -262,7 +293,7 @@ def select(records, n, per_type_cap):
 
 
 def video_paths_of(rec):
-    return [rec[f"video_{i}"] for i in range(1, 5) if rec.get(f"video_{i}")]
+    return [rec[f"video_{i}"] for i in range(1, MAX_SLOTS + 1) if rec.get(f"video_{i}")]
 
 
 def report(tag, recs):
@@ -288,7 +319,11 @@ def main():
                     help="comma list of sources to include (e.g. 'meva' for a "
                          "MEVA-only run). meva videos are public; ego-exo4d and "
                          "agibot are video-gated (separate licenses); nuscenes is "
-                         "not wired (structurally lossy under the <=4 cap).")
+                         "not wired for want of videos.")
+    ap.add_argument("--max-cameras", type=int, default=MAX_SLOTS, metavar="K",
+                    help=f"cap each question to K views (default {MAX_SLOTS}, the "
+                         "harness MAX_SLOTS scraped from eval_thinking.py). Pass 4 "
+                         "to reproduce records built before the slot extension.")
     ap.add_argument("--meva-video-ext", default="mp4", choices=["mp4", "avi"],
                     help="extension for MEVA video paths; 'avi' matches the public "
                          "MEVA source so no transcoding is needed (decord reads avi)")
@@ -304,8 +339,12 @@ def main():
     args = ap.parse_args()
 
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+    if not 1 <= args.max_cameras <= MAX_SLOTS:
+        ap.error(f"--max-cameras must be 1..{MAX_SLOTS} (the harness reads at most "
+                 f"{MAX_SLOTS} video_i slots)")
     pool, stats = convert(sources, meva_ext=args.meva_video_ext,
-                          require_local_root=args.require_local)
+                          require_local_root=args.require_local,
+                          cap=args.max_cameras)
     json.dump(pool, open(args.out_qa, "w"), indent=2, ensure_ascii=False)
 
     subset = select(pool, args.n, args.per_type_cap)
@@ -317,8 +356,9 @@ def main():
     json.dump([{"video_paths": video_paths_of(r)} for r in subset],
               open(args.out_fetch, "w"), indent=2, ensure_ascii=False)
 
-    print("conversion stats:", dict(stats))
-    assert stats["skipped_required_gt4"] == 0, "a MEVA question needs >4 required cameras!"
+    print(f"conversion stats (cap={args.max_cameras}/{MAX_SLOTS}):", dict(stats))
+    assert stats["skipped_required_gt_cap"] == 0, (
+        f"a MEVA question needs more than {args.max_cameras} required cameras!")
     report("FULL POOL", pool)
     report("SUBSET", subset)
     print(f"\nwrote:\n  {args.out_qa}\n  {args.out_subset}\n  {args.out_videos}\n  {args.out_fetch}")
