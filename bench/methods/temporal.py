@@ -23,7 +23,7 @@ import math
 
 from decord import VideoReader, cpu
 
-from .base import Method, Result, result_fields
+from .base import Method, Result, result_fields, require_video_record
 from ..reuse import (build_messages, parse_choice, gt_choice, letters_of, video_paths,
                      extract_think)
 
@@ -163,6 +163,7 @@ class TemporalWeightedMethod(Method):
         key = rec.get("id")
         if key in self._cache:
             return self._cache[key]
+        require_video_record(rec, self.name)
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
