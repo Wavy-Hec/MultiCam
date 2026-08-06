@@ -75,6 +75,10 @@ SUMMARIES=${SUMMARIES:-}   # summary_select_*: per-clip summary cache JSONL (or 
 SUM_ARG=()                 # array + quoted expansion so a glob reaches python intact
 if [ -n "$SUMMARIES" ]; then SUM_ARG=(--summaries "$SUMMARIES"); fi
 
+# Slurm exposes no GPU model here (Gres is just gpu:N and node features are unset),
+# so record it per job — placement across sxmq/gpul40q/gpua30q differs in VRAM and
+# that is what bounds the usable context.
+echo "GPU  @ $(hostname) $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | tr '\n' ';')"
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=$BUDGET weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND"
