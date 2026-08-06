@@ -25,7 +25,7 @@ Pass `--max-cameras 4` to reproduce records built before the slot extension.
 Outputs (under analysis/):
   crossview_qa.json            - full converted pool
   crossview_subset.json        - balanced Stage-A subset (CVBench schema)
-  crossview_subset_videos.txt  - deduped <=4 video paths referenced by the subset
+  crossview_subset_videos.txt  - deduped video paths referenced by the subset
   crossview_subset_fetch.json  - [{"video_paths":[...]}] for hosting/fetch_videos.py
 
 Run (no GPU, no videos needed):
@@ -237,7 +237,8 @@ def cam_bucket(n):
 
 def select(records, n, per_type_cap):
     """Balance within task_type over orig_num_cameras buckets, round-robin across
-    task types (mirrors analysis/select_subset.py but keyed on #cameras buckets)."""
+    task types (mirrors the retired analysis/select_subset.py, which bucketed on
+    #videos instead — ``git show 58716b4^:analysis/select_subset.py``)."""
     by_type = defaultdict(list)
     for r in records:
         by_type[r["task_type"]].append(r)

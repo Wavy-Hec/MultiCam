@@ -33,8 +33,8 @@ DEFAULT_OUT = os.path.join(os.path.dirname(__file__), "results",
 
 
 def clip_list(args):
-    """Ordered unique relative clip paths from --subset (union of video_1..4)
-    or --manifest (one path per line)."""
+    """Ordered unique relative clip paths from --subset (union of video_1..video_N
+    over all MAX_SLOTS slots) or --manifest (one path per line)."""
     seen, clips = set(), []
 
     def add(rel):
@@ -85,8 +85,8 @@ def existing_rows(out):
 def main():
     ap = argparse.ArgumentParser()
     src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("--subset", help="question subset JSON; summarizes the union "
-                                      "of its video_1..4 clips")
+    src.add_argument("--subset", help=f"question subset JSON; summarizes the union "
+                                      f"of its video_1..{MAX_SLOTS} clips")
     src.add_argument("--manifest", help="text file with one relative clip path per line")
     ap.add_argument("--video-root", default="crossview-release-annotations/crossview-release")
     ap.add_argument("--backend", default="internvl3")

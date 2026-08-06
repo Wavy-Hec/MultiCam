@@ -2,7 +2,7 @@
 
 The mentor spec's centralized method "temporally aligns the video streams and
 spatially stitches the corresponding images across multiple views to provide a
-unified input." This module turns the K (<=4) camera clips of one question into
+unified input." This module turns the K camera clips of one question into
 ``T`` grid-montage images: for each of T aligned timesteps, the synchronized
 frame from every camera is tiled into one labeled grid image.
 
