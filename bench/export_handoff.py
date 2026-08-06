@@ -107,13 +107,16 @@ LEGS = {
         "Qwen3-VL-8B-Thinking", "8 frames/clip",
         "centralized complete (50 q); per_stream incomplete; no native arm. Built "
         "under the OLD 4-camera cap — not comparable to cap-13 records."),
+    # Same questions as crossview_meva1033_subset.json but packed to the harness
+    # slot count, which is what these shards were actually run against — they
+    # stamp dataset=crossview_meva_cap13, so declare that pool, not the 4-cam one.
     "crossview_meva_task1_internvl3": leg(
         "bench_crossview_meva*_internvl_cvmeva*_shard*.jsonl",
-        "crossview_meva1033_subset", "analysis/crossview_meva1033_subset.json",
+        "crossview_meva_cap13", "analysis/crossview_meva_cap13.json",
         "InternVL3-8B", "8 frames/clip"),
     "crossview_meva_task1_qwen25vl": leg(
         "bench_crossview_meva*_cvbench_cvmevaq25*_shard*.jsonl",
-        "crossview_meva1033_subset", "analysis/crossview_meva1033_subset.json",
+        "crossview_meva_cap13", "analysis/crossview_meva_cap13.json",
         "Qwen2.5-VL-7B-Instruct", "8 frames/clip"),
     "mvueval_full_task1_qwen25vl": leg(
         "bench_mvueval_qa_cvbench_mvufullq25*_shard*.jsonl",
