@@ -198,6 +198,47 @@ def majority_floor(recs):
     return 100.0 * max(golds.values()) / len(recs), golds.most_common(1)[0][0]
 
 
+# Question pools the deck can show side by side. Adding a dataset here (plus its
+# legs below) is all it takes for the arrangement figures to gain a group — the
+# alternative was two pool variables hardcoded in main(), which is why CrossView
+# had nowhere to land.
+POOLS = {
+    "mvu_full": dict(file="mvueval_qa.json", label="MVU-Eval", modality="video"),
+    "aab170": dict(file="allangles_egohumans_qa.json",
+                   label="All-Angles EgoHumans", modality="stills"),
+    # cap-13 pool: same 1033 questions as crossview_meva1033_subset.json but
+    # packed to the harness slot count, so it is NOT comparable to results run
+    # against that older 4-camera file.
+    "meva1033": dict(file="crossview_meva_cap13.json",
+                     label="CrossView-MEVA", modality="video"),
+}
+
+# (pool, backend) -> shard glob. Missing globs are skipped, so a leg appears the
+# moment its rows land. Filenames carry the CONDA ENV, not the model — the
+# backend here is the authority, and arm_summary reads it back off the rows.
+ARRANGEMENT_LEGS = {
+    ("mvu_full", "InternVL3-8B"): "bench_mvueval_qa_internvl_mvufull_shard*.jsonl",
+    ("mvu_full", "Qwen2.5-VL-7B-Instruct"): "bench_mvueval_qa_cvbench_mvufullq25*_shard*.jsonl",
+    ("aab170", "InternVL3-8B"): "bench_allangles_egohumans_qa_internvl_aabfull_shard*.jsonl",
+    ("meva1033", "InternVL3-8B"): "bench_crossview_meva*_internvl_cvmeva*_shard*.jsonl",
+    ("meva1033", "Qwen2.5-VL-7B-Instruct"): "bench_crossview_meva*_cvbench_cvmevaq25*_shard*.jsonl",
+}
+
+
+def load_pools():
+    """Pool records + their derived floors, for every POOLS entry present on disk."""
+    out = {}
+    for key, spec in POOLS.items():
+        path = os.path.join(HERE, spec["file"])
+        if not os.path.exists(path):
+            continue
+        recs = json.load(open(path))
+        out[key] = dict(recs=recs, label=spec["label"], modality=spec["modality"],
+                        n=len(recs), chance=round(chance_floor(recs), 2),
+                        majority=dict(zip(("acc", "letter"), majority_floor(recs))))
+    return out
+
+
 # ---------------------------------------------------------------- main
 def main():
     mvu_pool = json.load(open(os.path.join(HERE, "mvueval_qa.json")))
@@ -226,8 +267,32 @@ def main():
     for m, rs in by_method(load_rows("bench_mvueval_qa_internvl_mvupp32ps_shard*.jsonl")).items():
         pp.setdefault(m, []).extend(rs)
 
+    pools = load_pools()
+    # Every (pool, backend) leg whose rows exist. This is the n-way structure the
+    # figures should read; the flat mvu_full/aab170 keys below are kept so the
+    # existing figures keep working unchanged during the migration.
+    legs = {}
+    for (pkey, backend), pattern in ARRANGEMENT_LEGS.items():
+        if pkey not in pools:
+            continue
+        rows = load_rows(pattern)
+        rows = [r for r in rows if r.get("backend") == backend]
+        if not rows:
+            continue
+        legs[f"{pkey}|{backend}"] = {
+            "pool": pkey, "backend": backend, "label": pools[pkey]["label"],
+            "modality": pools[pkey]["modality"], "chance": pools[pkey]["chance"],
+            "majority_floor": pools[pkey]["majority"], "n_pool": pools[pkey]["n"],
+            "arms": {m: arm_summary(rs) for m, rs in by_method(rows).items()},
+        }
+
     out = {"meta": {
-        "backend": "InternVL3-8B", "passes": 4,
+        # single-model field kept for consumers written before the second model;
+        # `backends` is the authoritative list.
+        "backend": "InternVL3-8B",
+        "backends": sorted({b for (_, b) in ARRANGEMENT_LEGS if any(
+            k.endswith(f"|{b}") for k in legs)}),
+        "passes": 4,
         "protocol": "4-pass std; per-question mean over passes for paired tests",
         "perm": {"n": N_PERM, "seed": PERM_SEED, "test": "question-level sign-flip"},
         "mvu_n": len(mvu_pool), "aab_n": len(aab_pool),
@@ -244,6 +309,10 @@ def main():
         "majority_floor": {
             "mvu_full": dict(zip(("acc", "letter"), majority_floor(mvu_pool))),
             "aab170": dict(zip(("acc", "letter"), majority_floor(aab_pool)))},
+        # n-way view: every (dataset, model) leg that has rows
+        "pools": {k: {kk: vv for kk, vv in v.items() if kk != "recs"}
+                  for k, v in pools.items()},
+        "legs": legs,
     }
     out["clip"] = {m: arm_summary(rs) for m, rs in clip.items()}
 
