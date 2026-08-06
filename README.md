@@ -3,8 +3,8 @@
 Given a question about a scene observed by several cameras, is it better to fuse
 the views into a single model input, or to run the model once per view and reason
 over the text descriptions? This repo benchmarks that question with open
-vision-language models (Qwen3-VL-8B Thinking, InternVL3-8B) across three
-presentation harnesses:
+vision-language models (Qwen3-VL-8B Thinking, Qwen2.5-VL-7B Instruct,
+InternVL3-8B) across three presentation harnesses:
 
 - **Native** — each view or clip fed sequentially to one model, unmodified.
 - **Centralized (stitch)** — the views are tiled into labeled grid-montage images
@@ -44,13 +44,19 @@ Runs go through `bench/run_bench.sbatch`, a thin env-var wrapper around
 # All-Angles-Bench, all three arms:
 SUBSET=analysis/allangles_dev_subset.json VIDEO_ROOT=data/allangles \
   METHODS=cvbench_native,centralized,per_stream MONTAGE_KIND=view STREAM_KIND=view \
-  sbatch bench/run_bench.sbatch
+  CELL_PX=1024 sbatch bench/run_bench.sbatch
 
 # MVU-Eval, decentralized arm, InternVL3:
 ENV=internvl SUBSET=analysis/mvueval_dev_subset.json VIDEO_ROOT=data/mvueval \
   METHODS=per_stream STREAM_KIND=video BACKENDS=internvl3 \
   sbatch bench/run_bench.sbatch
 ```
+
+On still-image sets raise `CELL_PX`: the centralized arm resizes every view into a
+`CELL_PX` square montage cell, so the default gives it far fewer visual tokens per
+view than the native arm, which sees the images at source resolution. A larger cell
+narrows that gap rather than closing it — compare the recorded `input_tokens` across
+arms before reading a centralized-vs-native difference as an architecture effect.
 
 See the header of `bench/run_bench.sbatch` and `python -m bench.run_bench --help`
 for the full set of knobs.
