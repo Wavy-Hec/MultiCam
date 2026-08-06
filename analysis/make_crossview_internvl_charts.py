@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """InternVL3-only CrossView charts for the deck.
 
-Qwen's CrossView run is invalid (truncation + scorer-default artifact), so the
-deck shows ONLY the trustworthy InternVL3 series — no bars we then tell the
-viewer to ignore. Regenerate the full two-model charts in crossview_out/ after
-the Qwen re-run.
+Single-model variant of the two crossview_out/ charts, for slides that show the
+InternVL3 series on its own. The two-model charts in analysis/crossview_out/ are
+current: the Qwen rows there were regenerated after the abstain-on-truncation
+parser landed (eeb5acc), which removed the earlier Event-Ordering scoring artifact.
 
-Run:  ~/anaconda3/envs/cvbench/bin/python analysis/make_crossview_internvl_charts.py
+Reads analysis/crossview_out/*.json; writes the two *_internvl3.png files back
+into the same directory.
+
+Run:  python analysis/make_crossview_internvl_charts.py
 """
 import json
 import matplotlib

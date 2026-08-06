@@ -1,7 +1,8 @@
 #!/bin/bash
 ### CrossView (UT Austin Multi-Camera VQA) thinking-eval — Qwen3-VL-8B-Thinking + InternVL3-8B.
-### Mirrors analysis/run_eval.sbatch but points at the CrossView subset, release-root
-### videos, and the lmms-eval `crossview_think` task. Kept separate from CVBench.
+### Drives the CrossView leg end to end: Video-R1/src/eval_thinking.py for the Qwen leg
+### and lmms-eval's `crossview_think` task for the InternVL3 leg, over release-root
+### videos. Separate from bench/run_bench.sbatch, which drives the bench/ harness sweep.
 ###
 ### Prereqs (run once, on a node with internet, BEFORE submitting):
 ###   # 1. build a MEVA-only subset with .avi paths (public MEVA ships .avi)

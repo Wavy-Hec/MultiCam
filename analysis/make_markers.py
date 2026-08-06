@@ -2,17 +2,19 @@
 """Fallback generator for the video-boundary marker images.
 
 The internvl2 wrapper's multi-video path (lmms-eval/lmms_eval/models/internvl2.py)
-loads ./res/video{1..4}.png and ./res/end{1..4}.png as separator frames inserted
+loads ./res/video{i}.png and ./res/end{i}.png as separator frames inserted
 before/after each video's frames.
 
-NOTE: the repo ALREADY ships these 8 markers in lmms-eval/res/, so you normally do
-not need this script. It is a fallback for environments where they are missing; by
-default it SKIPS files that already exist (use --force to overwrite).
+NOTE: these markers are deliberately NOT tracked in git (lmms-eval/res/ is
+gitignored), so a fresh clone has none. Generating them is a REQUIRED one-time
+setup step before the InternVL3 lmms-eval leg — without it the wrapper raises
+FileNotFoundError on ./res/video1.png. Existing files are SKIPPED by default
+(use --force to overwrite).
 
 The wrapper references them by the RELATIVE path "./res/...", so the images must
 live under <cwd>/res when you launch lmms_eval (i.e. run lmms_eval from lmms-eval/).
 
-Run only if markers are missing (no GPU needed):
+Run once after cloning (no GPU needed):
   python3 analysis/make_markers.py
 """
 import argparse
@@ -42,7 +44,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", default=DEFAULT_OUT)
     ap.add_argument("--size", type=int, default=448)
-    ap.add_argument("--max-videos", type=int, default=4)
+    # mirrors MAX_SLOTS: the cap-13 subsets reference ./res/video5..13.png too
+    ap.add_argument("--max-videos", type=int, default=13)
     ap.add_argument("--force", action="store_true", help="overwrite existing markers")
     args = ap.parse_args()
 

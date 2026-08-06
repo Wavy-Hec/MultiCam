@@ -14,8 +14,8 @@ It also writes analysis/accuracy_by_cameras.json for plot_accuracy.py.
 
 Usage:
   python3 analysis/analyze_failures.py \
-      qwen3vl=Video-R1/src/r1-v/eval_results/eval_subset_qwen3vl.json \
-      internvl3=analysis/internvl3_normalized.json
+      qwen3vl=Video-R1/src/r1-v/eval_results/eval_crossview_subset_qwen3vl.json \
+      internvl3=analysis/crossview_internvl3_normalized.json
 """
 import argparse
 import json

@@ -26,7 +26,7 @@ python -m pip install --upgrade pip
 # decord for InternVL's video reader; remotezip for subset video fetch.
 python -m pip install decord remotezip
 
-# lmms-eval (registers the mvr / mvr_think tasks + internvl2 wrapper).
+# lmms-eval (registers the crossview / crossview_think tasks + internvl2 wrapper).
 # Cloned env already satisfies most deps; install editable so our task edits apply.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python -m pip install -e "${REPO_ROOT}/lmms-eval"

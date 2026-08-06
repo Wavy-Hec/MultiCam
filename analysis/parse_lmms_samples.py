@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Normalize lmms-eval per-sample logs into the shared record schema.
 
-The InternVL3 path runs through lmms-eval (task mvr_think) with --log_samples,
-which writes <output>/<model>/<datetime>_samples_mvr_think.jsonl. Each line has
+The InternVL3 path runs through lmms-eval (task crossview_think) with --log_samples,
+which writes <output>/<model>/<datetime>_samples_crossview_think.jsonl. Each line has
 the full raw model response (with the <think> trace) in `resps`. This converts
 those lines into the same schema produced by Video-R1/src/eval_thinking.py so
 analyze_failures.py / plot_accuracy.py can treat both models identically.
@@ -12,13 +12,15 @@ Shared schema per record:
 
 Usage:
   python3 analysis/parse_lmms_samples.py \
-      --samples logs/InternVL3-8B/2026-..._samples_mvr_think.jsonl \
-      --out analysis/internvl3_normalized.json
+      --samples lmms-eval/logs/InternVL3-8B/2026-..._samples_crossview_think.jsonl \
+      --out analysis/crossview_internvl3_normalized.json
 """
 import argparse
 import json
 import os
 import re
+
+from convert_crossview import MAX_SLOTS  # how many video_i slots a record carries
 
 
 def extract_think(text):
@@ -48,18 +50,14 @@ def first_str(resps):
     return x if isinstance(x, str) else ""
 
 
-# Mirrors MAX_SLOTS in Video-R1/src/eval_thinking.py (kept as a literal so this
-# stays importable without the harness's torch dependency).
-MAX_SLOTS = 13
-
-
 def num_videos(doc):
     return sum(1 for i in range(1, MAX_SLOTS + 1) if doc.get(f"video_{i}"))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--samples", required=True, help="lmms-eval *_samples_mvr_think.jsonl")
+    ap.add_argument("--samples", required=True,
+                    help="lmms-eval *_samples_crossview_think.jsonl")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 

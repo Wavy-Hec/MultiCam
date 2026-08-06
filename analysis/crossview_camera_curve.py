@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Accuracy vs the ORIGINAL number of cameras for CrossView results.
 
-`num_videos` in the result files is capped at 4 (the harness only ingests
-video_1..4), so the informative multi-camera axis is `orig_num_cameras` (1-16),
-recovered by joining results to analysis/crossview_subset.json by `id`. Also
-reports the cap-quality split: ego-exo4d questions whose >4 cap may have dropped
-the answer-bearing view (`cap_answer_safe=false`) vs answer-safe ones (all MEVA
-+ small-camera ego-exo4d) -- so the lossy-cap numbers can be read as a lower
-bound rather than a model verdict.
+`num_videos` in the result files is capped at the cap the subset was converted at
+(`--max-cameras`, derived here from the record schema width), so the informative
+multi-camera axis is `orig_num_cameras` (1-16), recovered by joining results to
+the `--subset` pool by `id`. Also reports the cap-quality split: questions whose
+cap may have dropped the answer-bearing view (`cap_answer_safe=false`) vs
+answer-safe ones -- so the lossy-cap numbers can be read as a lower bound rather
+than a model verdict.
 
 Outputs (under --out-dir):
   accuracy_by_orig_cameras.json   - by original #cameras / task_type / cap split
@@ -46,14 +46,21 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
-    meta = {r["id"]: r for r in json.load(open(args.subset))}
+    recs = json.load(open(args.subset))
+    meta = {r["id"]: r for r in recs}
+    # The converter None-fills every slot it emits, so the record schema width IS
+    # the cap this subset was built at (--max-cameras). Deriving it keeps the prose
+    # correct for 4-camera and cap-13 pools alike instead of stamping a stale literal.
+    cap = max((int(k.split("_")[1]) for r in recs for k in r
+               if k.startswith("video_")), default=0)
+    subset_name = os.path.basename(args.subset)
 
     out = {"by_orig_cameras": {}, "by_task_type": {}, "cap_split": {}, "overall": {}}
     md = ["# CrossView: accuracy vs original number of cameras\n",
-          "`num_videos` is capped at 4 by the harness; this uses `orig_num_cameras` "
-          "(the true synchronized-camera count, 1-16) recovered from "
-          "`crossview_subset.json`.\n",
-          "`cap_answer_safe=false` (ego-exo4d, >4 cameras) means the cap may have "
+          f"`num_videos` is capped at {cap} views by the converter's `--max-cameras`; "
+          "this uses `orig_num_cameras` (the true synchronized-camera count, 1-16) "
+          f"recovered from `{subset_name}`.\n",
+          f"`cap_answer_safe=false` (ego-exo4d, >{cap} cameras) means the cap may have "
           "dropped the answer-bearing view -- treat those as a lower bound.\n"]
 
     for item in args.inputs:
@@ -127,7 +134,7 @@ def main():
                                      xytext=(0, 6), fontsize=8, ha="center")
             plt.xlabel("Original number of synchronized cameras")
             plt.ylabel("Accuracy (%)")
-            plt.title("CrossView: accuracy vs original #cameras (model sees ≤4)")
+            plt.title(f"CrossView: accuracy vs original #cameras (model sees ≤{cap})")
             plt.ylim(0, 100)
             plt.grid(True, alpha=0.3)
             plt.legend()
