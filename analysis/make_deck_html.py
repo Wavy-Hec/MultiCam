@@ -53,8 +53,9 @@ b32_cap = ("Stitching ran at 0.63× the tokens and the frame count floats with v
 
 SLIDES = [
     ("fig1_arrangement.png", "Does the arrangement matter?",
-     f"sequential {seq:.1f} · stitching {cen:.1f} · decentralized {dec:.1f} on the full 1,824 questions — "
-     "the only significant gap is decentralized falling ~9 points behind."),
+     f"On MVU-Eval: sequential {seq:.1f} · stitching {cen:.1f} · decentralized {dec:.1f} over the full 1,824 "
+     "questions, the only significant gap being decentralized ~9 points behind. Every other leg that has run "
+     "is on the same axes — and the ordering is not the same on all of them (see Table 1 and slide 15)."),
     ("fig2_sync.png", "Does synchronization matter?",
      f"Stitching moves accuracy {sy['delta']:+.2f} on the 128 true 6-camera rigs and {un['delta']:+.2f} "
      "elsewhere — same shape as the reference deck, neither significant."),
@@ -154,12 +155,83 @@ if os.path.isdir(SAMPLER_FIGS):
                        "This is why global frame selection has a hard ceiling on questions whose answer "
                        "lives in one specific clip."))
 
-cards = "\n".join(f"""
+CV = S.get("crossview") or {}
+CV_LEGS = CV.get("legs") or {}
+CV_SLIDES = []
+if CV_LEGS:
+    iv = CV_LEGS.get("InternVL3-8B", {})
+    qw = CV_LEGS.get("Qwen2.5-VL-7B-Instruct", {})
+    ivp = iv.get("perm", {}).get("cvbench_native-centralized", {})
+    n_cv = CV["pool"]["n"]
+    floor = CV["pool"]["majority"]["acc"]
+    surv = [(b, t, d) for b, leg in CV_LEGS.items()
+            for t, d in (leg.get("per_task") or {}).items() if d.get("holm_significant")]
+    tfloor = CV["pool"]["task_floor"]
+    gap = tfloor["acc"] - max(a["acc"] for leg in CV_LEGS.values()
+                              for a in leg["arms"].values() if a)
+    CV_SLIDES = [
+        ("fig13_crossview_arms.png", "Does the arrangement matter? — CrossView-MEVA",
+         f"The same three conditions on {n_cv:,} synchronized-rig questions. Stitching wins on BOTH backends "
+         f"(InternVL3 {iv['arms']['centralized']['acc']:.1f} vs {iv['arms']['cvbench_native']['acc']:.1f}, "
+         f"p={ivp.get('p', float('nan')):.3f}) — the reverse of MVU-Eval. But the comparison is the only thing "
+         f"here: answering each task's modal letter with no images at all scores {tfloor['acc']:.1f}%, "
+         f"{gap:.1f} points above the best arm, and every arm is below it at p&lt;0.001."),
+        ("fig14_crossview_pertask.png", "Per-task stitching effect — CrossView-MEVA",
+         f"{len(surv)} of 6 task×backend deltas survive Holm correction here, against zero on MVU-Eval — but "
+         "neither replicates: each backend's one significant task is the task the other backend moves "
+         "backwards on. And the biggest of them (+19.51) is largely the montage suppressing Qwen's "
+         "“Cannot be determined”, an option that is never the right answer."),
+        ("fig15_crossview_views.png", "Does it matter how many cameras there are?",
+         "The view-count sweep MVU-Eval cannot provide. No cliff; on InternVL3 the arms cross (sequential "
+         "leads at 2 cameras, stitching from 5 up) though Qwen stitching leads in every bin. Note the floor "
+         f"is drawn per bin — it is not flat. The 13-video bin is the harness's cap: {CV['census']['truncated_by_cap']} "
+         "of its questions were truncated from 14–16 cameras."),
+        ("fig16_crossview_budget.png", "What is wrong: unmatched budgets — CrossView-MEVA",
+         "The same confound as MVU-Eval, pointing the other way — and it works against stitching, so it does "
+         "not explain the win away. InternVL3 tiles the montage to a flat 2,048 visual tokens at every camera "
+         "count while sequential grows to 26,624; on Qwen, where budgets are matched, stitching wins by more."),
+        ("fig17_crossview_coverage.png", "Which of these slides CrossView can answer",
+         "The honest map: which deck questions now have CrossView numbers and which arms were never pointed "
+         "at this pool. The blind arm unblocks three at once — and given the floor above, it is now the "
+         "control this dataset most needs, not a nice-to-have."),
+    ]
+
+
+def _cards(slides, offset=0):
+    return "\n".join(f"""
   <section class="slide">
-    <div class="eyebrow">SLIDE {i + 1:02d} · {title}</div>
+    <div class="eyebrow">SLIDE {offset + i + 1:02d} · {title}</div>
     <div class="imgcard"><img alt="{title}" src="data:image/png;base64,{b64(fn) if not os.path.isabs(fn) else base64.b64encode(open(fn, 'rb').read()).decode()}"></div>
     <p class="cap">{cap}</p>
-  </section>""" for i, (fn, title, cap) in enumerate(SLIDES))
+  </section>""" for i, (fn, title, cap) in enumerate(slides))
+
+
+cards = _cards(SLIDES)
+cv_cards = _cards(CV_SLIDES, offset=len(SLIDES))
+
+# Status panels answering two 08-04 meeting asks directly. Deliberately NOT in
+# SLIDES: they sit ahead of the numbered deck so the existing "slide 05"/"slide
+# 11" cross-references keep pointing at the same figures.
+status_section = ""
+_cm = S.get("coverage_matrix")
+if _cm and os.path.exists(os.path.join(FIGS, "fig18_coverage_matrix.png")):
+    _tfp = S["arrangement"]["pools"]
+    status_section = f"""<section>
+    <h2>Where this stands against the Aug-4 asks</h2>
+    <div class="imgcard"><img alt="three datasets side by side"
+      src="data:image/png;base64,{b64('fig18_coverage_matrix.png')}"></div>
+    <p class="cap"><b>{_cm['complete']} of {_cm['total']} experiment families have all three
+    datasets.</b> Measured from the result rows, not from any doc. Everything in this deck beyond the
+    arrangement row is single-dataset because the rows do not exist. The two cheapest gaps — blind on
+    CrossView and the CrossView right-camera ablation — were both asked for by name.</p>
+    <div class="imgcard" style="margin-top:1.2rem"><img alt="clarify lucky guessing"
+      src="data:image/png;base64,{b64('fig19_lucky_guessing.png')}"></div>
+    <p class="cap"><b>Lucky guessing, clarified.</b> A guesser that reads only the task type and answers
+    that task's most common letter — scored leave-one-out, so the rule is never fitted on the answer it is
+    graded against — gets {_tfp['mvu_full']['task_floor']['acc']:.2f} on MVU-Eval, far below the models. On
+    <b>CrossView-MEVA it gets {_tfp['meva1033']['task_floor']['acc']:.2f} — more than every arm on both
+    backends</b>. That pool ranks harnesses; it does not show any arm doing the task.</p>
+  </section>"""
 
 TASK_ORDER = ["MVU-OR", "MVU-ICL", "MVU-SU", "MVU-TR", "MVU-Counting",
               "MVU-KIR", "MVU-Comparison", "MVU-RAG"]
@@ -211,6 +283,115 @@ if S.get("paper"):
     number — the reverse of every ordering we measure; a Qwen run in this harness would resolve it.</p>
   </section>"""
 
+# ---- CrossView section: Table 1 across every (dataset, backend) leg, then the
+# five CrossView panels. Renders only when the crossview section exists.
+ARM_KEYS = ["cvbench_native", "centralized", "per_stream"]
+ARM_NAMES = ["sequential", "centralized (stitching)", "decentralized"]
+# This deck reports the two video benchmarks the mentor asked to see re-run end
+# to end. All-Angles is still computed by the stats layer; add "aab170" to
+# DECK_POOLS (and its leg here) to bring it back into every table and figure.
+DECK_POOLS = ["mvu_full", "meva1033"]
+LEG_ORDER = ["mvu_full|InternVL3-8B", "mvu_full|Qwen2.5-VL-7B-Instruct",
+             "meva1033|InternVL3-8B", "meva1033|Qwen2.5-VL-7B-Instruct"]
+
+cv_section = ""
+if CV_LEGS:
+    _legs = {k: v for k, v in S["arrangement"]["legs"].items()
+             if v["pool"] in DECK_POOLS}
+    _keys = [k for k in LEG_ORDER if k in _legs] + \
+            [k for k in sorted(_legs) if k not in LEG_ORDER]
+    trows = []
+    for k in _keys:
+        leg = _legs[k]
+        accs = {a: (leg["arms"].get(a) or {}).get("acc") for a in ARM_KEYS}
+        best = max((v for v in accs.values() if v is not None), default=None)
+        floor = leg["majority_floor"]["acc"]
+        cells = "".join(
+            f"<td>{'—' if accs[a] is None else f'<b>{accs[a]:.2f}</b>' if accs[a] == best else f'{accs[a]:.2f}'}</td>"
+            for a in ARM_KEYS)
+        winner = next((n for a, n in zip(ARM_KEYS, ARM_NAMES) if accs[a] == best), "—")
+        # judged against the TASK-CONDITIONED floor, not the pool-wide one: on a
+        # pool whose key is skewed within task the pool-wide number flatters
+        tfloor = leg["task_floor"]
+        chip = ('<span class="chip ok">beats it</span>' if best is not None
+                and best > tfloor["acc"] else '<span class="chip neg">below it</span>')
+        trows.append(f"<tr><td>{leg['label']}<br><span class='small'>{leg['backend']}, "
+                     f"n={leg['n_pool']:,}</span></td>{cells}"
+                     f"<td>{winner}</td><td>{floor:.2f} ({leg['majority_floor']['letter']})</td>"
+                     f"<td><b>{tfloor['acc']:.2f}</b> {chip}<br>"
+                     f"<span class='small'>{tfloor['rule']}</span></td></tr>")
+
+    _tf = {k: v["task_floor"]["acc"] for k, v in S["arrangement"]["pools"].items()}
+    _tfi = {k: v["task_floor"]["acc_in_sample"] for k, v in S["arrangement"]["pools"].items()}
+    _tfo = {k: v["task_floor"]["overfit"] for k, v in S["arrangement"]["pools"].items()}
+    _tfn = {k: v["task_floor"]["min_task_n"] for k, v in S["arrangement"]["pools"].items()}
+    _mvu_margin = max(v["acc"] for v in _legs["mvu_full|InternVL3-8B"]["arms"].values()
+                      if v) - _tf["mvu_full"]
+
+    cov = CV.get("coverage", [])
+    COV_CHIP = {"yes": "chip ok", "n/a": "chip"}
+
+    def _cov_chip(status):
+        return f'<span class="{COV_CHIP.get(status, "chip neg")}">{status}</span>'
+
+    cov_rows = "".join(
+        f"<tr><td>{r['question']}</td><td>{_cov_chip(r['status'])}</td>"
+        f"<td>{r['note']}</td></tr>" for r in cov)
+
+    cens = CV["census"]
+    views = ", ".join(f"{k}→{v}" for k, v in cens["views_dist"].items())
+    cv_section = f"""<section>
+    <h2>Table 1 — every (dataset, model) leg that has run</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Leg</th><th>sequential</th><th>centralized<br>(stitching)</th>
+          <th>decentralized</th><th>winner</th><th>pool-wide<br>always-A floor</th>
+          <th>text-only floor<br>(modal letter per task)</th></tr>
+      {''.join(trows)}
+    </table></div>
+    <p class="cap">The centralized-vs-decentralized answer is <b>dataset-dependent, not model-dependent</b>:
+    both backends put sequential first on MVU-Eval and stitching first on CrossView-MEVA. Decentralized never
+    wins a video leg (on CrossView/InternVL3 it costs 10.1 model calls and 2.6× the wall clock of sequential;
+    on MVU-Eval the same arm costs 5.7 calls and 3.1×).
+    <b>The last column is the discipline this table needs.</b> A guesser that sees only the task type and
+    answers that task's most common letter — scored leave-one-out, so the rule is never fitted on the answer
+    it is graded against — gets {_tf['mvu_full']:.2f} on MVU-Eval, which the models clear by
+    {_mvu_margin:.0f} points. On <b>CrossView-MEVA it gets {_tf['meva1033']:.2f}, more than every arm on both
+    backends</b> (all p&lt;0.001). So the MVU-Eval rows are a real result; the CrossView rows compare
+    harnesses on a pool whose answer key is the strongest signal in it.</p>
+    <p class="cap"><b>Two caveats on that floor.</b> (1) <b>Leave-one-out matters.</b> Fitting the modal
+    letter on the same labels you score against inflates the floor whenever a task has few questions — on a
+    170-question pool we measured a 23-point overfit. CrossView's overfit is {_tfo['meva1033']:.2f}: its skew
+    is so extreme (C is gold on 193 of 297 ordering questions) that dropping any single question never moves
+    the modal letter, so the 54.70 is not a fitting artifact. (2) <b>Each floor describes the pool we
+    evaluated, not the dataset.</b> CrossView-MEVA here is 1,033 of the 2,481 questions in the local export —
+    3 of its 7 question files. The excluded types may have healthier keys, so this is not a claim about
+    CrossView as a whole. It is a claim about the pool every number in this deck comes from.</p>
+  </section>
+
+  <section>
+    <h2>CrossView-MEVA — the deck's questions, asked again</h2>
+    <p class="cap">Arrays 75028 / 75029 (08-05→08-06, 4 passes, cap-13 pool, thinking traces on).
+    CrossView-MEVA is {CV['pool']['n']:,} MEVA questions across {len(cens['task_mix'])} question types
+    ({', '.join(f'{t.replace("CrossView-MEVA-", "")} {n}' for t, n in cens['task_mix'].items())}), every one a
+    single synchronized camera rig. Views delivered per question: {views}
+    — {cens['truncated_by_cap']} questions were truncated from 14–16 cameras by the harness's 13-slot cap.
+    Gold letters {', '.join(f'{k} {v}' for k, v in cens['gold_letter_dist'].items())}, so answering A blindly
+    scores {CV['pool']['majority']['acc']:.2f}%.</p>
+  </section>
+
+  {cv_cards}
+
+  <section>
+    <h2>What CrossView still cannot answer</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Deck question</th><th>CrossView</th><th>Why</th></tr>
+      {cov_rows}
+    </table></div>
+    <p class="cap">Nothing here is a missing plot — each cross is an arm that was never pointed at this
+    dataset. The blind arm is the highest-value one: it clears three rows at once and is the control this
+    dataset most needs, because every CrossView arm sits within a couple of points of the always-A floor.</p>
+  </section>"""
+
 pending_bits = []
 if not blind_done: pending_bits.append("blind (72235/72236)")
 if not sv_done: pending_bits.append("single-view (72240)")
@@ -218,29 +399,54 @@ if not b32_done: pending_bits.append("fixed-32 rerun (72241)")
 if not pp_done:
     pending_bits.append("paper-parity 32/video arms"
                         + (" (preliminary rows shown)" if pp_prelim else ""))
-status = ("All runs finished — every panel shows final data."
+status = ("All MVU-Eval runs finished — every MVU panel shows final data."
           if not pending_bits else
           "In flight: " + ", ".join(pending_bits) + ". Panels regenerate when each lands.")
+cv_status = ""
+if CV_LEGS:
+    _missing = sum(1 for r in CV.get("coverage", [])
+                   if r["status"] in ("not run", "blocked"))
+    cv_status = (f'<span class="chip neg">CrossView: {_missing} deck questions have no run yet '
+                 "— see the coverage table</span>")
 
-html = f"""<title>MultiCam results deck — MVU-Eval · InternVL3-8B</title>
+cv_tldr = ""
+if CV_LEGS:
+    _iv = CV_LEGS["InternVL3-8B"]
+    _ivp = _iv["perm"]["cvbench_native-centralized"]
+    _n_surv = sum(1 for leg in CV_LEGS.values()
+                  for d in (leg.get("per_task") or {}).values() if d.get("holm_significant"))
+    _tf_cv = CV["pool"]["task_floor"]
+    _best_cv = max(a["acc"] for leg in CV_LEGS.values() for a in leg["arms"].values() if a)
+    cv_tldr = (
+        f'<p><b>On CrossView-MEVA the ordering reverses.</b> Stitching beats sequential on both backends '
+        f'({_iv["arms"]["centralized"]["acc"]:.1f} vs {_iv["arms"]["cvbench_native"]["acc"]:.1f}, '
+        f'p={_ivp["p"]:.3f} on InternVL3), decentralized never wins, and {_n_surv} per-task deltas survive '
+        'Holm where MVU-Eval had none.</p>'
+        f'<p><b>And on CrossView none of that clears a text-only baseline.</b> Answering each task\'s most '
+        f'common letter — no images, no model — scores {_tf_cv["acc"]:.2f}% ({_tf_cv["rule"]}) against a best '
+        f'measured arm of {_best_cv:.2f}%. Every arm on both backends is below it at p&lt;0.001, so the '
+        'CrossView slides compare harnesses on a pool whose answer key outperforms all of them. The blind '
+        'arm — never run on this pool — is the control that would settle it.</p>')
+
+html = f"""<title>MultiCam results deck — MVU-Eval · CrossView-MEVA · InternVL3-8B + Qwen2.5-VL</title>
 <style>
 :root {{
   --bg:#fcfcfb; --card:#ffffff; --ink:#141413; --ink2:#52514e; --muted:#898781;
-  --line:#e3e2db; --accent:#2a78d6; --neg:#c23a39; --chipbg:#eef4fc; --okbg:#eaf5ea; --ok:#1d6b1d;
+  --line:#e3e2db; --accent:#2a78d6; --neg:#c23a39; --chipbg:#eef4fc; --okbg:#eaf5ea; --ok:#1d6b1d; --negbg:#fbecec;
 }}
 @media (prefers-color-scheme: dark) {{
   :root:where(:not([data-theme="light"])) {{
     --bg:#1a1a19; --card:#232322; --ink:#f2f1ec; --ink2:#c3c2b7; --muted:#8f8d86;
-    --line:#33332f; --accent:#3987e5; --neg:#e66767; --chipbg:#1f2c3d; --okbg:#1e2e1e; --ok:#7fc97f;
+    --line:#33332f; --accent:#3987e5; --neg:#e66767; --chipbg:#1f2c3d; --okbg:#1e2e1e; --ok:#7fc97f; --negbg:#341f1f;
   }}
 }}
 :root[data-theme="dark"] {{
   --bg:#1a1a19; --card:#232322; --ink:#f2f1ec; --ink2:#c3c2b7; --muted:#8f8d86;
-  --line:#33332f; --accent:#3987e5; --neg:#e66767; --chipbg:#1f2c3d; --okbg:#1e2e1e; --ok:#7fc97f;
+  --line:#33332f; --accent:#3987e5; --neg:#e66767; --chipbg:#1f2c3d; --okbg:#1e2e1e; --ok:#7fc97f; --negbg:#341f1f;
 }}
 :root[data-theme="light"] {{
   --bg:#fcfcfb; --card:#ffffff; --ink:#141413; --ink2:#52514e; --muted:#898781;
-  --line:#e3e2db; --accent:#2a78d6; --neg:#c23a39; --chipbg:#eef4fc; --okbg:#eaf5ea; --ok:#1d6b1d;
+  --line:#e3e2db; --accent:#2a78d6; --neg:#c23a39; --chipbg:#eef4fc; --okbg:#eaf5ea; --ok:#1d6b1d; --negbg:#fbecec;
 }}
 body {{ background:var(--bg); color:var(--ink); font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
        margin:0; padding:2.5rem 1.25rem 4rem; }}
@@ -251,6 +457,8 @@ h1 {{ font-size:1.7rem; line-height:1.2; margin:0; text-wrap:balance; }}
 .chip {{ display:inline-block; background:var(--chipbg); color:var(--accent); border-radius:999px;
         padding:.15rem .7rem; font-size:.8rem; font-weight:600; }}
 .chip.ok {{ background:var(--okbg); color:var(--ok); }}
+.chip.neg {{ background:var(--negbg); color:var(--neg); }}
+.small {{ color:var(--muted); font-size:.82rem; }}
 .tldr {{ border-left:3px solid var(--accent); padding:.2rem 0 .2rem 1.1rem; display:flex;
          flex-direction:column; gap:.55rem; }}
 .tldr p {{ margin:0; color:var(--ink2); max-width:70ch; }}
@@ -276,12 +484,15 @@ footer {{ color:var(--muted); font-size:.85rem; border-top:1px solid var(--line)
 </style>
 <main>
   <header>
-    <h1>MultiCam results — MVU-Eval, full 1,824 questions, InternVL3-8B</h1>
-    <p class="sub">The reference deck's slides rebuilt from my overnight runs (July 29–30), one model,
-    4 passes per question, question-level permutation tests. Reference deck = the July-28
+    <h1>MultiCam results — MVU-Eval (1,824 q) and CrossView-MEVA (1,033 q)</h1>
+    <p class="sub">The reference deck's slides rebuilt from my own runs, 4 passes per question,
+    question-level permutation tests. Slides 01–{len(SLIDES):02d} are the MVU-Eval remake on InternVL3-8B
+    (July 29–30); slides {len(SLIDES) + 1:02d}–{len(SLIDES) + len(CV_SLIDES):02d} ask the same questions of
+    CrossView-MEVA on both backends (Aug 5–6). Reference deck = the July-28
     “Multi-camera Video Understanding” slides.</p>
     <div class="statusrow">
       <span class="chip">{status}</span>
+      {cv_status}
       <span class="chip">stats adversarially verified — 6-agent workflow</span>
     </div>
   </header>
@@ -294,9 +505,14 @@ footer {{ color:var(--muted); font-size:.85rem; border-top:1px solid var(--line)
     <p><b>The reference deck's one surviving result reverses:</b> Counting stitch delta is {cnt['delta']:+.2f}
     in my run vs their +6.83 — likely the unmatched frame budget (slide 05); {cnt_tail}</p>
     {pp_tldr}
+    {cv_tldr}
   </div>
 
+  {status_section}
+
   {cards}
+
+  {cv_section}
 
   <section>
     <h2>My numbers vs the reference deck (their InternVL column)</h2>

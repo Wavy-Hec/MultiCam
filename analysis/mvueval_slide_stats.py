@@ -13,6 +13,9 @@ on rerun:
   sync          stitching delta on the 128 synchronized nuScenes-rig questions
                 vs the unrelated-clip remainder (paired permutation p)
   per_task      centralized-native delta per MVU task (+ Holm correction)
+  crossview     the same questions re-asked on CrossView-MEVA (cap-13 pool, both
+                backends): arms, per-task deltas, the view-count sweep, token
+                budgets, census, and the coverage map of what was never run
   clip          the 3 clip-experiment arms on the full pool
   blind         no-image floor + per-task deltas vs sequential (when present)
   single_view   best/random/worst view curves on the no-view-named subset
@@ -58,6 +61,43 @@ PAPER = {
                     "MVU-Comparison": 65.2, "MVU-KIR": 32.4, "MVU-ICL": 29.3,
                     "MVU-RAG": 49.3, "MVU-TR": 66.8}},
     "random": 26.0, "human": 93.6,
+}
+
+# All-Angles numbers from the partner's run, transcribed from the 2026-08-10
+# chart. They cover the full 2,132-question pool; this repo only ever ran the
+# 170-question EgoHumans slice, so they cannot be recomputed here.
+REFERENCE_ARRANGEMENT = {
+    "source": "reference deck arrangement chart, 2026-08-10",
+    "note": "All-Angles legs only, run over the full 2,132-question pool. This "
+            "repo holds just the 170-question EgoHumans slice, so these numbers "
+            "cannot be recomputed here.",
+    "legs": [
+        {"dataset": "All-Angles", "backend": "InternVL3-8B", "n_q": 2132,
+         "cvbench_native": 47.1, "centralized": 46.0, "per_stream": 46.1,
+         "chance": 33.3},
+        {"dataset": "All-Angles", "backend": "Qwen2.5-VL-7B", "n_q": 2132,
+         "cvbench_native": 43.5, "centralized": 41.6, "per_stream": 40.3,
+         "chance": 33.3},
+    ],
+}
+
+# Same origin, for the single-view slide. Its MVU-Eval slice is 547 questions to
+# our 545, and its luck baseline is defined differently from ours — see
+# fig_singleview_merged, which swaps our measured MVU-Eval leg in.
+REFERENCE_SINGLE_VIEW = {
+    "source": "partner run, 2026-08-10",
+    "note": "their luck baseline is defined differently from ours and their "
+            "MVU-Eval slice is 547 questions, not 545",
+    "legs": [
+        {"dataset": "All-Angles", "backend": "InternVL3-8B", "n_q": 251,
+         "sequential": 43.0, "luck": 55.0, "best": 61.0},
+        {"dataset": "All-Angles", "backend": "Qwen2.5-VL-7B", "n_q": 251,
+         "sequential": 38.6, "luck": 48.5, "best": 53.0},
+        {"dataset": "MVU-Eval", "backend": "InternVL3-8B", "n_q": 547,
+         "sequential": 52.3, "luck": 69.9, "best": 78.6},
+        {"dataset": "MVU-Eval", "backend": "Qwen2.5-VL-7B", "n_q": 547,
+         "sequential": 43.7, "luck": 65.7, "best": 76.6},
+    ],
 }
 
 
@@ -198,6 +238,90 @@ def majority_floor(recs):
     return 100.0 * max(golds.values()) / len(recs), golds.most_common(1)[0][0]
 
 
+def task_conditioned_floor(recs):
+    """The floor that actually matters: a guesser that sees only the task type
+    and always answers that task's modal letter. On a pool whose answer key is
+    skewed WITHIN task this is far above the pool-wide majority floor — on
+    CrossView-MEVA it is 54.7% against a 36.2% pool-wide floor, i.e. above every
+    arm we measure. Any arm reported without it is reported flatteringly."""
+    by_task = defaultdict(list)
+    for r in recs:
+        by_task[r["task_type"]].append(r)
+    # LEAVE-ONE-OUT is the honest number: picking each task's modal letter from
+    # the same labels you then score against is fitting on the test set. With
+    # ~300 questions per task it changes nothing (CrossView: +0.00); with ~25 it
+    # inflates the floor by 23 points (All-Angles). Always report the LOO value.
+    pool_cnt = Counter(str(r["answer"]).strip().upper() for r in recs)
+    loo = 0
+    for t, rs in by_task.items():
+        cnt = Counter(str(r["answer"]).strip().upper() for r in rs)
+        for r in rs:
+            g = str(r["answer"]).strip().upper()
+            c = Counter(cnt)
+            c[g] -= 1
+            if sum(c.values()) == 0:
+                # a task with only this one question tells the guesser nothing;
+                # it falls back to the pool-wide modal letter (also leave-one-out)
+                # rather than being handed a free hit by an all-zero argmax
+                pc = Counter(pool_cnt)
+                pc[g] -= 1
+                pick = max(pc.items(), key=lambda kv: (kv[1], kv[0]))[0]
+            else:
+                pick = max(c.items(), key=lambda kv: (kv[1], kv[0]))[0]
+            if pick == g:
+                loo += 1
+    per_task, hits = {}, 0
+    for t, rs in sorted(by_task.items()):
+        golds = Counter(str(r["answer"]).strip().upper() for r in rs)
+        letter, n = golds.most_common(1)[0]
+        hits += n
+        # options that are never the gold answer on this task are dead weight:
+        # a 4-option question with 2 dead options is really a coin flip
+        used = set(golds)
+        per_task[t] = {
+            "acc": round(100.0 * n / len(rs), 2), "letter": letter, "n_q": len(rs),
+            "gold_letter_dist": dict(sorted(golds.items())),
+            "letters_never_gold": sorted(
+                {chr(ord("A") + i) for i in range(max(len(r["options"]) for r in rs))} - used),
+            "chance_over_used_letters": round(100.0 / len(used), 2),
+        }
+    in_sample = 100.0 * hits / len(recs)
+    loo_acc = 100.0 * loo / len(recs)
+    return {"acc": round(loo_acc, 2),              # the honest, reportable floor
+            "acc_in_sample": round(in_sample, 2),  # kept only to show the overfit
+            "overfit": round(in_sample - loo_acc, 2),
+            "n_q": len(recs),
+            "min_task_n": min(len(rs) for rs in by_task.values()),
+            "rule": ", ".join(f"{t.split('-')[-1]}→{d['letter']}"
+                              for t, d in per_task.items()),
+            "by_task": per_task}
+
+
+def predictor_hits(recs, letter_for):
+    """{id: 1.0/0.0} for a constant-letter predictor, for paired testing."""
+    return {r["id"]: float(str(r["answer"]).strip().upper() == letter_for(r))
+            for r in recs}
+
+
+def paired_perm_vs_predictor(rows, hits, qids=None, n_perm=N_PERM):
+    """Paired sign-flip of an arm against a deterministic text-only predictor."""
+    qa = qmeans(rows)
+    common = set(qa) & set(hits)
+    if qids is not None:
+        common &= set(qids)
+    d = [qa[q] - hits[q] for q in sorted(common)]
+    if not d:
+        return None, None, 0
+    obs = sum(d) / len(d)
+    rng = random.Random(PERM_SEED)
+    hitsn = 0
+    for _ in range(n_perm):
+        s = sum(x if rng.random() < 0.5 else -x for x in d)
+        if abs(s / len(d)) >= abs(obs) - 1e-12:
+            hitsn += 1
+    return 100.0 * obs, (hitsn + 1) / (n_perm + 1), len(d)
+
+
 # Question pools the deck can show side by side. Adding a dataset here (plus its
 # legs below) is all it takes for the arrangement figures to gain a group — the
 # alternative was two pool variables hardcoded in main(), which is why CrossView
@@ -235,7 +359,263 @@ def load_pools():
         recs = json.load(open(path))
         out[key] = dict(recs=recs, label=spec["label"], modality=spec["modality"],
                         n=len(recs), chance=round(chance_floor(recs), 2),
-                        majority=dict(zip(("acc", "letter"), majority_floor(recs))))
+                        majority=dict(zip(("acc", "letter"), majority_floor(recs))),
+                        task_floor=task_conditioned_floor(recs))
+    return out
+
+
+# --------------------------------------------- three-dataset coverage matrix
+# The 08-04 meeting asked to "plot with three datasets side by side for each
+# experiment". This counts, per (dataset, experiment family), how many result
+# rows actually exist — so the gap is a measured fact, not a claim.
+COVERAGE_DATASETS = [
+    ("MVU-Eval", "bench_mvueval_*.jsonl"),
+    ("All-Angles", "bench_allangles_*.jsonl"),
+    ("CrossView-MEVA", "bench_crossview_*.jsonl"),
+]
+COVERAGE_FAMILIES = [
+    ("Arrangement: sequential / stitched / decentralized",
+     lambda m: m in ("cvbench_native", "centralized", "per_stream")),
+    ("Blind (no images) — the lucky-guessing control", lambda m: m == "blind"),
+    ("Duration-weighted sampling", lambda m: m == "temporal_weighted"),
+    ("Clip / frame selection", lambda m: m in ("frame_select", "clip_select_top1")),
+    ("Right-camera ablation (single view)", lambda m: m.startswith("single_view")),
+]
+
+
+def coverage_matrix():
+    counts = {d: Counter() for d, _ in COVERAGE_DATASETS}
+    for ds, pattern in COVERAGE_DATASETS:
+        for f in glob.glob(os.path.join(RES, pattern)):
+            with open(f) as fh:
+                for line in fh:
+                    m = re.search(r'"method":\s*"([^"]+)"', line)
+                    if m:
+                        counts[ds][m.group(1)] += 1
+    out = []
+    for fam, pred in COVERAGE_FAMILIES:
+        row = {"family": fam, "by_dataset": {}}
+        for ds, _ in COVERAGE_DATASETS:
+            row["by_dataset"][ds] = sum(n for m, n in counts[ds].items() if pred(m))
+        row["n_datasets"] = sum(1 for v in row["by_dataset"].values() if v)
+        out.append(row)
+    return {"datasets": [d for d, _ in COVERAGE_DATASETS], "rows": out,
+            "complete": sum(1 for r in out if r["n_datasets"] == 3),
+            "total": len(out)}
+
+
+# ------------------------------------------------------- CrossView-MEVA section
+CROSSVIEW_POOL = "meva1033"
+
+# Which deck question each CrossView panel answers, and — the point of the map —
+# which ones it CANNOT answer because that arm was never run on this dataset.
+# Anything marked "not run" is a launch decision, not a missing plot; do not
+# quietly drop a row to make the coverage look better.
+CROSSVIEW_COVERAGE = [
+    ("Does the arrangement matter?", "yes",
+     "3 arms x 2 backends, 4 passes (InternVL per_stream 1,029 of 1,033; "
+     "paired tests use the intersection)"),
+    ("Per-task stitching effect", "yes",
+     "3 CrossView question types, paired permutation + Holm"),
+    ("Does it matter how many cameras?", "yes",
+     "CrossView-only sweep: 2-13 delivered views (MVU-Eval has no equivalent)"),
+    ("What is wrong: unmatched budgets", "yes",
+     "measured visual tokens per arm, both backends"),
+    ("What the benchmark is made of", "yes",
+     "census from the question file, no model involved"),
+    ("Does synchronization matter?", "n/a",
+     "not measurable here: every question is one synchronized rig, so there is "
+     "no within-dataset contrast, and CrossView cannot substitute for MVU-Eval's "
+     "unrelated half (different generator, key skew and floor)"),
+    ("Do the images even help? (blind)", "not run",
+     "never run on the cap-13 pool with either deck backend; the one text-only "
+     "CrossView number on disk is a 60-question cap-4 Qwen3-VL probe at 36.7%, "
+     "ABOVE its own with-video 31.7%"),
+    ("Does picking the right view matter?", "not run",
+     "no single_view<i> sweep on this pool"),
+    ("The clip experiment", "not run", "no clip arms on this pool"),
+    ("Does the frame budget explain anything?", "not run",
+     "no fixed-32 or 32-per-video parity arms on the cap-13 pool (a 150-question "
+     "64-frame cap-4 experiment exists, not comparable)"),
+    ("How many points can a selector still add?", "blocked",
+     "needs the blind arm"),
+    ("Which tasks can measure the harness?", "blocked",
+     "needs the blind arm"),
+]
+
+
+def _views_of(rec):
+    return sum(1 for i in range(1, 14) if rec.get(f"video_{i}"))
+
+
+def qmeans_of(rows, field):
+    """Per-question mean of a numeric row field (tokens, latency, ...)."""
+    per = defaultdict(list)
+    for r in rows:
+        if r.get(field) is not None:
+            per[r["id"]].append(r[field])
+    return {q: sum(v) / len(v) for q, v in per.items()}
+
+
+def _paired_ratio(num, den):
+    """Mean over questions of num/den — the convention the runbooks quote."""
+    common = [q for q in num if q in den and den[q]]
+    if not common:
+        return None
+    return round(sum(num[q] / den[q] for q in common) / len(common), 3)
+
+
+def crossview_section(pools, leg_rows, pairs):
+    """Per-backend CrossView-MEVA stats mirroring the MVU deck's questions."""
+    if CROSSVIEW_POOL not in pools:
+        return {}
+    recs = pools[CROSSVIEW_POOL]["recs"]
+    tasks = sorted({r["task_type"] for r in recs})
+    ids_by_task = {t: {r["id"] for r in recs if r["task_type"] == t} for t in tasks}
+    ids_by_views = defaultdict(set)
+    for r in recs:
+        ids_by_views[_views_of(r)].add(r["id"])
+    # orig_num_cameras counts cameras BEFORE the 13-slot cap, so a question at
+    # 13 delivered views may have been truncated from 14-16 — a lossier
+    # condition, not a richer one. Counted per bin so the curve can say so.
+    trunc_by_views = {k: sum(1 for r in recs if r["id"] in ids
+                             and (r.get("orig_num_cameras") or 0) > _views_of(r))
+                      for k, ids in ids_by_views.items()}
+
+    # the floor a text-only guesser reaches inside each view bin — the pool-wide
+    # 36.2% is NOT flat across bins (K=12 sits at 45.5), so a single horizontal
+    # line on the view-count chart flatters four arm x bin points
+    by_id = {r["id"]: r for r in recs}
+    floor_by_views = {}
+    for k, ids in ids_by_views.items():
+        golds = Counter(str(by_id[q]["answer"]).strip().upper() for q in ids)
+        letter, n = golds.most_common(1)[0]
+        floor_by_views[str(k)] = {"acc": round(100.0 * n / len(ids), 2),
+                                  "letter": letter, "n_q": len(ids)}
+
+    tfloor = pools[CROSSVIEW_POOL]["task_floor"]
+    best_letter = {t: d["letter"] for t, d in tfloor["by_task"].items()}
+    tf_hits = predictor_hits(recs, lambda r: best_letter[r["task_type"]])
+    mf_hits = predictor_hits(recs, lambda r: pools[CROSSVIEW_POOL]["majority"]["letter"])
+
+    out = {
+        "pool": {k: v for k, v in pools[CROSSVIEW_POOL].items() if k != "recs"},
+        "coverage": [{"question": q, "status": s, "note": n}
+                     for q, s, n in CROSSVIEW_COVERAGE],
+        "floor_by_views": floor_by_views,
+        "census": {
+            "task_mix": dict(sorted(Counter(r["task_type"] for r in recs).items())),
+            "gold_letter_dist": dict(sorted(Counter(
+                str(r["answer"]).strip().upper() for r in recs).items())),
+            "option_count_dist": dict(sorted(Counter(
+                len(r["options"]) for r in recs).items())),
+            "views_dist": {str(k): len(v) for k, v in sorted(ids_by_views.items())},
+            "truncated_by_cap": sum(trunc_by_views.values()),
+            "orig_camera_dist": dict(sorted(Counter(
+                r.get("orig_num_cameras") for r in recs).items())),
+            "sync_note": "all 1,033 questions are one synchronized MEVA camera "
+                         "rig (same site, same 5-minute window); there is no "
+                         "unrelated-clip control inside this dataset",
+        },
+        "legs": {},
+    }
+
+    for key, meth in leg_rows.items():
+        if not key.startswith(f"{CROSSVIEW_POOL}|"):
+            continue
+        backend = key.split("|", 1)[1]
+        leg = {"arms": {m: arm_summary(rs) for m, rs in meth.items()}, "perm": {}}
+        for a, b in pairs:
+            if a in meth and b in meth:
+                d, p, n = paired_perm(meth[a], meth[b])
+                leg["perm"][f"{a}-{b}"] = {"delta": round(d, 2), "p": p, "n": n}
+
+        # Every arm against the two text-only predictors. Without this the deck
+        # reports 37.75 as a win when a guesser that only reads the task type
+        # gets 54.70 — the single most misleading thing this section could do.
+        leg["vs_floor"] = {}
+        for m, rs in meth.items():
+            row = {}
+            for name, hits in (("majority_letter", mf_hits),
+                               ("task_conditioned", tf_hits)):
+                d, p, n = paired_perm_vs_predictor(rs, hits)
+                row[name] = {"delta": round(d, 2), "p": p, "n": n}
+            leg["vs_floor"][m] = row
+        leg["beats_task_floor"] = [m for m, r in leg["vs_floor"].items()
+                                   if r["task_conditioned"]["delta"] > 0
+                                   and r["task_conditioned"]["p"] < 0.05]
+
+        if "centralized" in meth and "cvbench_native" in meth:
+            pt, pv = {}, {}
+            for t in tasks:
+                d, p, n = paired_perm(meth["centralized"], meth["cvbench_native"],
+                                      qids=ids_by_task[t])
+                pt[t] = {"delta": round(d, 2), "p": p, "n": n,
+                         "floor": tfloor["by_task"][t]["acc"],
+                         "acc": {m: acc([r for r in rs if r["id"] in ids_by_task[t]])
+                                 for m, rs in meth.items()},
+                         # the mechanism check: on Temporal, options C/D are the
+                         # fixed strings "simultaneously"/"cannot be determined"
+                         # and are NEVER gold, so a shift in how often an arm
+                         # picks them can move the delta without any fusion
+                         "pred_dist": {
+                             m: dict(sorted(Counter(
+                                 str(r.get("prediction") or "?").strip().upper()
+                                 for r in rs if r["id"] in ids_by_task[t]).items()))
+                             for m, rs in meth.items()}}
+                pv[t] = p
+            for t, s in holm(pv).items():
+                pt[t]["holm_significant"] = s
+            leg["per_task"] = pt
+
+        # Two InternVL3 shards died at the 08:00:00 wall, so per_stream is short
+        # a few questions. Tiny, but the bars are then not over identical question
+        # sets — record it so the figure can say so instead of the reader assuming.
+        n_pool = pools[CROSSVIEW_POOL]["n"]
+        leg["completeness"] = {m: {
+            "n_q": len({r["id"] for r in rs}), "n_rows": len(rs),
+            "rows_expected": 4 * n_pool,
+            "complete": len({r["id"] for r in rs}) == n_pool and len(rs) == 4 * n_pool,
+        } for m, rs in meth.items()}
+        leg["incomplete_arms"] = [m for m, c in leg["completeness"].items()
+                                  if not c["complete"]]
+
+        leg["by_views"] = {
+            str(k): {
+                "n_q": len(ids), "truncated_from_more": trunc_by_views[k],
+                "acc": {m: acc([r for r in rs if r["id"] in ids])
+                        for m, rs in meth.items()},
+            } for k, ids in sorted(ids_by_views.items())}
+
+        toks = {m: (leg["arms"][m] or {}).get("tokens", {}) for m in meth}
+        nat = toks.get("cvbench_native", {}).get("video_mean")
+        # Two conventions, both reported because they differ by a third here and
+        # the runbooks quote the paired one: ratio-of-means weights the big
+        # 13-view questions, mean-of-ratios weights every question equally.
+        qtok = {m: qmeans_of(rs, "video_tokens") for m, rs in meth.items()}
+        leg["tokens"] = {
+            "video_median": {m: t.get("video_median") for m, t in toks.items()},
+            "video_mean": {m: t.get("video_mean") for m, t in toks.items()},
+            "video_by_views": {
+                m: {str(k): _median([qtok[m][q] for q in ids if q in qtok[m]])
+                    for k, ids in sorted(ids_by_views.items())} for m in meth},
+            "over_native_ratio_of_means": {
+                m: (round(t["video_mean"] / nat, 3)
+                    if nat and t.get("video_mean") is not None else None)
+                for m, t in toks.items()},
+            "over_native_mean_of_ratios": {
+                m: _paired_ratio(qtok[m], qtok.get("cvbench_native", {}))
+                for m in meth},
+        }
+        # what each arrangement costs to run — the other half of the Task-1
+        # centralized-vs-decentralized question
+        leg["cost"] = {m: {
+            "latency_median_s": _median([r.get("latency_s") for r in rs]),
+            "model_calls_mean": _mean([r.get("num_model_calls") for r in rs]),
+            "abstain_pct": round(100.0 * sum(bool(r.get("abstained")) for r in rs)
+                                 / len(rs), 2),
+        } for m, rs in meth.items()}
+        out["legs"][backend] = leg
     return out
 
 
@@ -271,7 +651,7 @@ def main():
     # Every (pool, backend) leg whose rows exist. This is the n-way structure the
     # figures should read; the flat mvu_full/aab170 keys below are kept so the
     # existing figures keep working unchanged during the migration.
-    legs = {}
+    legs, leg_rows = {}, {}
     for (pkey, backend), pattern in ARRANGEMENT_LEGS.items():
         if pkey not in pools:
             continue
@@ -279,10 +659,14 @@ def main():
         rows = [r for r in rows if r.get("backend") == backend]
         if not rows:
             continue
+        # kept method-split so the per-dataset sections below can run paired
+        # tests on a leg without re-globbing its shards
+        leg_rows[f"{pkey}|{backend}"] = by_method(rows)
         legs[f"{pkey}|{backend}"] = {
             "pool": pkey, "backend": backend, "label": pools[pkey]["label"],
             "modality": pools[pkey]["modality"], "chance": pools[pkey]["chance"],
-            "majority_floor": pools[pkey]["majority"], "n_pool": pools[pkey]["n"],
+            "majority_floor": pools[pkey]["majority"],
+            "task_floor": pools[pkey]["task_floor"], "n_pool": pools[pkey]["n"],
             "arms": {m: arm_summary(rs) for m, rs in by_method(rows).items()},
         }
 
@@ -340,6 +724,29 @@ def main():
             mvu_by_id[q]["task_type"] for q in sync_ids))
         out["sync"] = sync
 
+    # ---- the 128 synchronized-rig questions as a standalone leg per backend.
+    # This is the apples-to-apples slice against CrossView, where every question
+    # is a synchronized rig: comparing CrossView to the full 1,824 mixes in
+    # 1,696 unrelated-clip questions that have no cross-camera structure at all.
+    sync_recs = [r for r in mvu_pool if r["id"] in sync_ids]
+    if sync_recs:
+        out["sync128_legs"] = {
+            "n_q": len(sync_recs),
+            "chance": round(chance_floor(sync_recs), 2),
+            "majority": dict(zip(("acc", "letter"), majority_floor(sync_recs))),
+            "task_floor": task_conditioned_floor(sync_recs),
+            "task_mix": dict(Counter(r["task_type"] for r in sync_recs)),
+            "legs": {},
+        }
+        for key, meth in leg_rows.items():
+            if not key.startswith("mvu_full|"):
+                continue
+            backend = key.split("|", 1)[1]
+            arms = {m: arm_summary([r for r in rs if r["id"] in sync_ids])
+                    for m, rs in meth.items()}
+            out["sync128_legs"]["legs"][backend] = {
+                m: {"acc": a["acc"], "n_q": a["n_q"]} for m, a in arms.items() if a}
+
     # ---- per-task stitching delta (slide 8)
     if "cvbench_native" in mvu and "centralized" in mvu:
         tasks = sorted({r["task_type"] for r in mvu_pool})
@@ -353,6 +760,37 @@ def main():
         for t in tasks:
             per_task[t]["holm_significant"] = sig[t]
         out["per_task"] = per_task
+
+    # ---- the same per-task stitching delta for EVERY mvu_full backend, so the
+    # 8 task types can be shown two-backend like the reference deck's chart.
+    # out["per_task"] above stays InternVL-only for the figures already reading it.
+    out["per_task_legs"] = {}
+    for key, meth in leg_rows.items():
+        if not key.startswith("mvu_full|"):
+            continue
+        if "centralized" not in meth or "cvbench_native" not in meth:
+            continue
+        backend = key.split("|", 1)[1]
+        pt, pv = {}, {}
+        for t in sorted({r["task_type"] for r in mvu_pool}):
+            ids = {r["id"] for r in mvu_pool if r["task_type"] == t}
+            d, p, n = paired_perm(meth["centralized"], meth["cvbench_native"], qids=ids)
+            pt[t] = {"delta": round(d, 2), "p": p, "n": n}
+            pv[t] = p
+        for t, s in holm(pv).items():
+            pt[t]["holm_significant"] = s
+        out["per_task_legs"][backend] = pt
+
+    # ---- CrossView-MEVA: the deck's questions re-asked on the second video
+    # dataset (08-05/06 arrays 75028/75029, cap-13 pool, 4 passes, 2 backends).
+    # Everything is derived from leg_rows, so a third backend appears the moment
+    # its shards land. CROSSVIEW_COVERAGE below is the honest map of which deck
+    # questions this dataset can and cannot answer yet — keep it truthful.
+    out["crossview"] = crossview_section(pools, leg_rows, pairs)
+
+    # ---- the 08-04 meeting's "three datasets side by side" requirement,
+    # measured rather than asserted
+    out["coverage_matrix"] = coverage_matrix()
 
     # ---- blind (slide "do the images help") — auto-included when jobs land
     out["blind"] = {}
@@ -459,6 +897,8 @@ def main():
 
     # ---- paper-parity arms (32/video) + the frame-budget story
     out["paper"] = PAPER
+    out["reference_single_view"] = REFERENCE_SINGLE_VIEW
+    out["reference_arrangement"] = REFERENCE_ARRANGEMENT
     out["parity32pv"] = {m: arm_summary(rs) for m, rs in pp.items()}
     # completeness: 4 passes x full pool per arm; while the arrays are still
     # draining, downstream consumers must label these rows preliminary
