@@ -21,6 +21,7 @@ Usage (internvl env; works with HF_HUB_OFFLINE=1 once checkpoints are cached):
 import argparse
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -63,6 +64,99 @@ def question_text(rec, with_options):
     return q
 
 
+OPT_PREFIX = re.compile(r"^\s*[A-Za-z]\s*[.)]\s*")   # == Video-R1/src/eval_thinking.py
+
+
+def option_texts(rec):
+    """The answer options as retrieval queries, letter prefix stripped.
+
+    This is the meeting's follow-up 1 formulation: score against EACH option and
+    reduce by max, with the question never used. Unlike --with-options, which
+    embeds one concatenated blob, each option is embedded on its own, so nothing
+    is lost to the text encoder's 64/77-token cap.
+    """
+    return [OPT_PREFIX.sub("", str(o)).strip() for o in rec.get("options", [])]
+
+
+def groundable(rec, min_words=3):
+    """Can this question's options work as retrieval queries at all?
+
+    Two ways they cannot: the option set is shared boilerplate repeated across
+    the pool (every CrossView-MEVA Spatial question offers the same four
+    distance bands, so the query would be identical for all 431 of them), or the
+    options carry no content (roman-numeral orderings, bare 'Video 3', integers).
+    Measured over the pools, this is the difference between ~555 usable video
+    questions and the 3,357 that exist, so it has to be a reported stratum
+    rather than a silent average.
+    """
+    opts = option_texts(rec)
+    if len(opts) < 2:
+        return False
+    contentful = 0
+    for o in opts:
+        if re.fullmatch(r"(?i)(video|view)\s*\d+", o):
+            continue
+        if re.fullmatch(r"(?i)[ivx]+(\s*->\s*[ivx]+)+", o):
+            continue
+        if re.fullmatch(r"\d+", o):
+            continue
+        if len(o.split()) >= min_words:
+            contentful += 1
+    return contentful >= 2
+
+
+LETTERS = "ABCDEFGHIJKLM"
+
+
+def report_per_option(results, model_id):
+    """Does the highest-scoring OPTION match the gold option?
+
+    This is the metric that decides whether option-conditioned selection can
+    work at all. Clip recall only says the retriever found the right video;
+    option agreement says the option text itself carries the discriminating
+    signal, which is what follow-up 1 depends on. Reported against per-question
+    chance (1/n_options) and split on whether the options are groundable, since
+    pooling a boilerplate stratum in drags any real effect to chance.
+    """
+    rows = [(rec, pc) for label in ("all", "primary", "secondary")
+            for _, _, pc, rec in results[label] if pc.get("by_option")]
+    if not rows:
+        print("  per-option: no scored rows")
+        return
+    strata = {"groundable": [], "boilerplate/degenerate": []}
+    for rec, pc in rows:
+        strata["groundable" if groundable(rec) else "boilerplate/degenerate"].append((rec, pc))
+    print("  per-option — does argmax(option) equal the gold option?")
+    print(f"  {'stratum':26s} {'n':>5} {'agree':>8} {'chance':>8} {'lift':>7}  by task_type")
+    for name, rs in strata.items():
+        if not rs:
+            continue
+        hit, chance, by_tt = 0, [], {}
+        for rec, pc in rs:
+            mat = [bo for bo in pc["by_option"] if bo]
+            if not mat:
+                continue
+            n_opt = len(mat[0])
+            best = [max(bo[i] for bo in mat) for i in range(n_opt)]
+            pred = LETTERS[best.index(max(best))]
+            ok = pred == str(rec.get("answer", "")).strip().upper()[:1]
+            hit += ok
+            chance.append(1.0 / n_opt)
+            tt = str(rec.get("task_type", "?")).split("-")[-1]
+            d = by_tt.setdefault(tt, [0, 0])
+            d[0] += ok
+            d[1] += 1
+        n = len(rs)
+        ch = 100.0 * float(np.mean(chance)) if chance else 0.0
+        ag = 100.0 * hit / max(n, 1)
+        tt_s = "  ".join(f"{k} {100.0*v[0]/v[1]:.0f}% ({v[1]})"
+                         for k, v in sorted(by_tt.items()))
+        print(f"  {name:26s} {n:5d} {ag:7.1f}% {ch:7.1f}% {ag - ch:+6.1f}  {tt_s}")
+    print("  A lift near zero on the groundable stratum means the option text carries no "
+          "visual signal;\n  option-conditioned selection cannot beat question-conditioned "
+          "selection and 4a is not worth GPU time.")
+
+
 def rank_of(target, scores):
     """1-based rank of clip ``target`` (1-based) under descending scores."""
     order = sorted(range(len(scores)), key=lambda i: -scores[i])
@@ -77,6 +171,14 @@ def main():
                     default=["openai/clip-vit-base-patch32",
                              "google/siglip-so400m-patch14-384"])
     ap.add_argument("--thumbs", type=int, default=8)
+    ap.add_argument("--per-option", action="store_true",
+                    help="score each answer option SEPARATELY and reduce by max "
+                         "over options (meeting follow-up 1); the question is "
+                         "never used. Contrast with --with-options, which embeds "
+                         "question+all options as ONE string.")
+    ap.add_argument("--min-option-words", type=int, default=3,
+                    help="--per-option: content words an option needs to count as "
+                         "groundable when stratifying")
     ap.add_argument("--with-options", action="store_true",
                     help="score question+options text instead of the question "
                          "alone (a pivot option; production scores question only)")
@@ -84,10 +186,11 @@ def main():
     args = ap.parse_args()
 
     recs = json.load(open(args.subset))
-    primary, secondary = [], []   # (rec, paths, target 1-based)
+    primary, secondary, allq = [], [], []   # (rec, paths, target 1-based)
     for rec in recs:
         paths = video_paths(rec, args.video_root)
         K = len(paths)
+        allq.append((rec, paths, None))
         nums = {int(n) for n in VIDEO_RE.findall(rec["question"])}
         if len(nums) == 1 and 1 <= next(iter(nums)) <= K:
             primary.append((rec, paths, next(iter(nums))))
@@ -98,6 +201,12 @@ def main():
     print(f"subset={args.subset}  n={len(recs)}  "
           f"primary(named-in-question)={len(primary)}  "
           f"secondary(gold-option-names-one-video)={len(secondary)}")
+    if not primary and not secondary:
+        # CrossView asks about events, not clip identity, so no question or gold
+        # option ever names a video and the clip-level ground truth is empty.
+        # Option agreement does not need it -- it only needs the gold letter.
+        print("  no clip-level ground truth in this pool (no question or gold option "
+              "names a video); clip recall is undefined here, option agreement is not.")
     for label, qs in (("primary", primary), ("secondary", secondary)):
         ks = [len(p) for _, p, _ in qs]
         if ks:
@@ -107,44 +216,67 @@ def main():
 
     dump = []
     for model_id in args.models:
-        print(f"\n=== {model_id} (thumbs={args.thumbs}, "
-              f"text={'question+options' if args.with_options else 'question'}) ===")
+        mode = ("per-option (max over options, question unused)" if args.per_option
+                else "question+options" if args.with_options else "question")
+        print(f"\n=== {model_id} (thumbs={args.thumbs}, text={mode}) ===")
         bundle = load_scorer(model_id)
-        results = {"primary": [], "secondary": []}
+        results = {"primary": [], "secondary": [], "all": []}
         n_err = 0
-        for label, qs in (("primary", primary), ("secondary", secondary)):
+        buckets = [("primary", primary), ("secondary", secondary)]
+        if args.per_option:
+            buckets.append(("all", allq))
+        for label, qs in buckets:
             for rec, paths, target in qs:
-                text = question_text(rec, args.with_options)
-                per_clip = {"max": [], "mean": []}
+                text = (option_texts(rec) if args.per_option
+                        else question_text(rec, args.with_options))
+                per_clip = {"max": [], "mean": [], "by_option": []}
                 for vp in paths:
                     try:
                         sims = clip_scores(bundle, text, uniform_thumbs(vp, args.thumbs))
-                        per_clip["max"].append(float(np.max(sims)))
-                        per_clip["mean"].append(float(np.mean(sims)))
+                        if sims.ndim == 2:
+                            # [thumbs, options] -> best thumb per option, then the
+                            # max across options is the clip's score (follow-up 1)
+                            per_opt = sims.max(axis=0)
+                            per_clip["by_option"].append([float(x) for x in per_opt])
+                            per_clip["max"].append(float(per_opt.max()))
+                            per_clip["mean"].append(float(sims.mean(axis=0).max()))
+                        else:
+                            per_clip["max"].append(float(np.max(sims)))
+                            per_clip["mean"].append(float(np.mean(sims)))
                     except Exception as e:
                         n_err += 1
                         per_clip["max"].append(float("-inf"))
                         per_clip["mean"].append(float("-inf"))
+                        per_clip["by_option"].append(None)
                 if all(x == float("-inf") for x in per_clip["max"]):
                     continue
-                results[label].append((rec["id"], target, per_clip))
+                if label == "all":
+                    results["all"].append((rec["id"], None, per_clip, rec))
+                    dump.append({"model": model_id, "set": "all", "id": rec["id"],
+                                 "task_type": rec.get("task_type"),
+                                 "groundable": groundable(rec, args.min_option_words),
+                                 **per_clip})
+                    continue
+                results[label].append((rec["id"], target, per_clip, rec))
                 dump.append({"model": model_id, "set": label, "id": rec["id"],
-                             "target": target, **per_clip})
+                             "target": target, "task_type": rec.get("task_type"),
+                             "groundable": groundable(rec, args.min_option_words),
+                             **per_clip})
         if n_err:
             print(f"  decode/score errors on {n_err} clip(s)")
 
         for stat in ("max", "mean"):
             prim = results["primary"]
-            ranks = [rank_of(t, pc[stat]) for _, t, pc in prim]
+            ranks = [rank_of(t, pc[stat]) for _, t, pc, _ in prim]
             r1 = sum(r == 1 for r in ranks)
             r2 = sum(r <= 2 for r in ranks)
             margins = []
-            for _, t, pc in prim:
+            for _, t, pc, _ in prim:
                 s = pc[stat]
                 others = [x for i, x in enumerate(s) if i != t - 1]
                 margins.append(s[t - 1] - max(others))
             sec = results["secondary"]
-            sec_hit = sum(rank_of(t, pc[stat]) == 1 for _, t, pc in sec)
+            sec_hit = sum(rank_of(t, pc[stat]) == 1 for _, t, pc, _ in sec)
             print(f"  stat={stat:4s}  primary recall@1 {r1}/{len(prim)} "
                   f"({100.0 * r1 / max(len(prim), 1):.0f}%)  "
                   f"recall@2 {r2}/{len(prim)} ({100.0 * r2 / max(len(prim), 1):.0f}%)  "
@@ -152,6 +284,9 @@ def main():
                   f"mean margin(named-best other) {np.mean(margins):+.4f}")
             print(f"             secondary argmax-agreement {sec_hit}/{len(sec)} "
                   f"({100.0 * sec_hit / max(len(sec), 1):.0f}%)")
+
+        if args.per_option:
+            report_per_option(results, model_id)
 
     if args.out:
         json.dump(dump, open(args.out, "w"), indent=1)
