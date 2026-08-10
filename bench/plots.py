@@ -13,6 +13,7 @@ Usage (from repo root, after concatenating the per-leg shards):
 import argparse
 import csv
 import json
+from collections import defaultdict
 import os
 
 import matplotlib
@@ -42,6 +43,17 @@ def _pct(x):
     return None if x is None else 100.0 * x
 
 
+def dump(out_dir, name, payload):
+    """Persist the exact plotted series next to the PNG.
+
+    Every figure writes its own numbers, so a chart can be restyled, recoloured
+    or rebuilt in another tool without touching bench/results/*.jsonl — and
+    without ever re-running the GPU job that produced them.
+    """
+    with open(os.path.join(out_dir, f"{name}.json"), "w") as f:
+        json.dump(payload, f, indent=1)
+
+
 def table1(by, out_dir):
     lines = ["# Table 1 — General Video QA Accuracy (mean ± std over passes)", "",
              "| Method (model · harness) | n (rows) | passes | accuracy (%) |",
@@ -62,6 +74,7 @@ def table1(by, out_dir):
         w = csv.DictWriter(f, fieldnames=["method", "n", "passes", "acc_mean_pct", "acc_std_pct"])
         w.writeheader()
         w.writerows(csv_rows)
+    dump(out_dir, "table1", {"rows": csv_rows})
     return "\n".join(lines)
 
 
@@ -86,6 +99,12 @@ def plot1_category(by, out_dir):
     fig.tight_layout()
     fig.savefig(os.path.join(out_dir, "plot1_accuracy_by_category.png"), dpi=150)
     plt.close(fig)
+    dump(out_dir, "plot1_accuracy_by_category", {
+        "categories": cats,
+        "series": [{"method": label(k),
+                    "mean_pct": [_pct(by[k]["by_task_type_passes"].get(c, {}).get("mean")) for c in cats],
+                    "std_pct": [_pct(by[k]["by_task_type_passes"].get(c, {}).get("std")) for c in cats]}
+                   for k in by]})
 
 
 def plot2_latency(rows, out_dir):
@@ -105,6 +124,15 @@ def plot2_latency(rows, out_dir):
     fig.tight_layout()
     fig.savefig(os.path.join(out_dir, "plot2_latency_per_question.png"), dpi=150)
     plt.close(fig)
+    import statistics as _st
+    dump(out_dir, "plot2_latency_per_question", {
+        "unit": "ms",
+        "series": [{"method": label(k), "n": len(g[k]),
+                    "median": round(_st.median(g[k]), 1),
+                    "mean": round(_st.mean(g[k]), 1),
+                    "p25": round(_st.quantiles(g[k], n=4)[0], 1) if len(g[k]) > 3 else None,
+                    "p75": round(_st.quantiles(g[k], n=4)[2], 1) if len(g[k]) > 3 else None}
+                   for k in keys]})
 
 
 def _cam_axis(d):
@@ -140,6 +168,15 @@ def plot3_cameras(by, out_dir):
     fig.tight_layout()
     fig.savefig(os.path.join(out_dir, "plot3_accuracy_vs_cameras.png"), dpi=150)
     plt.close(fig)
+    dump(out_dir, "plot3_accuracy_vs_cameras", {
+        "x_field": "orig_num_cameras",
+        "series": [{"method": label(k),
+                    "cameras": _cam_axis(by[k]["by_orig_num_cameras_passes"]),
+                    "mean_pct": [_pct(by[k]["by_orig_num_cameras_passes"][str(c)]["mean"])
+                                 for c in _cam_axis(by[k]["by_orig_num_cameras_passes"])],
+                    "std_pct": [_pct(by[k]["by_orig_num_cameras_passes"][str(c)]["std"])
+                                for c in _cam_axis(by[k]["by_orig_num_cameras_passes"])]}
+                   for k in by]})
 
 
 def plot4_category_cameras(by, out_dir):
@@ -171,14 +208,55 @@ def plot4_category_cameras(by, out_dir):
     fig.tight_layout()
     fig.savefig(os.path.join(out_dir, "plot4_category_vs_cameras.png"), dpi=150)
     plt.close(fig)
+    dump(out_dir, "plot4_category_vs_cameras", {
+        "categories": cats,
+        "series": [{"method": label(k), "category": cat,
+                    "cameras": _cam_axis(by[k]["by_task_camera_passes"].get(cat, {})),
+                    "mean_pct": [_pct(by[k]["by_task_camera_passes"][cat][str(c)]["mean"])
+                                 for c in _cam_axis(by[k]["by_task_camera_passes"].get(cat, {}))]}
+                   for cat in cats for k in by]})
+
+
+def intersect_cells(rows, strict=True):
+    """Restrict every arm to the (id, pass_idx) cells ALL arms of that backend
+    completed.
+
+    Without this, a leg that died to walltime is compared against a complete one
+    and the winner can flip: on the All-Angles Qwen leg, per_stream covered 292
+    of 680 cells and read +3.09 over native, when on the 292 they share it is
+    -4.45. Table 1 printed the row count but nothing reconciled it, so the sign
+    error was invisible.
+    """
+    cells = defaultdict(lambda: defaultdict(set))
+    for r in rows:
+        cells[r.get("backend")][r["method"]].add((r["id"], r.get("pass_idx")))
+    keep, dropped = {}, []
+    for backend, per_method in cells.items():
+        common = set.intersection(*per_method.values()) if per_method else set()
+        keep[backend] = common
+        for method, got in sorted(per_method.items()):
+            if len(got) > len(common):
+                dropped.append(f"  {backend} · {method}: {len(got)} cells -> "
+                               f"{len(common)} shared ({len(got) - len(common)} dropped)")
+    if dropped:
+        print("Table 1 restricted to cells all arms completed:")
+        print("\n".join(dropped))
+        if strict:
+            print("  (pass --no-strict-cells to report arms on their own row sets)")
+    return [r for r in rows if (r["id"], r.get("pass_idx")) in keep.get(r.get("backend"), set())]
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jsonl", nargs="+", required=True, help="one or more results JSONL")
     ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--no-strict-cells", action="store_true",
+                    help="do NOT restrict arms to their shared (id, pass) cells "
+                         "— only for inspecting an incomplete leg")
     args = ap.parse_args()
     rows = load_rows(args.jsonl)
+    if not args.no_strict_cells:
+        rows = intersect_cells(rows)
     out_dir = args.out_dir or os.path.join(os.path.dirname(args.jsonl[0]), "figs")
     os.makedirs(out_dir, exist_ok=True)
     by = metrics.summarize_by_method_backend_passes(rows)
