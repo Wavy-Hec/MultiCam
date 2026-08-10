@@ -76,7 +76,17 @@ def clip_scores(clip_bundle, text, pil_frames, batch=32):
     # SigLIP was trained with fixed 64-token max_length padding; CLIP with
     # dynamic padding. Mismatched padding shifts SigLIP text embeddings.
     pad = "max_length" if getattr(model.config, "model_type", "") == "siglip" else True
-    tok = proc(text=[text], return_tensors="pt", padding=pad, truncation=True).to(device)
+    # One text or many. Scoring frames against EACH answer option separately (and
+    # reducing by max) is what the option-guided arms need, and it is also what
+    # keeps the query inside the text encoder's window: CLIP truncates at 77
+    # tokens and SigLIP at 64, so a concatenated question+all-options blob is
+    # silently cut, while individual options never come close.
+    # Per-text embeddings are unaffected by batching: SigLIP already pads to a
+    # fixed 64, and CLIP's encoder is causal and pools at the EOT position with
+    # pads masked, so a text's embedding does not depend on its batch-mates.
+    one_text = isinstance(text, str)
+    texts = [text] if one_text else list(text)
+    tok = proc(text=texts, return_tensors="pt", padding=pad, truncation=True).to(device)
     with torch.no_grad():
         t_emb = _emb(model.get_text_features(**tok))
         t_emb = t_emb / t_emb.norm(dim=-1, keepdim=True)
@@ -85,8 +95,11 @@ def clip_scores(clip_bundle, text, pil_frames, batch=32):
             chunk = proc(images=pil_frames[i:i + batch], return_tensors="pt").to(device)
             i_emb = _emb(model.get_image_features(**chunk))
             i_emb = i_emb / i_emb.norm(dim=-1, keepdim=True)
-            sims.append((i_emb @ t_emb.T).squeeze(1).float().cpu().numpy())
-    return np.concatenate(sims)
+            # [n_frames_in_batch, n_texts]; the historical contract is 1-D, so
+            # only the single-text call collapses the text axis.
+            sims.append((i_emb @ t_emb.T).float().cpu().numpy())
+    out = np.concatenate(sims, axis=0)
+    return out[:, 0] if one_text else out
 
 # --------------------------------------------------------------------------- #
 # prompts                                                                      #
