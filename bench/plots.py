@@ -145,10 +145,11 @@ def _cam_axis(d):
     return sorted(cams)
 
 
-def plot3_cameras(by, out_dir):
+def plot3_cameras(by, out_dir, cam_key="by_delivered_cameras_passes",
+                  cam_field="num_videos"):
     fig, ax = plt.subplots(figsize=(8, 5))
     for key in by:
-        d = by[key]["by_orig_num_cameras_passes"]
+        d = by[key][cam_key]
         cams = _cam_axis(d)
         xs, ys, es = [], [], []
         for c in cams:
@@ -160,7 +161,7 @@ def plot3_cameras(by, out_dir):
             es.append(_pct(d[str(c)]["std"]) or 0)
         if xs:
             ax.errorbar(xs, ys, yerr=es, marker="o", capsize=3, label=label(key))
-    ax.set_xlabel("Number of cameras (orig_num_cameras)")
+    ax.set_xlabel(f"Number of cameras ({cam_field})")
     ax.set_ylabel("Accuracy (%)")
     ax.set_title("Plot 3 — Accuracy vs camera count")
     ax.legend(fontsize=8)
@@ -169,37 +170,39 @@ def plot3_cameras(by, out_dir):
     fig.savefig(os.path.join(out_dir, "plot3_accuracy_vs_cameras.png"), dpi=150)
     plt.close(fig)
     dump(out_dir, "plot3_accuracy_vs_cameras", {
-        "x_field": "orig_num_cameras",
+        "x_field": cam_field,
         "series": [{"method": label(k),
-                    "cameras": _cam_axis(by[k]["by_orig_num_cameras_passes"]),
-                    "mean_pct": [_pct(by[k]["by_orig_num_cameras_passes"][str(c)]["mean"])
-                                 for c in _cam_axis(by[k]["by_orig_num_cameras_passes"])],
-                    "std_pct": [_pct(by[k]["by_orig_num_cameras_passes"][str(c)]["std"])
-                                for c in _cam_axis(by[k]["by_orig_num_cameras_passes"])]}
+                    "cameras": _cam_axis(by[k][cam_key]),
+                    "mean_pct": [_pct(by[k][cam_key][str(c)]["mean"])
+                                 for c in _cam_axis(by[k][cam_key])],
+                    "std_pct": [_pct(by[k][cam_key][str(c)]["std"])
+                                for c in _cam_axis(by[k][cam_key])]}
                    for k in by]})
 
 
-def plot4_category_cameras(by, out_dir):
-    cats = sorted({c for s in by.values() for c in s["by_task_camera_passes"]})
+def plot4_category_cameras(by, out_dir, cat_key="by_task_delivered_camera_passes",
+                           cam_field="num_videos"):
+    cats = sorted({c for s in by.values() for c in s[cat_key]})
     if not cats:
         return
     fig, axes = plt.subplots(1, len(cats), figsize=(5 * len(cats), 4.5), squeeze=False)
     for ci, cat in enumerate(cats):
         ax = axes[0][ci]
         for key in by:
-            d = by[key]["by_task_camera_passes"].get(cat, {})
+            d = by[key][cat_key].get(cat, {})
             cams = _cam_axis(d)
-            xs, ys = [], []
+            xs, ys, es = [], [], []
             for c in cams:
                 m = _pct(d[str(c)]["mean"])
                 if m is None:
                     continue
                 xs.append(c)
                 ys.append(m)
+                es.append(_pct(d[str(c)]["std"]) or 0)
             if xs:
-                ax.plot(xs, ys, marker="o", label=label(key))
+                ax.errorbar(xs, ys, yerr=es, marker="o", capsize=3, label=label(key))
         ax.set_title(cat)
-        ax.set_xlabel("Number of cameras")
+        ax.set_xlabel(f"Number of cameras ({cam_field})")
         ax.set_ylabel("Accuracy (%)")
         ax.grid(alpha=0.3)
         if ci == len(cats) - 1:
@@ -210,10 +213,13 @@ def plot4_category_cameras(by, out_dir):
     plt.close(fig)
     dump(out_dir, "plot4_category_vs_cameras", {
         "categories": cats,
+        "x_field": cam_field,
         "series": [{"method": label(k), "category": cat,
-                    "cameras": _cam_axis(by[k]["by_task_camera_passes"].get(cat, {})),
-                    "mean_pct": [_pct(by[k]["by_task_camera_passes"][cat][str(c)]["mean"])
-                                 for c in _cam_axis(by[k]["by_task_camera_passes"].get(cat, {}))]}
+                    "cameras": _cam_axis(by[k][cat_key].get(cat, {})),
+                    "mean_pct": [_pct(by[k][cat_key][cat][str(c)]["mean"])
+                                 for c in _cam_axis(by[k][cat_key].get(cat, {}))],
+                    "std_pct": [_pct(by[k][cat_key][cat][str(c)]["std"])
+                                for c in _cam_axis(by[k][cat_key].get(cat, {}))]}
                    for cat in cats for k in by]})
 
 
@@ -250,6 +256,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jsonl", nargs="+", required=True, help="one or more results JSONL")
     ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--camera-axis", default="delivered", choices=["delivered", "orig"],
+                    help="x-axis for Plots 3 and 4: the camera count actually fed "
+                         "(num_videos, default) or the dataset's original count "
+                         "(orig_num_cameras). They differ wherever the harness slot "
+                         "cap bites -- 42%% of CrossView rows -- and only 'delivered' "
+                         "describes what the model was shown.")
     ap.add_argument("--no-strict-cells", action="store_true",
                     help="do NOT restrict arms to their shared (id, pass) cells "
                          "— only for inspecting an incomplete leg")
@@ -263,8 +275,12 @@ def main():
     print(table1(by, out_dir))
     plot1_category(by, out_dir)
     plot2_latency(rows, out_dir)
-    plot3_cameras(by, out_dir)
-    plot4_category_cameras(by, out_dir)
+    cam_key, cat_key, cam_field = (
+        ("by_delivered_cameras_passes", "by_task_delivered_camera_passes", "num_videos")
+        if args.camera_axis == "delivered" else
+        ("by_orig_num_cameras_passes", "by_task_camera_passes", "orig_num_cameras"))
+    plot3_cameras(by, out_dir, cam_key, cam_field)
+    plot4_category_cameras(by, out_dir, cat_key, cam_field)
     print(f"\nwrote Table 1 + Plots 1-4 -> {out_dir}")
 
 

@@ -106,6 +106,22 @@ def summarize_passes(rows):
     base["by_orig_num_cameras_passes"] = {
         str(c): _mstd(_pass_accs(rows, lambda r, c=c: r.get("orig_num_cameras") == c))
         for c in cams}
+    # The camera count the model was actually SHOWN, which is not always the one
+    # the dataset claims: CrossView is capped at MAX_SLOTS=13, so 42.3% of its
+    # rows carry orig_num_cameras of 14-16 while num_videos is 13. Plotting
+    # accuracy against the original count puts points on the x-axis at camera
+    # counts the harness never fed. Both groupings are kept so the capping
+    # effect stays visible instead of being silently corrected away.
+    dcams = sorted({r.get("num_videos") for r in rows},
+                   key=lambda x: (x is None, x))
+    base["by_delivered_cameras_passes"] = {
+        str(c): _mstd(_pass_accs(rows, lambda r, c=c: r.get("num_videos") == c))
+        for c in dcams}
+    base["by_task_delivered_camera_passes"] = {
+        str(tt): {str(c): _mstd(_pass_accs(
+            rows, lambda r, tt=tt, c=c: r.get("task_type") == tt
+            and r.get("num_videos") == c)) for c in dcams}
+        for tt in tts}
     base["by_task_camera_passes"] = {
         str(tt): {str(c): _mstd(_pass_accs(
             rows, lambda r, tt=tt, c=c: r.get("task_type") == tt
