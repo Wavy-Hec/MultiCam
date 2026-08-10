@@ -15,6 +15,7 @@ the Qwen backend and via ``load_image`` by the InternVL backend.
 from __future__ import annotations
 
 import math
+import os
 from typing import List, Optional
 
 from PIL import Image, ImageDraw, ImageFont
@@ -38,17 +39,35 @@ def decode_aligned_frames(video_paths: List[str], nframes: int) -> List[List[Opt
 
     Returns ``frames[k][t]`` (PIL.Image), or ``None`` for a frame whose clip
     failed to decode (compose_montage fills those cells black).
+
+    A clip that decodes PARTIALLY still black-cells — decord is genuinely flaky
+    and the surviving frames of that clip carry the view. But a clip that cannot
+    be opened at ALL raises: that is a missing file or a wrong --video-root, and
+    swallowing it makes centralized the only arm that answers (the other two
+    raise on the same file), from an all-black montage, with error=null and a
+    scored prediction. This bit for real on 2026-08-10: an MVU-Eval leg launched
+    without VIDEO_ROOT scored 16/16 centralized questions off black montages
+    while both other arms errored 16/16.
     """
     per_cam: List[List[Optional[Image.Image]]] = []
+    unreadable: List[str] = []
     for vp in video_paths:
         try:
             vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
             n = len(vr)
             idx = sample_frame_indices(n, nframes)
             frames = [Image.fromarray(vr[i].asnumpy()).convert("RGB") for i in idx]
-        except Exception:
+        except Exception as e:
+            if not os.path.exists(vp):
+                unreadable.append(f"{vp} (missing)")
+            else:
+                unreadable.append(f"{vp} ({type(e).__name__})")
             frames = [None] * nframes  # decode failure -> black cells
         per_cam.append(frames)
+    if len(unreadable) == len(video_paths):
+        raise FileNotFoundError(
+            f"none of the {len(video_paths)} clips could be opened — check "
+            f"--video-root. First: {unreadable[0]}")
     return per_cam
 
 
@@ -97,14 +116,29 @@ def compose_montage(frames: List[Optional[Image.Image]], labels: List[str],
 def build_image_montage(image_paths: List[str], cell_px: int = 448,
                         label_prefix: str = "View") -> List[Image.Image]:
     """Still-image variant: tile the K view images of one question into a single
-    labeled grid montage (no temporal axis — T=1 by construction). A view that
-    fails to open becomes a black cell, mirroring decode_aligned_frames."""
+    labeled grid montage (no temporal axis — T=1 by construction).
+
+    Unlike the video path, a view that fails to open RAISES. Black-celling a
+    missing frame is right for video, where decord flakiness is expected and the
+    other frames of that clip still carry the view. On stills the view has
+    exactly one frame, so a swallowed failure hands the model an all-black
+    montage and the row is still written with error=null and a scored
+    prediction — while the other two arms raise on the same missing file. A
+    wrong --video-root would then silently produce a plausible centralized-only
+    number (all 5,173 All-Angles images resolve to nothing under the default
+    root)."""
     frames: List[Optional[Image.Image]] = []
+    failed: List[str] = []
     for ip in image_paths:
         try:
             frames.append(Image.open(ip).convert("RGB"))
-        except Exception:
+        except Exception as e:
+            failed.append(f"{ip} ({type(e).__name__})")
             frames.append(None)
+    if failed:
+        raise FileNotFoundError(
+            f"{len(failed)} of {len(image_paths)} view images failed to open — "
+            f"check --video-root. First: {failed[0]}")
     labels = [f"{label_prefix} {i + 1}" for i in range(len(image_paths))]
     return [compose_montage(frames, labels, cell_w=cell_px, cell_h=cell_px)]
 
