@@ -76,9 +76,8 @@ reports paired-question consistency for All-Angles-Bench. Results land in
   [paper](https://arxiv.org/abs/2511.07250),
   [data](https://huggingface.co/datasets/MVU-Eval-Team/MVU-Eval-Data) (Apache-2.0).
 - **CrossView release**: UT Austin multi-camera dataset; **MEVA** videos are CC-BY-4.0.
-- Vendored trees: [EvolvingLMMs-Lab/lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval)
-  and [tulerfeng/Video-R1](https://github.com/tulerfeng/Video-R1), whose authors we
-  thank. Everything under `bench/` and `analysis/` is this project's own work.
+- Vendored tree: [tulerfeng/Video-R1](https://github.com/tulerfeng/Video-R1), whose
+  authors we thank. Everything under `bench/` and `analysis/` is this project's own work.
 
 This repo began as an evaluation harness for the CVBench dataset
 ([Hokhim2/CVBench](https://github.com/Hokhim2/CVBench)); that work is archived at

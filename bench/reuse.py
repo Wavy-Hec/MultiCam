@@ -34,7 +34,7 @@ def letters_of(rec):
     return letters_for(rec.get("options"))
 
 # Default video root for the CrossView subsets (both MEVA .avi and EgoExo4D .mp4
-# resolve under it); mirrors run_eval_crossview.sbatch VIDEO_ROOT.
+# resolve under it). Override with VIDEO_ROOT for sets that live under data/.
 DEFAULT_VIDEO_ROOT = os.path.join(REPO, "crossview-release-annotations", "crossview-release")
 
 

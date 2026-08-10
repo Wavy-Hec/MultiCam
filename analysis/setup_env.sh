@@ -1,10 +1,10 @@
 #!/bin/bash
 # One-time env setup for the CVBench thinking-eval. Run on the LOGIN node (internet).
 #
-# The user's `vlm` conda env already has a GPU-ready stack (torch 2.10+cu128,
+# The `vlm` conda env already has a GPU-ready stack (torch 2.10+cu128,
 # transformers 5.2, qwen_vl_utils, accelerate, timm, av, matplotlib). It is only
-# missing `decord` (InternVL video reader) and `lmms_eval`. To avoid disturbing the
-# working `vlm` env, we CLONE it to `cvbench` and add the two packages there.
+# missing `decord` (the video reader). To avoid disturbing the working `vlm` env,
+# we CLONE it to `cvbench` and add what is missing there.
 #
 #   bash analysis/setup_env.sh
 set -euo pipefail
@@ -26,14 +26,9 @@ python -m pip install --upgrade pip
 # decord for InternVL's video reader; remotezip for subset video fetch.
 python -m pip install decord remotezip
 
-# lmms-eval (registers the crossview / crossview_think tasks + internvl2 wrapper).
-# Cloned env already satisfies most deps; install editable so our task edits apply.
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-python -m pip install -e "${REPO_ROOT}/lmms-eval"
-
 python - <<'PY'
 import importlib
-for m in ("torch","transformers","qwen_vl_utils","decord","lmms_eval","accelerate"):
+for m in ("torch","transformers","qwen_vl_utils","decord","accelerate"):
     try:
         importlib.import_module(m); print(f"  ok  {m}")
     except Exception as e:

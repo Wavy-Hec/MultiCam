@@ -11,8 +11,9 @@ IMPORTANT: run this backend under the ``internvl`` conda env (transformers 4.48.
 ``cvbench``'s newer transformers breaks the InternVL3 remote code.
 
 Preprocessing helpers (build_transform / dynamic_preprocess / load_image /
-load_video) are copied from ``lmms-eval/lmms_eval/models/internvl2.py`` so we
-don't depend on the (absent) ``internvl`` training package.
+load_video) are adapted from the InternVL2 model wrapper in EvolvingLMMs-Lab's
+lmms-eval (github.com/EvolvingLMMs-Lab/lmms-eval, MIT), so we don't depend on
+the (absent) ``internvl`` training package.
 """
 import time
 

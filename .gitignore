@@ -6,8 +6,6 @@ __pycache__/
 # Incomplete downloads
 *.part
 
-# Built HF datasets (regenerable from analysis/*subset*.json)
-/crossview_dataset/
 *.tmp/
 *.tmp
 
@@ -22,8 +20,7 @@ __pycache__/
 # Large fetched media & external release data — licensed/regenerable, do not commit
 /crossview-release-annotations/
 
-# Regenerable analysis outputs, logs, media (rebuilt by analyze_failures.py /
-# curate_failure_examples.py from the tracked eval JSONs)
+# Slurm job stdout/stderr for the bench arrays
 /analysis/logs/
 
 # Regenerable slide decks (binary) + eval-rerun contamination backups
@@ -38,8 +35,6 @@ __pycache__/
 
 # eval output dumps — regenerable, outputs never in git (files stay on disk)
 /Video-R1/src/r1-v/eval_results/
-/lmms-eval/res/
-/lmms-eval/logs/
 /data/
 
 # Regenerable deck/doc artifacts (rebuilt by make_slide_figs.py / make_repq_doc.py /
@@ -57,16 +52,10 @@ __pycache__/
 # result shards plus the subset JSONs. Large, and every number in it is derived.
 /analysis/records/
 
-# Scored chart output + accuracy dumps — same rule as figs_deck above: rendered
-# numbers are not published, and every one of these is rebuilt from a tracked
-# script plus the (untracked) result rows.
-#   crossview_out/, crossview_meva1033_out/  <- crossview_camera_curve.py --out-dir,
-#                                               make_crossview_internvl_charts.py,
-#                                               curate_failure_examples.py
-#   crossview_*_normalized.json              <- parse_lmms_samples.py --out
-#   stitch_audit_meva.png                    <- stitch_crop_audit.py
-# NOTE: the charts still on disk in these two dirs are the superseded July-8
-# cap-4 single-pass run; they are not comparable to anything current.
+# Leftovers on disk from the retired lmms-eval CrossView pipeline (its scripts
+# were removed; recover them from history if a rerun is ever needed). Rendered
+# numbers are not published, and these are the superseded cap-4 single-pass run
+# — not comparable to anything current.
 /analysis/crossview_out/
 /analysis/crossview_meva1033_out/
 /analysis/crossview_internvl3_normalized.json
