@@ -53,10 +53,13 @@ MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-8192}
 PERCEPTION_MAX_NEW_TOKENS=${PERCEPTION_MAX_NEW_TOKENS:-1024}  # per_stream per-view cap (raise for thinking backends)
 CELL_PX=${CELL_PX:-448}                # montage cell size (raise so centralized isn't token-starved vs native)
 INTERNVL_MAX_TILES=${INTERNVL_MAX_TILES:-1}
+REASONING=${REASONING:-1}              # 0 = direct-answer prompt, no <think> trace requested
 VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. roots under data/)
 CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
 OFFSET=${SLURM_ARRAY_TASK_ID:-${OFFSET:-0}}
+# reasoning is imposed BY the prompt, not a model switch, so this swaps templates
+NOREASON_ARG=""; [ "$REASONING" = "0" ] && NOREASON_ARG="--no-reasoning"
 
 TAG=${TAG:-}   # optional suffix to separate runs that share subset+env (e.g. _dur/_even/_stitch)
 BASE="bench/results/bench_$(basename "${SUBSET%.json}")_${ENV}${TAG}"
@@ -81,7 +84,7 @@ if [ -n "$SUMMARIES" ]; then SUM_ARG=(--summaries "$SUMMARIES"); fi
 echo "GPU  @ $(hostname) $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | tr '\n' ';')"
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=$BUDGET weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
-echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND"
+echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
     --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" --stream-kind "$STREAM_KIND" \
@@ -89,5 +92,5 @@ python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$B
     --budget "$BUDGET" --floor "$FLOOR" --weighting "$WEIGHTING" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
     --perception-max-new-tokens "$PERCEPTION_MAX_NEW_TOKENS" --cell-px "$CELL_PX" \
-    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"
+    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $NOREASON_ARG $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"
 echo "DONE @ $(date '+%F %T')"

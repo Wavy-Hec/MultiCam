@@ -87,25 +87,29 @@ def make_method(mname, backend, args):
                                  temperature=args.temperature,
                                  montage_frames=args.montage_frames, cell_px=args.cell_px,
                                  montage_kind=args.montage_kind,
-                                 total_frames=args.total_frames)
+                                 total_frames=args.total_frames,
+                                 reasoning=not args.no_reasoning)
     if mname == "per_stream":
         return PerStreamMethod(backend, nframes=args.nframes,
                                max_new_tokens=args.max_new_tokens,
                                temperature=args.temperature,
                                perception_max_new_tokens=args.perception_max_new_tokens,
                                stream_kind=args.stream_kind,
-                               total_frames=args.total_frames)
+                               total_frames=args.total_frames,
+                               reasoning=not args.no_reasoning)
     if mname == "cvbench_native":
         return CVBenchNativeMethod(backend, nframes=args.nframes,
                                    max_new_tokens=args.max_new_tokens,
                                    temperature=args.temperature,
-                                   total_frames=args.total_frames)
+                                   total_frames=args.total_frames,
+                                   reasoning=not args.no_reasoning)
     sv = SINGLE_VIEW_RE.match(mname)
     if sv:
         return SingleViewMethod(backend, view_idx=int(sv.group("i")),
                                 nframes=args.nframes,
                                 max_new_tokens=args.max_new_tokens,
-                                temperature=args.temperature, name=mname)
+                                temperature=args.temperature, name=mname,
+                                reasoning=not args.no_reasoning)
     if mname == "temporal_weighted":
         return TemporalWeightedMethod(backend, budget=args.budget, floor=args.floor,
                                       weighting=args.weighting, nframes=args.nframes,
@@ -203,6 +207,11 @@ def main():
     ap.add_argument("--passes", type=int, default=4, help="independent sampled passes for std")
     ap.add_argument("--seeds", default="1,2,3,4", help="comma seeds; len must cover --passes")
     ap.add_argument("--temperature", type=float, default=0.7)
+    ap.add_argument("--no-reasoning", action="store_true",
+                    help="direct-answer prompt: no <think> trace requested. There is no "
+                         "model-side switch — the visible reasoning is produced BY the "
+                         "prompt, so turning it off means asking for the answer directly. "
+                         "Pair with a low --temperature.")
     ap.add_argument("--budget", type=int, default=64,
                     help="temporal_weighted: TOTAL frames per question, split across clips")
     ap.add_argument("--total-frames", type=int, default=0,

@@ -17,16 +17,16 @@ class CVBenchNativeMethod(Method):
     name = "cvbench_native"
 
     def __init__(self, backend, nframes=8, max_new_tokens=8192, temperature=0.0,
-                 total_frames=0):
+                 total_frames=0, reasoning=True):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
-                         temperature=temperature)
+                         temperature=temperature, reasoning=reasoning)
         # total_frames > 0 switches from a flat per-clip nframes to one TOTAL
         # frame budget per question, split evenly across its clips (the
         # mentor's fixed-budget protocol; per-clip counts land in frame_alloc)
         self.total_frames = total_frames
 
     def answer(self, rec, video_root, seed=None) -> Result:
-        messages, yn = build_messages(rec, video_root, self.nframes, no_video=False)
+        messages, yn = build_messages(rec, video_root, self.nframes, no_video=False, reasoning=self.reasoning)
         alloc = None
         if self.total_frames:
             vids = [c for c in messages[0]["content"] if c.get("type") == "video"]
@@ -41,7 +41,7 @@ class CVBenchNativeMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn, letters=letters)
+            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,

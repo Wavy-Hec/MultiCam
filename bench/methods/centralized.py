@@ -44,9 +44,9 @@ class CentralizedMethod(Method):
 
     def __init__(self, backend, nframes=8, max_new_tokens=8192, temperature=0.0,
                  montage_frames=0, cell_px=448, montage_kind="camera",
-                 total_frames=0):
+                 total_frames=0, reasoning=True):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
-                         temperature=temperature)
+                         temperature=temperature, reasoning=reasoning)
         self.T = montage_frames if montage_frames and montage_frames > 0 else nframes
         # total_frames > 0: hold the TOTAL source-frame count (T montages x K
         # cells) fixed per question by setting T = round(total/K) per record
@@ -62,7 +62,7 @@ class CentralizedMethod(Method):
         key = rec.get("id")
         if key in self._cache:
             return self._cache[key]
-        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
+        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True, reasoning=self.reasoning)
         scaffold = base_msgs[0]["content"][0]["text"]
         if num_images(rec) > 0:
             # still-image record: one montage of the view images; labels/preamble
@@ -71,7 +71,17 @@ class CentralizedMethod(Method):
             paths = image_paths(rec, video_root)
             montages = build_image_montage(paths, cell_px=self.cell_px, label_prefix="View")
             prefix = MONTAGE_PREFIX_VIEW
-            alloc = {"kind": "image_montage", "K": len(paths)}
+            # cell_px and the canvas decide the whole visual budget on stills, and
+            # neither is otherwise recoverable from a row — only echoed to the
+            # sbatch log. Without them a leg run at a different cell size is
+            # indistinguishable from one that was not.
+            alloc = {"kind": "image_montage", "K": len(paths),
+                     "cell_px": self.cell_px,
+                     "canvas_wh": list(montages[0].size),
+                     # InternVL re-tiles the canvas by aspect ratio, so max_tiles
+                     # — not cell_px — is what sets the montage token budget on
+                     # that backend. Record it or the leg is unauditable.
+                     "max_tiles": getattr(self.backend, "max_tiles", None)}
         else:
             paths = video_paths(rec, video_root)
             t = self.T
@@ -106,7 +116,7 @@ class CentralizedMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn, letters=letters)
+            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,

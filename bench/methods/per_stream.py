@@ -42,9 +42,9 @@ class PerStreamMethod(Method):
 
     def __init__(self, backend, nframes=8, max_new_tokens=8192, temperature=0.0,
                  perception_max_new_tokens=1024, stream_kind="camera",
-                 total_frames=0):
+                 total_frames=0, reasoning=True):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
-                         temperature=temperature)
+                         temperature=temperature, reasoning=reasoning)
         self.perception_max_new_tokens = perception_max_new_tokens
         self._label, self._unit = STREAM_KINDS[stream_kind]
         self.stream_kind = stream_kind
@@ -64,7 +64,7 @@ class PerStreamMethod(Method):
             paths = video_paths(rec, video_root)
             label, unit = self._label, self._unit
         # reuse build_messages to get the exact text-only answer scaffold + yes/no flag
-        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
+        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True, reasoning=self.reasoning)
         base_text = base_msgs[0]["content"][0]["text"]
         gold = gt_choice(rec["answer"], yn, letters=letters)
 
@@ -104,7 +104,7 @@ class PerStreamMethod(Method):
                                       seed=seed, temperature=self.temperature)
             calls += 1
             in_tok += g.input_tokens; out_tok += g.output_tokens
-            pred = parse_choice(g.text, yn, letters=letters)
+            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
 
             serial = sum(lat_per) + g.latency_s
             return Result(

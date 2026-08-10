@@ -12,14 +12,14 @@ class BlindMethod(Method):
     name = "blind"
 
     def answer(self, rec, video_root, seed=None) -> Result:
-        messages, yn = build_messages(rec, video_root, self.nframes, no_video=True)
+        messages, yn = build_messages(rec, video_root, self.nframes, no_video=True, reasoning=self.reasoning)
         f = result_fields(rec)
         letters = letters_of(rec)
         gold = gt_choice(rec["answer"], yn, letters=letters)
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn, letters=letters)
+            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,

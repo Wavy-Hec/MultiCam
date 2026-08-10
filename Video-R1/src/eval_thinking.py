@@ -48,6 +48,17 @@ QUESTION_TEMPLATE = (
     "tags, and then give your final answer between the <answer> and </answer> tags."
 )
 
+# Reasoning-off variant (the 08-04 meeting's "turn reasoning off" setting).
+# There is no model-side switch for this on either backend — the visible trace
+# is produced BY the prompt above, so removing reasoning means asking for the
+# answer directly. The <answer> tags stay so one parser serves both modes.
+QUESTION_TEMPLATE_DIRECT = (
+    "{Question}\n"
+    "Answer immediately with your final choice. Do not explain, do not reason "
+    "step by step, and do not write anything before the answer. Give only your "
+    "final answer between the <answer> and </answer> tags."
+)
+
 
 def extract_think(text):
     m = re.search(r"<think>\s*(.*?)\s*</think>", text, re.DOTALL)
@@ -99,7 +110,55 @@ _CONCLUDE_YN = re.compile(
 )
 
 
-def parse_choice(text, is_yesno, letters="ABCD"):
+# A model that refuses inside <answer> is abstaining, not choosing. Scoring it
+# as a letter is the difference between "wrong" and "wrong AND attributed to an
+# option it never picked" — and it lands almost entirely on per_stream, the arm
+# whose aggregator is most likely to give up.
+_REFUSAL = re.compile(
+    r"(?i)^\W*(n/?a\b|none\s+of\s+the\s+(above|options|provided)|none\b|"
+    r"cannot\s+be\s+determined|can(?:no|')t\s+(?:be\s+)?determin|unknown\b|"
+    r"unanswerable\b|not\s+determinable|insufficient\b|unclear\b)")
+
+
+def _body_to_letter(body, letters, options=None):
+    """Map an <answer> body to a single option letter, or "" to abstain.
+
+    The old rule was `re.search("(?i)\\b([ABCD])\\b", body)` — first match wins,
+    case-insensitive. That reads the English article "a" as option A, so
+    'None of the above... does not show a lady' scored as a confident A. It also
+    took the first of several listed letters ('A\\nB\\nC' -> A) and stored
+    non-letter prose as a prediction with abstained=False.
+    """
+    body = body.strip()
+    # 1. a bare letter, with or without decoration: "A", "(A)", "A.", "A:"
+    m = re.fullmatch(r"\W*([" + letters + r"])\W*", body, re.IGNORECASE)
+    if m:
+        return m.group(1).upper()
+    # 2. the body quotes an option verbatim -> that option's letter. Must come
+    #    BEFORE the refusal check: "Cannot be determined" is a real option on
+    #    CrossView temporal questions, not a refusal.
+    if options:
+        norm = re.sub(r"\W+", " ", body).strip().lower()
+        for i, opt in enumerate(options[:len(letters)]):
+            otext = re.sub(r"^\s*[A-Za-z]\s*[.)]\s*", "", str(opt))
+            otext = re.sub(r"\W+", " ", otext).strip().lower()
+            if otext and (norm == otext or norm.startswith(otext)):
+                return letters[i].upper()
+    # 3. an explicit refusal -> abstain
+    if _REFUSAL.match(body):
+        return ""
+    # 4. a standalone option letter. Case-insensitive EXCEPT for lowercase "a"
+    #    and "i", which are English words — reading those as options is what
+    #    scored 'does not show a lady' as a confident A. Ambiguous if several.
+    found = {m.group(1).upper() for m in re.finditer(r"\b([" + letters + r"])\b",
+                                                     body, re.IGNORECASE)
+             if not (m.group(1) in ("a", "i"))}
+    if len(found) == 1:
+        return found.pop()
+    return ""
+
+
+def parse_choice(text, is_yesno, letters="ABCD", options=None):
     """Final answer = <answer>..</answer> if present. If the tag is missing
     (e.g. a truncated trace), fall back ONLY to an explicit "the answer is X"
     conclusion (last match); otherwise abstain (return "") rather than grabbing
@@ -112,10 +171,18 @@ def parse_choice(text, is_yesno, letters="ABCD"):
         ms = list(_CONCLUDE_YN.finditer(text))
         return ms[-1].group(1).capitalize() if ms else ""
     if ans:
-        m = re.search(r"(?i)\b([" + letters + r"])\b", ans)
-        return m.group(1).upper() if m else ans.strip()
+        return _body_to_letter(ans, letters, options)
     ms = list(_conclude_mc_re(letters).finditer(text))
-    return ms[-1].group(1).upper() if ms else ""
+    if ms:
+        return ms[-1].group(1).upper()
+    # reasoning-off mode: the model may answer with a bare "B" and no tags at
+    # all. Only trust that on a SHORT response — running _body_to_letter over a
+    # long thinking trace would pick up incidental letters, which is exactly the
+    # failure the tag-missing fallback exists to avoid.
+    stripped = text.strip()
+    if stripped and len(stripped) <= 40:
+        return _body_to_letter(stripped, letters, options)
+    return ""
 
 
 def gt_choice(answer, is_yesno, letters="ABCD"):
@@ -165,7 +232,7 @@ def _letters_phrase(letters):
     return f"{letters[0]}, {letters[1]}, ..., or {letters[-1]}"
 
 
-def build_messages(rec, video_root, nframes, no_video=False):
+def build_messages(rec, video_root, nframes, no_video=False, reasoning=True):
     options = rec["options"]
     is_yesno = all(o.strip().strip(".").lower() in ("yes", "no") for o in options)
     # still-image records (image_1..N view images) share the text scaffold but
@@ -184,7 +251,8 @@ def build_messages(rec, video_root, nframes, no_video=False):
                 "within the <answer> </answer> tags.")
 
     question = rec["question"] + "\n" + "\n".join(options)
-    full_prompt = option_prompt + "\n" + QUESTION_TEMPLATE.format(Question=question) + "\n" + post
+    template = QUESTION_TEMPLATE if reasoning else QUESTION_TEMPLATE_DIRECT
+    full_prompt = option_prompt + "\n" + template.format(Question=question) + "\n" + post
 
     # interleave a text marker before each clip/view; with no_video (blind
     # baseline) keep the prompt text identical but attach zero visual input
