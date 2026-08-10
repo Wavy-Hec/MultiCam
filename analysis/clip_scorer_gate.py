@@ -48,6 +48,50 @@ def uniform_thumbs(vp, thumbs):
     return [Image.fromarray(fr).convert("RGB") for fr in frames]
 
 
+def _thumbs_small(args):
+    """Decode one clip's thumbnails in a worker process.
+
+    Decode dominates this gate — a 300 s MEVA .avi costs ~12 s to sample, so a
+    40-question CrossView run is ~70 minutes single-threaded and a full-pool run
+    is a day. Scoring is milliseconds by comparison. Frames are downscaled here,
+    inside the worker, because the whole point is to keep what crosses the
+    process boundary small; both scorers resize to 224/384 anyway, so nothing
+    the model sees changes.
+    """
+    vp, thumbs, px = args
+    try:
+        ims = uniform_thumbs(vp, thumbs)
+    except Exception as e:
+        return vp, None, f"{type(e).__name__}: {e}"
+    out = []
+    for im in ims:
+        w, h = im.size
+        s = px / max(w, h)
+        out.append(im.resize((max(1, int(w * s)), max(1, int(h * s)))) if s < 1.0 else im)
+    return vp, out, None
+
+
+def decode_thumbs(paths, thumbs, px=384, workers=0):
+    """{path: [PIL] or None} for every unique path, decoded in parallel."""
+    uniq = list(dict.fromkeys(paths))
+    cache, errs = {}, {}
+    if workers and len(uniq) > 1:
+        from concurrent.futures import ProcessPoolExecutor
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            for vp, ims, err in ex.map(_thumbs_small,
+                                       [(p, thumbs, px) for p in uniq], chunksize=1):
+                cache[vp] = ims
+                if err:
+                    errs[vp] = err
+    else:
+        for p in uniq:
+            vp, ims, err = _thumbs_small((p, thumbs, px))
+            cache[vp] = ims
+            if err:
+                errs[vp] = err
+    return cache, errs
+
+
 def load_scorer(model_id):
     import torch
     from transformers import AutoModel, AutoProcessor
@@ -171,6 +215,11 @@ def main():
                     default=["openai/clip-vit-base-patch32",
                              "google/siglip-so400m-patch14-384"])
     ap.add_argument("--thumbs", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=0,
+                    help="parallel decode processes (decode dominates; 0 = serial)")
+    ap.add_argument("--thumb-px", type=int, default=384,
+                    help="longest side thumbnails are downscaled to before scoring")
+    ap.add_argument("--limit", type=int, default=0, help="first N questions only")
     ap.add_argument("--per-option", action="store_true",
                     help="score each answer option SEPARATELY and reduce by max "
                          "over options (meeting follow-up 1); the question is "
@@ -186,6 +235,8 @@ def main():
     args = ap.parse_args()
 
     recs = json.load(open(args.subset))
+    if args.limit:
+        recs = recs[:args.limit]
     primary, secondary, allq = [], [], []   # (rec, paths, target 1-based)
     for rec in recs:
         paths = video_paths(rec, args.video_root)
@@ -214,6 +265,15 @@ def main():
                   f"{ {k: ks.count(k) for k in sorted(set(ks))} }  "
                   f"random recall@1 {100.0 * np.mean([1.0 / k for k in ks]):.1f}%")
 
+    all_paths = [vp for _, paths, _ in allq for vp in paths]
+    print(f"decoding {len(set(all_paths))} unique clip(s) "
+          f"x {args.thumbs} thumbs with {args.workers or 1} worker(s) ...")
+    thumb_cache, decode_errs = decode_thumbs(all_paths, args.thumbs,
+                                             args.thumb_px, args.workers)
+    if decode_errs:
+        print(f"  {len(decode_errs)} clip(s) failed to decode; first: "
+              f"{list(decode_errs.items())[0]}")
+
     dump = []
     for model_id in args.models:
         mode = ("per-option (max over options, question unused)" if args.per_option
@@ -232,7 +292,10 @@ def main():
                 per_clip = {"max": [], "mean": [], "by_option": []}
                 for vp in paths:
                     try:
-                        sims = clip_scores(bundle, text, uniform_thumbs(vp, args.thumbs))
+                        ims = thumb_cache.get(vp)
+                        if not ims:
+                            raise ValueError(decode_errs.get(vp, "no thumbnails"))
+                        sims = clip_scores(bundle, text, ims)
                         if sims.ndim == 2:
                             # [thumbs, options] -> best thumb per option, then the
                             # max across options is the clip's score (follow-up 1)

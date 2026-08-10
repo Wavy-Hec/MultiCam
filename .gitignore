@@ -81,3 +81,8 @@ __pycache__/
 # a home under analysis/figs_deck/ (ignored above) and are rebuilt from a script;
 # anything that lands loose here is a scratch export, not a tracked artifact.
 /*.png
+
+# regenerable analysis outputs (code ships, results do not)
+analysis/counting_failures_*.md
+analysis/counting_failures_*.json
+analysis/records/
