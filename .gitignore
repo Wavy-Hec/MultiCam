@@ -85,3 +85,10 @@ __pycache__/
 # and carry unpublished numbers. docs/ is already ignored above; this catches
 # the ones that land in the repo root (e.g. the shared multi-camera writeup).
 *.pdf
+/*meeting*.md
+/*Meeting*.md
+
+# Hand-saved figures and screenshots dropped at the repo root. Deck figures have
+# a home under analysis/figs_deck/ (ignored above) and are rebuilt from a script;
+# anything that lands loose here is a scratch export, not a tracked artifact.
+/*.png
