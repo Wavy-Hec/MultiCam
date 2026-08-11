@@ -62,6 +62,43 @@ LEGS = [
          glob="bench_allangles_egohumans_qa_cvbench_aabfull_shard*.jsonl", budget="stills, cell_px=448"),
     dict(dataset="All-Angles", backend="InternVL3-8B", subset="allangles_egohumans_qa.json",
          glob="bench_allangles_egohumans_qa_internvl_aabblind*.jsonl", budget="no images"),
+
+    # --- reasoning-off / temp-0.1 campaign (2026-08-10 onward) --------------
+    # Everything above ran reasoning ON at temp 0.7. These legs are the SECOND
+    # protocol and are not comparable to it, which is why every row now records
+    # `protocol` — the old table carried no temperature or reasoning field at
+    # all, so the two campaigns were indistinguishable once exported.
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_t1iv_shard*.jsonl", budget="8 frames/video"),
+    dict(dataset="MVU-Eval", backend="Qwen2.5-VL-7B-Instruct", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_cvbench_t1q25_shard*.jsonl", budget="8 frames/video"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_internvl_t1iv_shard*.jsonl", budget="8 frames/video"),
+    dict(dataset="CrossView-MEVA", backend="Qwen2.5-VL-7B-Instruct",
+         subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_cvbench_t1q25_shard*.jsonl", budget="8 frames/video"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_*_shard*.jsonl", budget="8 frames/video"),
+    dict(dataset="CrossView-EgoExo", backend="Qwen2.5-VL-7B-Instruct",
+         subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_cvbench_*_shard*.jsonl", budget="8 frames/video"),
+    dict(dataset="All-Angles", backend="InternVL3-8B", subset="allangles_qa.json",
+         glob="bench_allangles_qa_internvl_t1iv_shard*.jsonl", budget="stills, cell_px=448"),
+    dict(dataset="All-Angles", backend="Qwen2.5-VL-7B-Instruct", subset="allangles_qa.json",
+         glob="bench_allangles_qa_cvbench_t1q25_shard*.jsonl", budget="stills, cell_px=448"),
+    # frame sweep: sequential arm only, InternVL3 only, two video pools
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_fs32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_fs64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_fs96_shard*.jsonl", budget="96 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_internvl_fs32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_internvl_fs64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_internvl_fs96_shard*.jsonl", budget="96 frames total"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]
@@ -94,12 +131,24 @@ def main():
             subsets[spath] = ({r["id"]: r for r in recs}, sha256(spath), len(recs))
         by_id, ssha, n_pool = subsets[spath]
 
-        files = sorted(glob.glob(os.path.join(RES, leg["glob"])))
+        # Prefer the rescored copies. The old answer parser dropped any tagless
+        # response over 40 chars, which is how InternVL3 answers with reasoning
+        # off, so the raw rows under-report it by up to 8 points — and this file
+        # is what gets read before launching anything.
+        files = sorted(glob.glob(os.path.join(RES, "rescored", leg["glob"])))
+        rescored = bool(files)
+        if not files:
+            files = sorted(glob.glob(os.path.join(RES, leg["glob"])))
         if not files:
             continue
         # per (method, id) accumulators for the question-level file
         agg = defaultdict(list)
         seen_methods, n_rows = set(), 0
+        # protocol accumulators: the LEGS table's `budget` is a hand-written
+        # label, so without these the export cannot tell the reasoning-on/temp-0.7
+        # campaign from the reasoning-off/temp-0.1 one
+        proto = defaultdict(set)
+        n_think = 0
         for path in files:
             with open(path) as fh:
                 for line in fh:
@@ -144,6 +193,13 @@ def main():
                     n_rows += 1
                     seen_methods.add(r["method"])
                     agg[(r["method"], r["id"])].append(rec)
+                    n_think += bool(r.get("think"))
+                    if r.get("temperature") is not None:
+                        proto["temperature"].add(r["temperature"])
+                    fa = r.get("frame_alloc") or {}
+                    for k in ("total_frames", "cell_px", "max_tiles"):
+                        if fa.get(k) is not None:
+                            proto[k].add(fa[k])
 
         for (method, qid), rs in sorted(agg.items()):
             r0 = rs[0]
@@ -184,6 +240,18 @@ def main():
                 "accuracy_pct": round(100 * sum(r["correct"] for r in rs) / len(rs), 2),
                 "errors": sum(1 for r in rs if r["error"]),
                 "glob": leg["glob"],
+                "rescored": rescored,
+                # reasoning is read off the traces, not the launch env: with
+                # REASONING=0 the direct-answer template leaves `think` empty
+                "protocol": {
+                    "temperature": sorted(proto["temperature"]),
+                    "reasoning": ("off" if n_think == 0 else
+                                  "on" if n_think == n_rows else
+                                  f"mixed ({100*n_think//max(n_rows,1)}% traced)"),
+                    "total_frames": sorted(proto["total_frames"]) or None,
+                    "cell_px": sorted(proto["cell_px"]) or None,
+                    "max_tiles": sorted(proto["max_tiles"]) or None,
+                },
             })
 
     frec.close()
