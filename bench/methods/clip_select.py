@@ -602,20 +602,17 @@ class ClipScoreSelectMethod(Method):
         fallback = None
         query, qmode = query_for(rec, self.query)
         smax, smean = [], []
+        # a per-clip scoring failure raises: swallowing it to -inf silently
+        # demoted that clip (or, all failing, degraded the arm to select-ALL
+        # with error=null) — rows that look guided while carrying no guidance
         for vp in paths:
-            try:
-                mx, mn = self._score_clip(vp, query)
-            except Exception:
-                mx, mn = float("-inf"), float("-inf")
+            mx, mn = self._score_clip(vp, query)
             smax.append(mx)
             smean.append(mn)
         m = min(self.top_m, K)
         ranking = smax if self.stat == "max" else smean
-        if all(x == float("-inf") for x in ranking):  # scoring failed everywhere
-            sel_idx, fallback = list(range(1, K + 1)), "fallback:score_error_all"
-        else:
-            order = sorted(range(K), key=lambda i: -ranking[i])
-            sel_idx = sorted(i + 1 for i in order[:m])
+        order = sorted(range(K), key=lambda i: -ranking[i])
+        sel_idx = sorted(i + 1 for i in order[:m])
 
         content, nframes = present_selected(paths, durs, ncaps, sel_idx,
                                             self.budget, self.floor, scaffold)
@@ -696,22 +693,40 @@ class FrameSelectMethod(Method):
         return self._clip
 
     def _candidates(self, vp):
-        """Up to candidates_per_video uniform (time_s, PIL) frames, or [] on
-        decode failure — the pool this clip contributes to the global ranking."""
+        """Up to candidates_per_video uniform (time_s, PIL) frames — the pool
+        this clip contributes to the global ranking.
+
+        Same recovery policy as the montage path (stitch.decode_grid): decord
+        flakiness costs only the failed indices, but a clip with no readable
+        frames at all raises — that is a missing file or a wrong --video-root,
+        and swallowing it let this arm answer from partial (or zero) visual
+        input with error=null while the centralized complement raised on the
+        very same record, inventing an arm difference out of error handling.
+        """
         from PIL import Image
         try:
             vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
             n = len(vr)
-            if n <= 0:
-                return []
             fps = float(vr.get_avg_fps())
-            k = min(self.candidates_per_video, n)
-            idx = sorted({min(n - 1, int((j + 0.5) * n / k)) for j in range(k)})
-            frames = vr.get_batch(idx).asnumpy()
-            return [((fi / fps) if fps > 0 else None,
-                     Image.fromarray(fr).convert("RGB")) for fi, fr in zip(idx, frames)]
-        except Exception:
-            return []
+        except Exception as e:
+            kind = "missing" if not os.path.exists(vp) else type(e).__name__
+            raise FileNotFoundError(
+                f"unreadable clip {vp} ({kind}) — check --video-root") from e
+        if n <= 0:
+            raise FileNotFoundError(f"unreadable clip {vp} (0 frames)")
+        k = min(self.candidates_per_video, n)
+        idx = sorted({min(n - 1, int((j + 0.5) * n / k)) for j in range(k)})
+        out = []
+        for fi in idx:
+            try:
+                fr = vr[fi].asnumpy()
+            except Exception:
+                continue
+            out.append(((fi / fps) if fps > 0 else None,
+                        Image.fromarray(fr).convert("RGB")))
+        if not out:
+            raise FileNotFoundError(f"unreadable clip {vp} (no decodable frames)")
+        return out
 
     def _resize(self, im):
         w, h = im.size
@@ -745,26 +760,22 @@ class FrameSelectMethod(Method):
         # record contributes no decodable frames at all
         query, qmode = query_for(rec, self.query)
         if not pool:
-            sel = []
-            fallback = "fallback:no_frames"
+            # _candidates raises per clip, so an empty pool means K==0 slipped
+            # past require_video_record — a malformed record, not flakiness
+            raise FileNotFoundError("no candidate frames from any clip")
         else:
-            try:
-                scores = clip_scores(self._ensure_clip(), query, [im for _, _, im in pool])
-                if scores.ndim == 2:
-                    # [frames, options] -> a frame's score is its best option.
-                    # Reduced over options, not thumbs, because here the ranking
-                    # unit IS the frame: keep the frames that any one answer
-                    # choice would retrieve.
-                    scores = scores.max(axis=1)
-            except Exception as e:
-                scores = None
-                score_err = f"{type(e).__name__}: {e}"
-            if scores is None:                        # scoring failed -> uniform stride
-                fallback = f"fallback:score_error:{score_err}"
-                step = max(1, len(pool) // self.budget)
-                order = list(range(0, len(pool), step))
-            else:
-                order = sorted(range(len(pool)), key=lambda j: -float(scores[j]))
+            # A scorer failure here (weights not cached, class missing from the
+            # env, OOM) must raise, not degrade: the silent uniform-stride
+            # fallback wrote rows indistinguishable from option-guided ones
+            # (error=null, errors=0 in the summary) with zero option guidance.
+            scores = clip_scores(self._ensure_clip(), query, [im for _, _, im in pool])
+            if scores.ndim == 2:
+                # [frames, options] -> a frame's score is its best option.
+                # Reduced over options, not thumbs, because here the ranking
+                # unit IS the frame: keep the frames that any one answer
+                # choice would retrieve.
+                scores = scores.max(axis=1)
+            order = sorted(range(len(pool)), key=lambda j: -float(scores[j]))
 
             # A plain order[:budget] lets the pooled ranking starve whole clips:
             # measured over the pre-fix rows, 39.9% lost >=1 camera view entirely

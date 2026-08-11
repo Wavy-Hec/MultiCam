@@ -95,7 +95,14 @@ class CentralizedMethod(Method):
                 # count. Floor instead: never exceed the budget, so the montage
                 # arm is never the flattered one, and record what was actually
                 # delivered so comparisons can use that rather than the nominal.
-                t = max(1, self.total_frames // len(paths))
+                # A budget below K cannot be honoured at all (one frame per
+                # camera already exceeds it); clamping to t=1 silently delivered
+                # K frames, the exact overshoot the floor exists to prevent.
+                if self.total_frames < len(paths):
+                    raise ValueError(
+                        f"total_frames={self.total_frames} < {len(paths)} views: "
+                        "the montage arm cannot hold this budget")
+                t = self.total_frames // len(paths)
             montages = build_montages(paths, nframes=max(self.nframes, t), T=t,
                                       cell_px=self.cell_px, label_prefix=self._label)
             prefix = self._prefix
