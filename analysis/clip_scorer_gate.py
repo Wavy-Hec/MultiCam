@@ -19,6 +19,7 @@ Usage (internvl env; works with HF_HUB_OFFLINE=1 once checkpoints are cached):
       --models openai/clip-vit-base-patch32 google/siglip-so400m-patch14-384
 """
 import argparse
+import collections
 import json
 import os
 import re
@@ -152,7 +153,37 @@ def groundable(rec, min_words=3):
 LETTERS = "ABCDEFGHIJKLM"
 
 
-def report_per_option(results, model_id):
+def modal_letter_floor(recs):
+    """Leave-one-out task-conditioned modal-letter floor.
+
+    1/n_options is the wrong baseline wherever the answer key is skewed, and
+    CrossView's is: 'C' is gold on 193 of 297 MEVA event-ordering questions and
+    'A' on 165 of 305 temporal ones. A guesser that knows only the task type and
+    answers its most common letter scores far above 1/n there, so a retriever
+    that merely tracks that skew would look like it had found visual signal.
+    Scored leave-one-out, so the floor is not fitted on the question it grades.
+
+    Returns {question_id: True/False} for whether the floor gets it right.
+    """
+    by_task = {}
+    for r in recs:
+        by_task.setdefault(r.get("task_type"), []).append(
+            str(r.get("answer", "")).strip().upper()[:1])
+    counts = {tt: collections.Counter(v) for tt, v in by_task.items()}
+    out = {}
+    for r in recs:
+        tt = r.get("task_type")
+        gold = str(r.get("answer", "")).strip().upper()[:1]
+        c = collections.Counter(counts[tt])
+        c[gold] -= 1                      # leave this question out
+        if not c or max(c.values()) <= 0:
+            out[r["id"]] = False
+            continue
+        out[r["id"]] = (max(c.items(), key=lambda kv: (kv[1], kv[0]))[0] == gold)
+    return out
+
+
+def report_per_option(results, model_id, floor=None):
     """Does the highest-scoring OPTION match the gold option?
 
     This is the metric that decides whether option-conditioned selection can
@@ -171,11 +202,12 @@ def report_per_option(results, model_id):
     for rec, pc in rows:
         strata["groundable" if groundable(rec) else "boilerplate/degenerate"].append((rec, pc))
     print("  per-option — does argmax(option) equal the gold option?")
-    print(f"  {'stratum':26s} {'n':>5} {'agree':>8} {'chance':>8} {'lift':>7}  by task_type")
+    print(f"  {'stratum':26s} {'n':>5} {'agree':>8} {'chance':>8} {'floor':>8} "
+          f"{'vs floor':>9}  by task_type")
     for name, rs in strata.items():
         if not rs:
             continue
-        hit, chance, by_tt = 0, [], {}
+        hit, chance, by_tt, fl = 0, [], {}, 0
         for rec, pc in rs:
             mat = [bo for bo in pc["by_option"] if bo]
             if not mat:
@@ -186,6 +218,8 @@ def report_per_option(results, model_id):
             ok = pred == str(rec.get("answer", "")).strip().upper()[:1]
             hit += ok
             chance.append(1.0 / n_opt)
+            if floor is not None:
+                fl += bool(floor.get(rec["id"], False))
             tt = str(rec.get("task_type", "?")).split("-")[-1]
             d = by_tt.setdefault(tt, [0, 0])
             d[0] += ok
@@ -195,10 +229,14 @@ def report_per_option(results, model_id):
         ag = 100.0 * hit / max(n, 1)
         tt_s = "  ".join(f"{k} {100.0*v[0]/v[1]:.0f}% ({v[1]})"
                          for k, v in sorted(by_tt.items()))
-        print(f"  {name:26s} {n:5d} {ag:7.1f}% {ch:7.1f}% {ag - ch:+6.1f}  {tt_s}")
-    print("  A lift near zero on the groundable stratum means the option text carries no "
-          "visual signal;\n  option-conditioned selection cannot beat question-conditioned "
-          "selection and 4a is not worth GPU time.")
+        fp = 100.0 * fl / max(n, 1) if floor is not None else float("nan")
+        print(f"  {name:26s} {n:5d} {ag:7.1f}% {ch:7.1f}% {fp:7.1f}% "
+              f"{ag - fp:+8.1f}  {tt_s}")
+    print("  'floor' is the leave-one-out task-conditioned modal-letter guesser; where the "
+          "answer key is\n  skewed it, not 1/n, is the number to beat. The degenerate stratum "
+          "is a negative control --\n  its options carry no visual content, so any lift it "
+          "shows is artefact, and the groundable\n  stratum only demonstrates visual signal "
+          "to the extent it clears BOTH the floor and that control.")
 
 
 def rank_of(target, scores):
@@ -265,6 +303,7 @@ def main():
                   f"{ {k: ks.count(k) for k in sorted(set(ks))} }  "
                   f"random recall@1 {100.0 * np.mean([1.0 / k for k in ks]):.1f}%")
 
+    floor = modal_letter_floor(recs)
     all_paths = [vp for _, paths, _ in allq for vp in paths]
     print(f"decoding {len(set(all_paths))} unique clip(s) "
           f"x {args.thumbs} thumbs with {args.workers or 1} worker(s) ...")
@@ -349,7 +388,7 @@ def main():
                   f"({100.0 * sec_hit / max(len(sec), 1):.0f}%)")
 
         if args.per_option:
-            report_per_option(results, model_id)
+            report_per_option(results, model_id, floor)
 
     if args.out:
         json.dump(dump, open(args.out, "w"), indent=1)
