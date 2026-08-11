@@ -61,17 +61,23 @@ SURFACE = "#fcfcfb"
 
 
 def load_leg(dataset, tag):
-    """Concatenated rows for one leg, preferring the rescored files.
+    """Concatenated rows for one leg, preferring the rescored copy of a shard.
 
     Shards are strided (data[offset::chunk]) so they are disjoint by question;
     a per-shard _summary.json covers only its own quarter and must never be read
     as the leg's accuracy. Concatenate first, aggregate second.
+
+    Merged per SHARD, not per leg: preferring rescored/ wholesale would drop
+    any raw shard that landed after the last rescore pass, and the resulting
+    partial-pool point renders identically to a complete one (a missing shard
+    removes the same questions from all passes, so the balance check passes).
     """
     base = f"bench_{dataset}_{tag}_shard*.jsonl"
-    files = sorted(glob.glob(os.path.join(RES, "rescored", base)))
-    rescored = bool(files)
-    if not files:
-        files = sorted(glob.glob(os.path.join(RES, base)))
+    raw = {os.path.basename(p): p for p in glob.glob(os.path.join(RES, base))}
+    resc = {os.path.basename(p): p
+            for p in glob.glob(os.path.join(RES, "rescored", base))}
+    files = [resc.get(n) or raw[n] for n in sorted(set(raw) | set(resc))]
+    rescored = bool(resc) and set(raw) <= set(resc)
     rows = []
     for p in files:
         with open(p) as fh:
@@ -145,8 +151,13 @@ def main():
             pts[b] = (mean, std, balanced, nq)
         series[p["title"]] = pts
 
-    rows, rescored, _ = load_leg(STILL_PANEL["dataset"], STILL_PANEL["tag"])
+    rows, still_rescored, _ = load_leg(STILL_PANEL["dataset"], STILL_PANEL["tag"])
     still = point(rows)
+    if still and not still[3]:
+        notes.append(f"{STILL_PANEL['title']}: passes unbalanced "
+                     f"({still[2]} passes, {still[4]} questions) - tile flagged")
+    if rows and not still_rescored:
+        notes.append(f"{STILL_PANEL['title']}: RAW rows (run rescore_answers.py)")
     cell_px = max_tiles = None
     for r in rows:
         fa = r.get("frame_alloc") or {}
@@ -207,6 +218,11 @@ def main():
                 fontsize=34, color=SERIES, fontweight="bold")
         ax.text(0.5, 0.50, f"±{still[1]:.1f} over {still[2]} passes",
                 transform=ax.transAxes, ha="center", fontsize=9, color=INK2)
+        # same flag the frame panels stamp on their points; the tile must not
+        # render a mid-drain unbalanced average as if it were final
+        if not still[3]:
+            ax.text(0.5, 0.42, "unbalanced passes", transform=ax.transAxes,
+                    ha="center", fontsize=8, color="#e34948")
     else:
         ax.text(0.5, 0.58, "leg not finished", transform=ax.transAxes,
                 ha="center", fontsize=11, color=INK2)

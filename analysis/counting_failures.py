@@ -298,6 +298,19 @@ def main():
                      f"{fmt(s['over_pct'], pct=True)} | {fmt(s['under_pct'], pct=True)} | "
                      f"{fmt(s['exact_pct'], pct=True)} | {fmt(s['pass_flip_pct'], pct=True)} |")
 
+        # the control is keyed on (backend, temperature); say outright when a
+        # protocol has none, or every '—' above reads as a formatting shrug and
+        # the raw positive means get read as dedup
+        missing = sorted({(k[0], k[2]) for k in stats if k[1] != a.blind_method}
+                         - set(blind_by_backend))
+        if missing:
+            L.append("\n> **No blind control for:** "
+                     + ", ".join(f"{b} @ {p}" for b, p in missing)
+                     + ". Δ blind is undefined there — run a `blind` leg on the "
+                       "same pool at the same temperature before reading a raw "
+                       "positive mean as a dedup failure; the option-ordering "
+                       "language prior alone over-counts (+0.46 in the pilot).\n")
+
         # ---- mechanism mix -------------------------------------------------
         L.append("\n## Mechanism mix (one label per question, decided over its passes)\n")
         L.append("`dedup_failure` = every pass agrees and over-counts. `perception_miss` = agrees "
@@ -315,6 +328,14 @@ def main():
                 cells.append(f"{c} ({100*c/tot:.0f}%)")
             L.append(f"| {key[0]} | `{key[1]}` | {key[2]} | " + " | ".join(cells) + " |")
 
+        L.append("\n> **Temperature bounds what `random_guess` can mean here.** The guess "
+                 "label requires predictions to MOVE between passes, and pass-instability "
+                 "collapses with temperature (~78% of questions flip at `temp=0.7`, ~2% at "
+                 "`temp=0.1`): a near-greedy guesser repeats the same wrong letter and lands "
+                 "in `dedup_failure`/`perception_miss` by sign alone. On the low-temperature "
+                 "series, judge dedup by the Δ-blind signed error, not by the guess column "
+                 "being small.\n")
+
         # ---- the task1_spec hypothesis -------------------------------------
         L.append("\n## Hypothesis test — decentralized should over-count more than centralized\n")
         L.append("`docs/task1_spec.md` predicts the decentralized harness excels at per-view "
@@ -325,7 +346,10 @@ def main():
         for backend, proto in sorted({(k[0], k[2]) for k in stats}):
             ps = stats.get((backend, "per_stream", proto))
             ce = stats.get((backend, "centralized", proto))
-            if not ps or not ce:
+            # an arm whose every prediction failed to parse has mean None; skip
+            # the row rather than dying with the whole report unwritten
+            if (not ps or not ce or ps["mean_signed_err"] is None
+                    or ce["mean_signed_err"] is None):
                 continue
             d = ps["mean_signed_err"] - ce["mean_signed_err"]
             verdict = "as predicted" if d > 0 else "**opposite**"
