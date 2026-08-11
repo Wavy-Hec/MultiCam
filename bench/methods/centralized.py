@@ -86,13 +86,29 @@ class CentralizedMethod(Method):
             paths = video_paths(rec, video_root)
             t = self.T
             if self.total_frames:
-                t = max(1, round(self.total_frames / len(paths)))
+                # One montage is one timestep across ALL K cameras, so this arm
+                # can only ever deliver t*K frames for integer t — it cannot hit
+                # an arbitrary budget exactly unless K divides it. round() used
+                # to overshoot for some K (K=9, budget 32 -> 36 frames) and
+                # undershoot for others (K=13 -> 26), so the "equal frame budget"
+                # head-to-head was biased in a direction that flipped with camera
+                # count. Floor instead: never exceed the budget, so the montage
+                # arm is never the flattered one, and record what was actually
+                # delivered so comparisons can use that rather than the nominal.
+                t = max(1, self.total_frames // len(paths))
             montages = build_montages(paths, nframes=max(self.nframes, t), T=t,
                                       cell_px=self.cell_px, label_prefix=self._label)
             prefix = self._prefix
             alloc = {"kind": "montage", "T": t, "K": len(paths),
                      "frames_total": t * len(paths),
-                     "total_frames": self.total_frames or None}
+                     "total_frames": self.total_frames or None,
+                     # same reason as the still-image branch above: cell_px and
+                     # max_tiles set the whole visual budget and are otherwise
+                     # recoverable only from the sbatch log, which leaves every
+                     # video montage leg unauditable for tiling from its rows
+                     "cell_px": self.cell_px,
+                     "canvas_wh": list(montages[0].size) if montages else None,
+                     "max_tiles": getattr(self.backend, "max_tiles", None)}
         gold = gt_choice(rec["answer"], yn, letters=letters_of(rec))
         self._cache = {key: (montages, scaffold, yn, gold, len(paths), prefix, alloc)}  # last rec only
         return self._cache[key]

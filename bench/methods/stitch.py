@@ -56,18 +56,35 @@ def decode_aligned_frames(video_paths: List[str], nframes: int) -> List[List[Opt
             vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
             n = len(vr)
             idx = sample_frame_indices(n, nframes)
-            frames = [Image.fromarray(vr[i].asnumpy()).convert("RGB") for i in idx]
         except Exception as e:
             if not os.path.exists(vp):
                 unreadable.append(f"{vp} (missing)")
             else:
                 unreadable.append(f"{vp} ({type(e).__name__})")
-            frames = [None] * nframes  # decode failure -> black cells
+            per_cam.append([None] * nframes)  # cannot open -> all black cells
+            continue
+        # Decode frame by frame, not as one list comprehension: decord is flaky
+        # per index, and an all-or-nothing read let a single bad index blacken
+        # the whole camera. Only the failed timesteps go black now, so the
+        # surviving frames carry the view exactly as the docstring promises.
+        frames: List[Optional[Image.Image]] = []
+        for i in idx:
+            try:
+                frames.append(Image.fromarray(vr[i].asnumpy()).convert("RGB"))
+            except Exception:
+                frames.append(None)
+        if all(f is None for f in frames):
+            unreadable.append(f"{vp} (no decodable frames)")
         per_cam.append(frames)
-    if len(unreadable) == len(video_paths):
+    if unreadable:
+        # Raise on ANY unreadable clip, not only when every one fails. A montage
+        # built from K-1 black cells is still answerable, so the old rule let
+        # centralized score a confident prediction off a mostly-black canvas with
+        # error=null while per_stream and cvbench_native errored on the same
+        # files — inventing an arm difference out of a missing --video-root.
         raise FileNotFoundError(
-            f"none of the {len(video_paths)} clips could be opened — check "
-            f"--video-root. First: {unreadable[0]}")
+            f"{len(unreadable)} of {len(video_paths)} clips could not be read — "
+            f"check --video-root. First: {unreadable[0]}")
     return per_cam
 
 
