@@ -66,9 +66,11 @@ that export to launching a new job.
 
 ## Git
 
-- Push to `origin` only. `upstream` is the original CVBench repo; never push there, and
-  never `git push --all` — the local `backup/main-pre-scrub` branch holds an unpublished
-  draft.
+- `origin` is the only remote. The original CVBench repo used to be wired up as
+  `upstream` and was removed — this repo is not a GitHub fork of it, so nothing links
+  the two any more. Do not add it back.
+- Never `git push --all` — the local `backup/main-pre-scrub` branch holds an unpublished
+  draft and must stay local.
 - Keep results numbers, internal references and real names out of `README.md` and out of
   commit messages. Those belong in `docs/`, which is gitignored.
 - Rendered figures, stats snapshots and result rows are regenerable and stay untracked.
