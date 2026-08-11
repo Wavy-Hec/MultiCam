@@ -15,10 +15,15 @@
 #SBATCH --output=analysis/logs/%j.gate.out
 #SBATCH --error=analysis/logs/%j.gate.err
 #SBATCH -N 1
-#SBATCH -p sxmq,gpul40q
+#SBATCH -p sxmq
 ### gpuq belongs to the physics group — do not submit there without permission.
+### sxmq only, and a modest core count on purpose: this is a secondary job, and
+### the gpul40q nodes are 64-core, so a wide request there can leave a hole too
+### small for someone else's contiguous multi-core job. Scheduling here is FIFO
+### by job id, so a low-id job that cannot fit simply starves. Before widening
+### this, check: squeue -t PENDING -o "%.10i %.10P %.6C %.20r" | sort -n
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=12
 #SBATCH --time=04:00:00
 set -euo pipefail
 cd "$HOME/CVBench"
@@ -30,7 +35,7 @@ export DECORD_EOF_RETRY_MAX=20480
 SUBSET=${SUBSET:-analysis/crossview_meva_cap13.json}
 OUT=${OUT:-analysis/records/gate_peropt.json}
 MODELS=${MODELS:-openai/clip-vit-base-patch32}
-WORKERS=${WORKERS:-24}
+WORKERS=${WORKERS:-12}
 THUMBS=${THUMBS:-8}
 
 mkdir -p "$(dirname "$OUT")" analysis/logs
