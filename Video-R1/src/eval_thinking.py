@@ -139,10 +139,17 @@ def _body_to_letter(body, letters, options=None):
     #    CrossView temporal questions, not a refusal.
     if options:
         norm = re.sub(r"\W+", " ", body).strip().lower()
+        # the body may repeat the option's own "A." prefix. Strip it from the
+        # body as well as the option, or "a they approach the car" never matches
+        # "they approach the car". Requires the delimiter, so an option that
+        # simply begins with the word "A" is untouched.
+        norm_lead = re.sub(r"^\s*[A-Za-z]\s*[.)]\s*", "", body)
+        norm_lead = re.sub(r"\W+", " ", norm_lead).strip().lower()
         for i, opt in enumerate(options[:len(letters)]):
             otext = re.sub(r"^\s*[A-Za-z]\s*[.)]\s*", "", str(opt))
             otext = re.sub(r"\W+", " ", otext).strip().lower()
-            if otext and (norm == otext or norm.startswith(otext)):
+            if otext and any(n == otext or n.startswith(otext)
+                             for n in (norm, norm_lead)):
                 return letters[i].upper()
     # 3. an explicit refusal -> abstain
     if _REFUSAL.match(body):
@@ -155,6 +162,32 @@ def _body_to_letter(body, letters, options=None):
              if not (m.group(1) in ("a", "i"))}
     if len(found) == 1:
         return found.pop()
+    return ""
+
+
+def _leading_letter_option(body, letters, options):
+    """Map ``"A. <the option's own text>"`` to ``"A"``, else "".
+
+    This is the dominant reasoning-off shape on InternVL3, which answers with the
+    letter AND the option text and no tags at all. It is safe to trust at any
+    length precisely because the text after the letter has to BE that option — a
+    thinking trace that merely opens with "A." cannot match.
+    """
+    if not options:
+        return ""
+    m = re.match(r"\W*([" + letters + r"])\s*[.):]\s*(.+)", body,
+                 re.DOTALL | re.IGNORECASE)
+    if not m:
+        return ""
+    letter = m.group(1).upper()
+    i = letters.upper().index(letter)
+    if i >= len(options):
+        return ""
+    otext = re.sub(r"^\s*[A-Za-z]\s*[.)]\s*", "", str(options[i]))
+    otext = re.sub(r"\W+", " ", otext).strip().lower()
+    rest = re.sub(r"\W+", " ", m.group(2)).strip().lower()
+    if otext and (rest == otext or rest.startswith(otext)):
+        return letter
     return ""
 
 
@@ -175,12 +208,20 @@ def parse_choice(text, is_yesno, letters="ABCD", options=None):
     ms = list(_conclude_mc_re(letters).finditer(text))
     if ms:
         return ms[-1].group(1).upper()
-    # reasoning-off mode: the model may answer with a bare "B" and no tags at
-    # all. Only trust that on a SHORT response — running _body_to_letter over a
-    # long thinking trace would pick up incidental letters, which is exactly the
-    # failure the tag-missing fallback exists to avoid.
+    # reasoning-off mode: the model may answer with no tags at all, either as a
+    # bare "B" or as the full "B. <option text>".
     stripped = text.strip()
-    if stripped and len(stripped) <= 40:
+    if not stripped:
+        return ""
+    # the letter-plus-its-own-option-text shape is unambiguous however long it
+    # runs, and it is 98% of what the length cap below used to throw away.
+    lead = _leading_letter_option(stripped, letters, options)
+    if lead:
+        return lead
+    # anything else is only trusted on a SHORT response — running _body_to_letter
+    # over a long thinking trace would pick up incidental letters, which is
+    # exactly the failure the tag-missing fallback exists to avoid.
+    if len(stripped) <= 40:
         return _body_to_letter(stripped, letters, options)
     return ""
 
@@ -221,13 +262,31 @@ def image_paths(rec, image_root):
     return out
 
 
+# Prompt v2: enumerate every legal letter instead of eliding past six, and say
+# outright that the options are exhaustive. Both are answer-hygiene fixes, but
+# they change generation, so they are OFF by default — turning them on mid-
+# campaign would put a prompt difference across the dataset comparison and would
+# invalidate the completed legs that later runs are meant to be compared with.
+# Set STRICT_ANSWER_PROMPT=1 to run a clean v2 campaign.
+STRICT_ANSWER_PROMPT = os.environ.get("STRICT_ANSWER_PROMPT", "0") == "1"
+
+_NO_REFUSAL = (" The options are exhaustive: choose the single best one even if "
+               "you are uncertain. Do not answer N/A, none of the above, or "
+               "cannot be determined unless that is itself one of the options.")
+
+
 def _letters_phrase(letters):
     """Human phrasing of the letter range: "A, B, C, or D" (byte-identical to
     the original 4-option prompt), "A or B", "A, B, or C", and an elided
-    "A, B, ..., or J" once enumerating would bloat the prompt."""
+    "A, B, ..., or J" once enumerating would bloat the prompt.
+
+    The elision is a measured defect: on the 106 MVU-Eval records with 7-11
+    options the model is never told that F..I are legal, and abstains 6-21% of
+    the time there against 2-4% on 2-6 options. STRICT_ANSWER_PROMPT enumerates
+    them all."""
     if len(letters) == 2:
         return f"{letters[0]} or {letters[1]}"
-    if len(letters) <= 6:
+    if len(letters) <= 6 or STRICT_ANSWER_PROMPT:
         return ", ".join(letters[:-1]) + f", or {letters[-1]}"
     return f"{letters[0]}, {letters[1]}, ..., or {letters[-1]}"
 
@@ -249,6 +308,8 @@ def build_messages(rec, video_root, nframes, no_video=False, reasoning=True):
                          f"based on all the listed {unit}.")
         post = (f"Provide only the single option letter ({_letters_phrase(letters)}) "
                 "within the <answer> </answer> tags.")
+        if STRICT_ANSWER_PROMPT:
+            post += _NO_REFUSAL
 
     question = rec["question"] + "\n" + "\n".join(options)
     template = QUESTION_TEMPLATE if reasoning else QUESTION_TEMPLATE_DIRECT
