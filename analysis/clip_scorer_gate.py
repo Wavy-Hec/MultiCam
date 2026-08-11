@@ -31,7 +31,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))            # repo root -> bench pkg
 sys.path.insert(0, _HERE)                              # analysis/ scripts
 from decord import VideoReader, cpu                            # noqa: E402
-from bench.methods.clip_select import clip_scores              # noqa: E402
+from bench.methods.clip_select import clip_scores, option_texts  # noqa: E402
 from bench.reuse import video_paths                            # noqa: E402
 from clip_selection_diagnostic import VIDEO_RE, gold_option_video  # noqa: E402
 
@@ -109,18 +109,9 @@ def question_text(rec, with_options):
     return q
 
 
-OPT_PREFIX = re.compile(r"^\s*[A-Za-z]\s*[.)]\s*")   # == Video-R1/src/eval_thinking.py
-
-
-def option_texts(rec):
-    """The answer options as retrieval queries, letter prefix stripped.
-
-    This is the meeting's follow-up 1 formulation: score against EACH option and
-    reduce by max, with the question never used. Unlike --with-options, which
-    embeds one concatenated blob, each option is embedded on its own, so nothing
-    is lost to the text encoder's 64/77-token cap.
-    """
-    return [OPT_PREFIX.sub("", str(o)).strip() for o in rec.get("options", [])]
+# option_texts now lives in bench/methods/clip_select.py and is imported above:
+# the harness arm and this gate MUST build the query identically, or the gate
+# stops predicting what the arm will select.
 
 
 def groundable(rec, min_words=3):

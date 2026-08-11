@@ -137,9 +137,9 @@ class TemporalWeightedMethod(Method):
     name = "temporal_weighted"
 
     def __init__(self, backend, budget=64, floor=2, weighting="duration",
-                 nframes=8, max_new_tokens=8192, temperature=0.0):
+                 nframes=8, max_new_tokens=8192, temperature=0.0, reasoning=True):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
-                         temperature=temperature)
+                         temperature=temperature, reasoning=reasoning)
         self.budget = budget
         self.floor = floor
         self.weighting = weighting          # "duration" (weighted) | "even" (control)
@@ -164,7 +164,8 @@ class TemporalWeightedMethod(Method):
         if key in self._cache:
             return self._cache[key]
         require_video_record(rec, self.name)
-        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
+        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True,
+                                       reasoning=self.reasoning)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
         K = len(paths)

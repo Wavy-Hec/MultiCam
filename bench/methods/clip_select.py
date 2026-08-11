@@ -101,6 +101,38 @@ def clip_scores(clip_bundle, text, pil_frames, batch=32):
     out = np.concatenate(sims, axis=0)
     return out[:, 0] if one_text else out
 
+
+OPT_PREFIX = re.compile(r"^\s*[A-Za-z]\s*[.)]\s*")   # == Video-R1/src/eval_thinking.py
+
+
+def option_texts(rec):
+    """The answer options as retrieval queries, letter prefix stripped.
+
+    The meeting's follow-up 1 formulation: score against EACH option and reduce
+    by max, with the question never used. Each option is embedded on its own, so
+    nothing is lost to the text encoder's 64/77-token cap — unlike one
+    concatenated question+options blob, which is silently truncated.
+
+    ``analysis/clip_scorer_gate.py`` imports this so the offline gate and the
+    inference-time arm cannot drift: whatever the gate measures is what the arm
+    will actually select on.
+    """
+    return [OPT_PREFIX.sub("", str(o)).strip() for o in rec.get("options", [])]
+
+
+def query_for(rec, mode):
+    """(query, mode_actually_used) for a record under ``mode``.
+
+    Falls back to the question when a record carries no options, so an
+    option-guided leg can never silently score against an empty query — and the
+    row records which of the two it really used.
+    """
+    if mode == "options":
+        opts = [o for o in option_texts(rec) if o]
+        if opts:
+            return opts, "options"
+    return rec.get("question", ""), "question"
+
 # --------------------------------------------------------------------------- #
 # prompts                                                                      #
 # --------------------------------------------------------------------------- #
@@ -341,9 +373,9 @@ class SummarySelectMethod(Method):
 
     def __init__(self, backend, summaries_path, mode="route", budget=64, floor=2,
                  sel_max_new_tokens=512, nframes=8, max_new_tokens=8192,
-                 temperature=0.0):
+                 temperature=0.0, reasoning=True):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
-                         temperature=temperature)
+                         temperature=temperature, reasoning=reasoning)
         assert mode in ("route", "top1")
         self.mode = mode
         self.budget = budget
@@ -386,7 +418,8 @@ class SummarySelectMethod(Method):
         if key in self._cache:
             return self._cache[key]
         require_video_record(rec, self.name)
-        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
+        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True,
+                                       reasoning=self.reasoning)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
         rels = _rel_keys(rec)
@@ -496,9 +529,9 @@ class ClipScoreSelectMethod(Method):
     def __init__(self, backend, top_m=1, thumbs=8,
                  clip_model="openai/clip-vit-base-patch32", budget=64, floor=2,
                  nframes=8, max_new_tokens=8192, temperature=0.0,
-                 stat="max", name=None):
+                 stat="max", name=None, reasoning=True, query="question"):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
-                         temperature=temperature)
+                         temperature=temperature, reasoning=reasoning)
         self.top_m = int(top_m)
         self.thumbs = thumbs
         self.clip_model_name = clip_model
@@ -507,6 +540,8 @@ class ClipScoreSelectMethod(Method):
         if stat not in ("max", "mean"):
             raise ValueError(f"stat must be 'max' or 'mean', got {stat!r}")
         self.stat = stat
+        # "question" (historic) | "options" (the answer-choice-guided arm)
+        self.query = query
         # The CLI method string (e.g. clip_select_siglip_top2) is passed in as
         # name so rows/resume keys distinguish scorer variants; the bare
         # default keeps old clip_select_top1 rows compatible.
@@ -525,8 +560,11 @@ class ClipScoreSelectMethod(Method):
             self._clip = (model, proc, dev)
         return self._clip
 
-    def _score_clip(self, vp, question):
-        """(max_sim, mean_sim) of the question vs ``thumbs`` uniform thumbnails."""
+    def _score_clip(self, vp, query):
+        """(max_sim, mean_sim) of ``query`` vs ``thumbs`` uniform thumbnails.
+
+        ``query`` is the question (one string) or the answer options (a list).
+        """
         from PIL import Image
         vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
         n_total = len(vr)
@@ -536,7 +574,13 @@ class ClipScoreSelectMethod(Method):
                       for j in range(self.thumbs)})
         frames = vr.get_batch(idx).asnumpy()
         pil = [Image.fromarray(fr).convert("RGB") for fr in frames]
-        s = clip_scores(self._ensure_clip(), question, pil)
+        s = clip_scores(self._ensure_clip(), query, pil)
+        if s.ndim == 2:
+            # [thumbs, options] -> best thumb per option, then the max across
+            # options is the clip's score. Identical reduction to
+            # analysis/clip_scorer_gate.py, so the gate's measured retrieval
+            # accuracy predicts what this arm will select.
+            return float(s.max(axis=0).max()), float(s.mean(axis=0).max())
         return float(np.max(s)), float(np.mean(s))
 
     def _prepare(self, rec, video_root):
@@ -544,7 +588,8 @@ class ClipScoreSelectMethod(Method):
         if key in self._cache:
             return self._cache[key]
         require_video_record(rec, self.name)
-        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
+        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True,
+                                       reasoning=self.reasoning)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
         K = len(paths)
@@ -555,10 +600,11 @@ class ClipScoreSelectMethod(Method):
             ncaps.append(n)
 
         fallback = None
+        query, qmode = query_for(rec, self.query)
         smax, smean = [], []
         for vp in paths:
             try:
-                mx, mn = self._score_clip(vp, rec.get("question", ""))
+                mx, mn = self._score_clip(vp, query)
             except Exception:
                 mx, mn = float("-inf"), float("-inf")
             smax.append(mx)
@@ -585,6 +631,10 @@ class ClipScoreSelectMethod(Method):
             "thumbs": self.thumbs,
             "clip_model": self.clip_model_name,
             "sel_stat": self.stat,
+            # what the selector actually scored against, so an option-guided row
+            # is distinguishable from a question-guided one without the launch env
+            "query_mode": qmode,
+            "n_query_texts": len(query) if isinstance(query, list) else 1,
             "clip_scores_max": [None if x == float("-inf") else round(x, 4) for x in smax],
             "clip_scores_mean": [None if x == float("-inf") else round(x, 4) for x in smean],
             "durations_s": [round(d, 2) if d is not None else None for d in durs],
@@ -618,10 +668,12 @@ class FrameSelectMethod(Method):
     def __init__(self, backend, budget=64, candidates_per_video=32,
                  clip_model="openai/clip-vit-base-patch32", cell_px=448,
                  nframes=8, max_new_tokens=8192, temperature=0.0, name=None,
-                 floor=1):
+                 floor=1, reasoning=True, query="question"):
         super().__init__(backend, nframes=nframes, max_new_tokens=max_new_tokens,
-                         temperature=temperature)
+                         temperature=temperature, reasoning=reasoning)
         self.budget = int(budget)
+        # "question" (historic) | "options" (the answer-choice-guided arm)
+        self.query = query
         # Per-clip minimum, so a global ranking can never starve a whole camera.
         # The sibling arms get this via allocate_frames(floor=2); 1 is the least
         # that satisfies "never keep 0 frames of any clip" while leaving the
@@ -673,7 +725,8 @@ class FrameSelectMethod(Method):
         if key in self._cache:
             return self._cache[key]
         require_video_record(rec, self.name)
-        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True)
+        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True,
+                                       reasoning=self.reasoning)
         scaffold = base_msgs[0]["content"][0]["text"]
         paths = video_paths(rec, video_root)
         K = len(paths)
@@ -688,13 +741,21 @@ class FrameSelectMethod(Method):
 
         fallback = None
         floor, starved = 0, 0
+        # resolved before the guard so alloc_meta is populated even when the
+        # record contributes no decodable frames at all
+        query, qmode = query_for(rec, self.query)
         if not pool:
             sel = []
             fallback = "fallback:no_frames"
         else:
-            question = rec.get("question", "")
             try:
-                scores = clip_scores(self._ensure_clip(), question, [im for _, _, im in pool])
+                scores = clip_scores(self._ensure_clip(), query, [im for _, _, im in pool])
+                if scores.ndim == 2:
+                    # [frames, options] -> a frame's score is its best option.
+                    # Reduced over options, not thumbs, because here the ranking
+                    # unit IS the frame: keep the frames that any one answer
+                    # choice would retrieve.
+                    scores = scores.max(axis=1)
             except Exception as e:
                 scores = None
                 score_err = f"{type(e).__name__}: {e}"
@@ -767,6 +828,10 @@ class FrameSelectMethod(Method):
             "floor_clips_rescued": starved,
             "floor_fired": bool(starved),
             "clip_model": self.clip_model_name,
+            # what the selector actually scored against, so an option-guided row
+            # is distinguishable from a question-guided one without the launch env
+            "query_mode": qmode,
+            "n_query_texts": len(query) if isinstance(query, list) else 1,
             "selected_times_s": {v: [round(t, 2) if t is not None else None
                                      for t, _, _ in by_video[v]] for v in sorted(by_video)},
         }

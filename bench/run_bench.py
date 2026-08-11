@@ -46,16 +46,22 @@ METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
            "clip_select_top1": ClipScoreSelectMethod}
 
 # clip_select method names are generated, not enumerated: an optional scorer
-# tag (must be in SCORER_ALIASES) plus the top-m count, e.g.
-# clip_select_top2, clip_select_siglip_top1. The matched string becomes the
-# method's recorded name, so scorer variants never collide in rows/resume keys.
-CLIP_SELECT_RE = re.compile(r"^clip_select(?:_(?P<tag>[a-z0-9]+))?_top(?P<m>\d+)$")
+# tag (must be in SCORER_ALIASES), an optional _opt marker, then the top-m
+# count, e.g. clip_select_top2, clip_select_siglip_top1,
+# clip_select_siglip_opt_top1. The matched string becomes the method's recorded
+# name, so scorer and query variants never collide in rows/resume keys.
+# _opt scores frames against each ANSWER OPTION instead of the question — the
+# answer-choice-guided selection arm. The tag cannot itself be "opt".
+CLIP_SELECT_RE = re.compile(
+    r"^clip_select(?:_(?P<tag>(?!opt(?:_|$))[a-z0-9]+))?(?P<opt>_opt)?_top(?P<m>\d+)$")
 # single_view<i>: feed only view/clip i (methods/single_view.py); records with
 # fewer than i views are skipped, so single_view1..13 sweeps a mixed-K pool.
 SINGLE_VIEW_RE = re.compile(r"^single_view(?P<i>\d+)$")
 # frame_select: global top-budget frame selection across ALL clips (optional
-# scorer tag, e.g. frame_select_siglip); the budget comes from --budget.
-FRAME_SELECT_RE = re.compile(r"^frame_select(?:_(?P<tag>[a-z0-9]+))?$")
+# scorer tag, e.g. frame_select_siglip; optional _opt for option-guided
+# scoring); the budget comes from --budget.
+FRAME_SELECT_RE = re.compile(
+    r"^frame_select(?:_(?P<tag>(?!opt(?:_|$))[a-z0-9]+))?(?P<opt>_opt)?$")
 SCORER_ALIASES = {"siglip": "google/siglip-so400m-patch14-384",
                   "siglip2": "google/siglip2-so400m-patch14-384"}
 
@@ -114,13 +120,15 @@ def make_method(mname, backend, args):
         return TemporalWeightedMethod(backend, budget=args.budget, floor=args.floor,
                                       weighting=args.weighting, nframes=args.nframes,
                                       max_new_tokens=args.max_new_tokens,
-                                      temperature=args.temperature)
+                                      temperature=args.temperature,
+                                      reasoning=not args.no_reasoning)
     if mname.startswith("summary_select_"):
         return SummarySelectMethod(
             backend, summaries_path=args.summaries,
             mode=mname.rsplit("_", 1)[1], budget=args.budget, floor=args.floor,
             sel_max_new_tokens=args.sel_max_new_tokens, nframes=args.nframes,
-            max_new_tokens=args.max_new_tokens, temperature=args.temperature)
+            max_new_tokens=args.max_new_tokens, temperature=args.temperature,
+            reasoning=not args.no_reasoning)
     fm = FRAME_SELECT_RE.match(mname)
     if fm:
         tag = fm.group("tag")
@@ -133,7 +141,8 @@ def make_method(mname, backend, args):
             clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
             cell_px=args.cell_px, name=mname,
             nframes=args.nframes, max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature)
+            temperature=args.temperature, reasoning=not args.no_reasoning,
+            query="options" if fm.group("opt") else "question")
     mm = CLIP_SELECT_RE.match(mname)
     if mm:
         tag = mm.group("tag")
@@ -146,9 +155,11 @@ def make_method(mname, backend, args):
             stat=args.sel_stat, name=mname,
             budget=args.budget, floor=args.floor,
             nframes=args.nframes, max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature)
+            temperature=args.temperature, reasoning=not args.no_reasoning,
+            query="options" if mm.group("opt") else "question")
     return METHODS[mname](backend, nframes=args.nframes,
-                          max_new_tokens=args.max_new_tokens, temperature=args.temperature)
+                          max_new_tokens=args.max_new_tokens, temperature=args.temperature,
+                          reasoning=not args.no_reasoning)
 
 
 def load_done(path):
