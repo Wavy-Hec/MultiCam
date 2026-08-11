@@ -26,6 +26,9 @@ extract_answer = _et.extract_answer
 QUESTION_TEMPLATE = _et.QUESTION_TEMPLATE
 MAX_SLOTS = _et.MAX_SLOTS
 letters_for = _et.letters_for
+# the v2 prompt flag changes generation but lives only in the submit-time env;
+# rows must record it or v1/v2 legs are inseparable after the fact
+STRICT_ANSWER_PROMPT = _et.STRICT_ANSWER_PROMPT
 
 
 def letters_of(rec):

@@ -54,6 +54,9 @@ PERCEPTION_MAX_NEW_TOKENS=${PERCEPTION_MAX_NEW_TOKENS:-1024}  # per_stream per-v
 CELL_PX=${CELL_PX:-448}                # montage cell size (raise so centralized isn't token-starved vs native)
 INTERNVL_MAX_TILES=${INTERNVL_MAX_TILES:-1}
 REASONING=${REASONING:-1}              # 0 = direct-answer prompt, no <think> trace requested
+# v2 answer-hygiene prompt (enumerate all letters + no-refusal sentence). It
+# changes generation, so never flip it mid-campaign; rows record it either way.
+export STRICT_ANSWER_PROMPT=${STRICT_ANSWER_PROMPT:-0}
 VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. roots under data/)
 CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
@@ -84,7 +87,7 @@ if [ -n "$SUMMARIES" ]; then SUM_ARG=(--summaries "$SUMMARIES"); fi
 echo "GPU  @ $(hostname) $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | tr '\n' ';')"
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=$BUDGET weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
-echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING"
+echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
     --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" --stream-kind "$STREAM_KIND" \

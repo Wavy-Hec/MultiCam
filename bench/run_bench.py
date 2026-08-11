@@ -18,7 +18,7 @@ import os
 import re
 import socket
 
-from .reuse import DEFAULT_VIDEO_ROOT
+from .reuse import DEFAULT_VIDEO_ROOT, STRICT_ANSWER_PROMPT
 from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
 from .methods.cvbench_native import CVBenchNativeMethod
@@ -324,7 +324,8 @@ def main():
               "  Pass --allow-mixed only if you genuinely intend one mixed file.")
 
     print(f"subset={args.subset} n={len(data)} methods={methods} backends={backends} "
-          f"passes={args.passes} seeds={seeds} temp={args.temperature}")
+          f"passes={args.passes} seeds={seeds} temp={args.temperature} "
+          f"strict_prompt={int(STRICT_ANSWER_PROMPT)}")
     print(f"dataset={dataset} run_id={run_id} node={node}")
     print(f"video_root={args.video_root}\nout={out} (already done: {len(done)})", flush=True)
 
@@ -349,10 +350,25 @@ def main():
                         continue
                     res.pass_idx = pass_idx
                     res.dataset, res.run_id, res.node = dataset, run_id, node
-                    fh.write(json.dumps(res.to_dict(), ensure_ascii=False) + "\n")
+                    row = res.to_dict()
+                    # the strict prompt is a generation change visible only in
+                    # the submit-time env; stamp rows so v1/v2 never pool silently
+                    row["strict_prompt"] = STRICT_ANSWER_PROMPT
+                    fh.write(json.dumps(row, ensure_ascii=False) + "\n")
                     fh.flush()
 
-    rows = [json.loads(l) for l in open(out) if l.strip()]
+    # a SIGKILL mid-write (Slurm timeout) can leave one torn trailing line;
+    # load_done skips it on resume, so the summary must skip it too or the
+    # resumed job dies AFTER all its compute with no _summary.json
+    rows = []
+    with open(out) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
     print(metrics.format_summary(rows))
     sumpath = out.replace(".jsonl", "_summary.json")
     json.dump(metrics.summarize_by_method_backend_passes(rows), open(sumpath, "w"), indent=2)
