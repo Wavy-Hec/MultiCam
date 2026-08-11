@@ -145,11 +145,23 @@ def _body_to_letter(body, letters, options=None):
         # simply begins with the word "A" is untouched.
         norm_lead = re.sub(r"^\s*[A-Za-z]\s*[.)]\s*", "", body)
         norm_lead = re.sub(r"\W+", " ", norm_lead).strip().lower()
-        for i, opt in enumerate(options[:len(letters)]):
+        # a body that leads with its own valid letter AND that option's text
+        # names the option outright; honour the letter before any text-only
+        # matching, or an option set where one text prefixes another ("Video 1"
+        # / "Video 1 and Video 4") credits the shorter option
+        lead = _leading_letter_option(body, letters, options)
+        if lead:
+            return lead
+        texts = []
+        for opt in options[:len(letters)]:
             otext = re.sub(r"^\s*[A-Za-z]\s*[.)]\s*", "", str(opt))
-            otext = re.sub(r"\W+", " ", otext).strip().lower()
-            if otext and any(n == otext or n.startswith(otext)
-                             for n in (norm, norm_lead)):
+            texts.append(re.sub(r"\W+", " ", otext).strip().lower())
+        # exact whole-option quotes beat prefix matches, for the same reason
+        for i, otext in enumerate(texts):
+            if otext and (norm == otext or norm_lead == otext):
+                return letters[i].upper()
+        for i, otext in enumerate(texts):
+            if otext and any(n.startswith(otext) for n in (norm, norm_lead)):
                 return letters[i].upper()
     # 3. an explicit refusal -> abstain
     if _REFUSAL.match(body):
