@@ -31,12 +31,15 @@ REPO = os.path.dirname(HERE)
 RES = os.path.join(REPO, "bench", "results")
 OUT = os.path.join(RES, "figs_task1_overview")
 
+# All-Angles parked 2026-08-13 (one photo per camera — outside the video-only
+# benchmark scope); --include-allangles restores its column. Floors are the
+# leave-one-out task-conditioned modal-letter baselines.
 POOLS = [
     ("crossview_meva_cap13", "CrossView-MEVA", 54.7),
-    ("crossview_egoexo500", "CrossView-EgoExo", None),
-    ("allangles_qa", "All-Angles", 30.4),
+    ("crossview_egoexo500", "CrossView-EgoExo", 27.8),
     ("mvueval_qa", "MVU-Eval", 26.0),
 ]
+ALLANGLES_POOL = ("allangles_qa", "All-Angles", 30.4)
 
 
 def fig_table1_overview():
@@ -76,7 +79,7 @@ def fig_table1_overview():
                        label="modal-letter floor (leave-one-out)")]
     ax.legend(handles=handles, ncol=3, frameon=False, loc="upper left",
               bbox_to_anchor=(0, 1.02), columnspacing=1.3, handlelength=1.5)
-    fig.suptitle("Overall accuracy — 4 pools × 3 harnesses × 2 backends",
+    fig.suptitle(f"Overall accuracy — {len(POOLS)} pools × 3 harnesses × 2 backends",
                  x=0.06, y=0.975, ha="left", fontsize=15.5, fontweight="bold", color=INK)
     fig.text(0.06, 0.905, "8 frames/view · reasoning off · temp 0.1 · 4 passes · error bars = ±std",
              ha="left", fontsize=11.5, color=INK2)
@@ -139,6 +142,15 @@ def fig_counting_signed_err():
 
 
 if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--include-allangles", action="store_true",
+                    help="restore the parked All-Angles column in the overview")
+    args = ap.parse_args()
+    if args.include_allangles:
+        POOLS.insert(2, ALLANGLES_POOL)
     os.makedirs(OUT, exist_ok=True)
     fig_table1_overview()
+    # counting stays: item 5a's evidence base is All-Angles by construction
+    # (the only pool with numeric counting), parked or not
     fig_counting_signed_err()

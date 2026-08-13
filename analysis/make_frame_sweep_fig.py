@@ -130,6 +130,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(HERE, "figs_deck",
                                                   "fig_frame_sweep.png"))
+    ap.add_argument("--include-allangles", action="store_true",
+                    help="add the All-Angles stills budget tile (parked "
+                         "2026-08-13: the pool is one photo per camera, so it "
+                         "sits outside the video-only benchmark scope)")
     args = ap.parse_args()
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
 
@@ -151,20 +155,23 @@ def main():
             pts[b] = (mean, std, balanced, nq)
         series[p["title"]] = pts
 
-    rows, still_rescored, _ = load_leg(STILL_PANEL["dataset"], STILL_PANEL["tag"])
-    still = point(rows)
-    if still and not still[3]:
-        notes.append(f"{STILL_PANEL['title']}: passes unbalanced "
-                     f"({still[2]} passes, {still[4]} questions) - tile flagged")
-    if rows and not still_rescored:
-        notes.append(f"{STILL_PANEL['title']}: RAW rows (run rescore_answers.py)")
-    cell_px = max_tiles = None
-    for r in rows:
-        fa = r.get("frame_alloc") or {}
-        cell_px = fa.get("cell_px", cell_px)
-        max_tiles = fa.get("max_tiles", max_tiles)
+    still, cell_px, max_tiles = None, None, None
+    if args.include_allangles:
+        rows, still_rescored, _ = load_leg(STILL_PANEL["dataset"], STILL_PANEL["tag"])
+        still = point(rows)
+        if still and not still[3]:
+            notes.append(f"{STILL_PANEL['title']}: passes unbalanced "
+                         f"({still[2]} passes, {still[4]} questions) - tile flagged")
+        if rows and not still_rescored:
+            notes.append(f"{STILL_PANEL['title']}: RAW rows (run rescore_answers.py)")
+        for r in rows:
+            fa = r.get("frame_alloc") or {}
+            cell_px = fa.get("cell_px", cell_px)
+            max_tiles = fa.get("max_tiles", max_tiles)
 
-    fig, axes = plt.subplots(1, 3, figsize=(12.6, 4.0), sharey=True)
+    ncols = 3 if args.include_allangles else 2
+    fig, axes = plt.subplots(1, ncols, figsize=(4.2 * ncols + 0.2, 4.0),
+                             sharey=True)
     fig.patch.set_facecolor(SURFACE)
     floors = []
 
@@ -204,39 +211,40 @@ def main():
         ax.set_xlabel("total frames per question", fontsize=9, color=INK2)
         ax.set_title(p["title"], fontsize=11, color=INK, loc="left", pad=10)
 
-    # All-Angles: a budget statement, not a fake curve. A single value is a stat
-    # tile, not a one-point line.
-    ax = axes[2]
-    style(ax)
-    ax.set_xticks([])
-    for s in ("left", "bottom"):
-        ax.spines[s].set_visible(False)
-    ax.grid(False)
-    ax.set_title(STILL_PANEL["title"], fontsize=11, color=INK, loc="left", pad=10)
-    if still:
-        ax.text(0.5, 0.60, f"{still[0]:.1f}%", transform=ax.transAxes, ha="center",
-                fontsize=34, color=SERIES, fontweight="bold")
-        ax.text(0.5, 0.50, f"±{still[1]:.1f} over {still[2]} passes",
-                transform=ax.transAxes, ha="center", fontsize=9, color=INK2)
-        # same flag the frame panels stamp on their points; the tile must not
-        # render a mid-drain unbalanced average as if it were final
-        if not still[3]:
-            ax.text(0.5, 0.42, "unbalanced passes", transform=ax.transAxes,
-                    ha="center", fontsize=8, color="#e34948")
-    else:
-        ax.text(0.5, 0.58, "leg not finished", transform=ax.transAxes,
-                ha="center", fontsize=11, color=INK2)
-    budget_txt = "still images — frame budget does not apply"
-    if cell_px:
-        budget_txt += f"\nvisual budget: cell_px={cell_px}"
-        if max_tiles:
-            budget_txt += f", max_tiles={max_tiles}"
-    ax.text(0.5, 0.30, budget_txt, transform=ax.transAxes, ha="center",
-            fontsize=8.5, color=INK2, linespacing=1.5)
-    fl = floor_pct(STILL_PANEL["subset"])
-    if fl:
-        ax.text(0.5, 0.16, f"modal-letter floor {fl:.1f}%", transform=ax.transAxes,
-                ha="center", fontsize=8, color=INK2)
+    if args.include_allangles:
+        # All-Angles: a budget statement, not a fake curve. A single value is a
+        # stat tile, not a one-point line.
+        ax = axes[2]
+        style(ax)
+        ax.set_xticks([])
+        for s in ("left", "bottom"):
+            ax.spines[s].set_visible(False)
+        ax.grid(False)
+        ax.set_title(STILL_PANEL["title"], fontsize=11, color=INK, loc="left", pad=10)
+        if still:
+            ax.text(0.5, 0.60, f"{still[0]:.1f}%", transform=ax.transAxes, ha="center",
+                    fontsize=34, color=SERIES, fontweight="bold")
+            ax.text(0.5, 0.50, f"±{still[1]:.1f} over {still[2]} passes",
+                    transform=ax.transAxes, ha="center", fontsize=9, color=INK2)
+            # same flag the frame panels stamp on their points; the tile must not
+            # render a mid-drain unbalanced average as if it were final
+            if not still[3]:
+                ax.text(0.5, 0.42, "unbalanced passes", transform=ax.transAxes,
+                        ha="center", fontsize=8, color="#e34948")
+        else:
+            ax.text(0.5, 0.58, "leg not finished", transform=ax.transAxes,
+                    ha="center", fontsize=11, color=INK2)
+        budget_txt = "still images — frame budget does not apply"
+        if cell_px:
+            budget_txt += f"\nvisual budget: cell_px={cell_px}"
+            if max_tiles:
+                budget_txt += f", max_tiles={max_tiles}"
+        ax.text(0.5, 0.30, budget_txt, transform=ax.transAxes, ha="center",
+                fontsize=8.5, color=INK2, linespacing=1.5)
+        fl = floor_pct(STILL_PANEL["subset"])
+        if fl:
+            ax.text(0.5, 0.16, f"modal-letter floor {fl:.1f}%",
+                    transform=ax.transAxes, ha="center", fontsize=8, color=INK2)
 
     # headroom so the floor rule and the end-point labels never touch the spine
     vals = [v[0] for p in series.values() for v in p.values()]
