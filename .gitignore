@@ -83,6 +83,6 @@ __pycache__/
 /*.png
 
 # regenerable analysis outputs (code ships, results do not)
-analysis/counting_failures_*.md
-analysis/counting_failures_*.json
+analysis/counting_failures*.md
+analysis/counting_failures*.json
 analysis/records/
