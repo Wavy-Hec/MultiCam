@@ -27,6 +27,8 @@ from .methods.blind import BlindMethod
 from .methods.single_view import SingleViewMethod
 from .methods.clip_select import (SummarySelectMethod, ClipScoreSelectMethod,
                                   FrameSelectMethod)
+from .methods.option_union import (OptionUnionFrameSelect, OptionUnionClipSelect,
+                                   QuerySearchMethod)
 from .backends.qwen import QwenBackend, QWEN_ALIASES
 from . import metrics
 
@@ -65,6 +67,19 @@ FRAME_SELECT_RE = re.compile(
 SCORER_ALIASES = {"siglip": "google/siglip-so400m-patch14-384",
                   "siglip2": "google/siglip2-so400m-patch14-384"}
 
+# Option-union arms (Follow-up 1): a frame/clip is kept when ANY answer
+# option's similarity threshold passes (--sel-tau / --sel-tau-q); the kept
+# sets are unioned. The clip-level arm additionally accepts the scorer tag
+# 'viclip' (video-native joint 8-frame embedding, loaded from VICLIP_DIR —
+# not an HF transformers id, so it is deliberately absent from SCORER_ALIASES).
+OPTION_UNION_FRAME_RE = re.compile(
+    r"^frame_select(?:_(?P<tag>(?!optu(?:_|$))[a-z0-9]+))?_optu$")
+OPTION_UNION_CLIP_RE = re.compile(
+    r"^clip_select(?:_(?P<tag>(?!optu(?:_|$))[a-z0-9]+))?_optu$")
+# Tool-based query search (Follow-up 2): the backend writes visual search
+# phrases from Question+Options, CLIP/SigLIP retrieves the frames.
+QUERY_SEARCH_RE = re.compile(r"^query_search(?:_(?P<tag>[a-z0-9]+))?$")
+
 # alias -> HF id (cached locally; runs under the `internvl` conda env, NOT cvbench,
 # because cvbench's transformers breaks the InternVL3 remote code).
 INTERNVL_ALIASES = {"internvl3": "OpenGVLab/InternVL3-8B"}
@@ -87,6 +102,13 @@ def make_backend(alias, nframes=8, internvl_max_tiles=1):
 
 
 def make_method(mname, backend, args):
+    # --budget omitted (None): legacy selection arms keep their historic 64;
+    # the _optu/query_search arms default to matched (0 -> nframes x K inside
+    # the method). The legacy arms do NOT implement the 0 convention — at
+    # budget 0 frame_select would answer BLIND with error=null — so explicit
+    # 0 is rejected for them in the validation loop below.
+    legacy_budget = 64 if args.budget is None else args.budget
+    union_budget = 0 if args.budget is None else args.budget
     if mname == "centralized":
         return CentralizedMethod(backend, nframes=args.nframes,
                                  max_new_tokens=args.max_new_tokens,
@@ -117,7 +139,7 @@ def make_method(mname, backend, args):
                                 temperature=args.temperature, name=mname,
                                 reasoning=not args.no_reasoning)
     if mname == "temporal_weighted":
-        return TemporalWeightedMethod(backend, budget=args.budget, floor=args.floor,
+        return TemporalWeightedMethod(backend, budget=legacy_budget, floor=args.floor,
                                       weighting=args.weighting, nframes=args.nframes,
                                       max_new_tokens=args.max_new_tokens,
                                       temperature=args.temperature,
@@ -125,10 +147,59 @@ def make_method(mname, backend, args):
     if mname.startswith("summary_select_"):
         return SummarySelectMethod(
             backend, summaries_path=args.summaries,
-            mode=mname.rsplit("_", 1)[1], budget=args.budget, floor=args.floor,
+            mode=mname.rsplit("_", 1)[1], budget=legacy_budget, floor=args.floor,
             sel_max_new_tokens=args.sel_max_new_tokens, nframes=args.nframes,
             max_new_tokens=args.max_new_tokens, temperature=args.temperature,
             reasoning=not args.no_reasoning)
+    ouf = OPTION_UNION_FRAME_RE.match(mname)
+    if ouf:
+        tag = ouf.group("tag")
+        if tag == "viclip":
+            raise SystemExit(
+                "frame_select_viclip_optu: ViCLIP embeds a whole clip jointly "
+                "and has no per-frame scores — use clip_select_viclip_optu, or "
+                "a CLIP/SigLIP tag for the frame-level arm.")
+        if tag and tag not in SCORER_ALIASES:
+            raise SystemExit(f"unknown frame_select scorer tag '{tag}'. "
+                             f"Known: {list(SCORER_ALIASES)}")
+        return OptionUnionFrameSelect(
+            backend, tau=args.sel_tau, tau_q=args.sel_tau_q,
+            budget=union_budget, candidates_per_video=args.frame_candidates,
+            clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
+            cell_px=args.cell_px, name=mname,
+            nframes=args.nframes, max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature, reasoning=not args.no_reasoning)
+    ouc = OPTION_UNION_CLIP_RE.match(mname)
+    if ouc:
+        tag = ouc.group("tag")
+        if tag and tag != "viclip" and tag not in SCORER_ALIASES:
+            raise SystemExit(f"unknown clip_select scorer tag '{tag}'. "
+                             f"Known: {list(SCORER_ALIASES) + ['viclip']}")
+        scorer = ("viclip" if tag == "viclip"
+                  else SCORER_ALIASES[tag] if tag else args.clip_model)
+        return OptionUnionClipSelect(
+            backend, scorer=scorer, tau=args.sel_tau, tau_q=args.sel_tau_q,
+            thumbs=args.sel_thumbs, budget=union_budget, floor=args.floor,
+            nframes=args.nframes, max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature, name=mname,
+            reasoning=not args.no_reasoning)
+    qs = QUERY_SEARCH_RE.match(mname)
+    if qs:
+        tag = qs.group("tag")
+        if tag == "viclip":
+            raise SystemExit("query_search_viclip: ViCLIP has no per-frame "
+                             "scores; use a CLIP/SigLIP tag.")
+        if tag and tag not in SCORER_ALIASES:
+            raise SystemExit(f"unknown query_search scorer tag '{tag}'. "
+                             f"Known: {list(SCORER_ALIASES)}")
+        return QuerySearchMethod(
+            backend, n_queries=args.n_queries,
+            query_max_new_tokens=args.query_max_new_tokens,
+            budget=union_budget, candidates_per_video=args.frame_candidates,
+            clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
+            cell_px=args.cell_px, name=mname,
+            nframes=args.nframes, max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature, reasoning=not args.no_reasoning)
     fm = FRAME_SELECT_RE.match(mname)
     if fm:
         tag = fm.group("tag")
@@ -136,7 +207,7 @@ def make_method(mname, backend, args):
             raise SystemExit(f"unknown frame_select scorer tag '{tag}'. "
                              f"Known: {list(SCORER_ALIASES)}")
         return FrameSelectMethod(
-            backend, budget=args.budget,
+            backend, budget=legacy_budget,
             candidates_per_video=args.frame_candidates,
             clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
             cell_px=args.cell_px, name=mname,
@@ -153,7 +224,7 @@ def make_method(mname, backend, args):
             backend, top_m=int(mm.group("m")), thumbs=args.sel_thumbs,
             clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
             stat=args.sel_stat, name=mname,
-            budget=args.budget, floor=args.floor,
+            budget=legacy_budget, floor=args.floor,
             nframes=args.nframes, max_new_tokens=args.max_new_tokens,
             temperature=args.temperature, reasoning=not args.no_reasoning,
             query="options" if mm.group("opt") else "question")
@@ -223,8 +294,24 @@ def main():
                          "model-side switch — the visible reasoning is produced BY the "
                          "prompt, so turning it off means asking for the answer directly. "
                          "Pair with a low --temperature.")
-    ap.add_argument("--budget", type=int, default=64,
-                    help="temporal_weighted: TOTAL frames per question, split across clips")
+    ap.add_argument("--budget", type=int, default=None,
+                    help="selection arms: TOTAL frames per question, split across clips. "
+                         "Omitted: the legacy selection arms keep their historic 64 and "
+                         "the _optu/query_search arms default to MATCHED (nframes x K, "
+                         "the sequential arm's budget). Explicit 0 = matched, and is "
+                         "only legal for the _optu/query_search arms")
+    ap.add_argument("--sel-tau", type=float, default=0.0,
+                    help="_optu arms: absolute per-option similarity cutoff "
+                         "(scorer-specific; calibrate with "
+                         "analysis/calibrate_union_tau.py); 0 = quantile mode")
+    ap.add_argument("--sel-tau-q", type=float, default=0.85,
+                    help="_optu arms: per-option quantile when --sel-tau is 0 — "
+                         "a frame/clip passes an option when it is in that "
+                         "option's top (1-q) fraction")
+    ap.add_argument("--n-queries", type=int, default=4,
+                    help="query_search: visual search phrases generated per question")
+    ap.add_argument("--query-max-new-tokens", type=int, default=256,
+                    help="query_search: token cap for the phrase-generation call")
     ap.add_argument("--total-frames", type=int, default=0,
                     help="centralized/cvbench_native/per_stream: hold the TOTAL frame "
                          "count per question fixed (split evenly across its clips) "
@@ -285,10 +372,31 @@ def main():
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
     for m in methods:
         if (m not in METHODS and not CLIP_SELECT_RE.match(m)
-                and not FRAME_SELECT_RE.match(m) and not SINGLE_VIEW_RE.match(m)):
+                and not FRAME_SELECT_RE.match(m) and not SINGLE_VIEW_RE.match(m)
+                and not OPTION_UNION_FRAME_RE.match(m)
+                and not OPTION_UNION_CLIP_RE.match(m)
+                and not QUERY_SEARCH_RE.match(m)):
             raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)} "
                              f"or clip_select[_<scorer>]_top<m> or frame_select[_<scorer>] "
-                             f"or single_view<i>")
+                             f"or frame_select[_<scorer>]_optu or clip_select[_<scorer>|_viclip]_optu "
+                             f"or query_search[_<scorer>] or single_view<i>")
+        # explicit --budget 0 is a matched-budget request only the new arms
+        # implement; the legacy selection arms would select 0 frames and run
+        # BLIND with error=null (frame_select) or emit 0-frame clips. Check
+        # the new-arm regexes FIRST: tagless 'frame_select_optu' also matches
+        # FRAME_SELECT_RE (as tag='optu'), but dispatches to the new arm.
+        budget_zero_ok = (OPTION_UNION_FRAME_RE.match(m)
+                          or OPTION_UNION_CLIP_RE.match(m)
+                          or QUERY_SEARCH_RE.match(m))
+        if (args.budget is not None and args.budget <= 0 and not budget_zero_ok
+                and (FRAME_SELECT_RE.match(m) or CLIP_SELECT_RE.match(m)
+                     or m == "temporal_weighted"
+                     or m.startswith("summary_select_"))):
+            raise SystemExit(
+                f"--budget {args.budget}: 0 = 'match nframes x K' exists only "
+                f"for the _optu/query_search arms; '{m}' would select 0 frames "
+                "and answer blind. Give the legacy selection arms an explicit "
+                "positive --budget (or omit the flag for their default 64).")
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()][: args.passes]
     if len(seeds) < args.passes:
         raise SystemExit(f"need >= {args.passes} seeds, got {seeds}")
