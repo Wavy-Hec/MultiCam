@@ -86,6 +86,17 @@ LEGS = [
          glob="bench_allangles_qa_internvl_t1iv_shard*.jsonl", budget="stills, cell_px=448"),
     dict(dataset="All-Angles", backend="Qwen2.5-VL-7B-Instruct", subset="allangles_qa.json",
          glob="bench_allangles_qa_cvbench_t1q25_shard*.jsonl", budget="stills, cell_px=448"),
+    # blind controls at temp 0.1 (jobs 86174-86177). Verified 08-13 against the
+    # landed files: single-shard legs, so the outputs carry NO _shard suffix —
+    # the glob matches both spellings in case a future rerun shards them.
+    dict(dataset="All-Angles", backend="InternVL3-8B", subset="allangles_qa.json",
+         glob="bench_allangles_qa_internvl_t1iv_blind*.jsonl", budget="no images"),
+    dict(dataset="All-Angles", backend="Qwen2.5-VL-7B-Instruct", subset="allangles_qa.json",
+         glob="bench_allangles_qa_cvbench_t1q25_blind*.jsonl", budget="no images"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_t1iv_blind*.jsonl", budget="no images"),
+    dict(dataset="MVU-Eval", backend="Qwen2.5-VL-7B-Instruct", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_cvbench_t1q25_blind*.jsonl", budget="no images"),
     # frame sweep: sequential arm only, InternVL3 only, two video pools
     dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
          glob="bench_mvueval_qa_internvl_fs32_shard*.jsonl", budget="32 frames total"),
