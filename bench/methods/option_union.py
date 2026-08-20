@@ -357,19 +357,28 @@ class OptionUnionClipSelect(ClipScoreSelectMethod):
         opts = [o for o in option_texts(rec) if o]
         qmode = "options" if opts else "question"
         queries = opts if opts else [rec.get("question", "")]
-        if K <= 1:
-            sel_idx, M, taus, pass_counts = list(range(1, K + 1)), None, [], []
+        # a clip with a known count under 2 frames can never be shown as a
+        # video item (present_selected zeroes it out), so keep it out of the
+        # union — otherwise a question whose best-scoring clip is degenerate
+        # selects nothing showable and dies at presentation time
+        usable = [i for i in range(K) if ncaps[i] is None or ncaps[i] >= 2]
+        if not usable:
+            raise ValueError(
+                f"{self.name}: no clip of record {key} has >=2 decodable frames")
+        if len(usable) <= 1:
+            sel_idx, M, taus, pass_counts = [usable[0] + 1], None, [], []
         else:
-            M = self._option_matrix(paths, queries)        # [K, n_opts]
+            upaths = [paths[i] for i in usable]
+            M = self._option_matrix(upaths, queries)       # [len(usable), n_opts]
             taus = _per_option_tau(M, self.tau, self.tau_q)
             selected = set()
             pass_counts = []
             for j in range(M.shape[1]):
-                passing = {i for i in range(K) if M[i, j] >= taus[j]}
+                passing = {u for u in range(len(usable)) if M[u, j] >= taus[j]}
                 passing.add(int(np.argmax(M[:, j])))   # each option's best clip
                 pass_counts.append(len(passing))
                 selected |= passing
-            sel_idx = sorted(i + 1 for i in selected)
+            sel_idx = sorted(usable[u] + 1 for u in selected)
         if budget_eff < len(sel_idx):
             raise ValueError(
                 f"budget {budget_eff} < {len(sel_idx)} selected clips: cannot "
@@ -386,7 +395,8 @@ class OptionUnionClipSelect(ClipScoreSelectMethod):
             "budget_matched": self.budget <= 0,
             "K": K,
             "selected": sel_idx,
-            "selection_fallback": "single_clip" if K <= 1 else None,
+            "selection_fallback": "single_clip" if len(usable) <= 1 else None,
+            "short_excluded": [i + 1 for i in range(K) if i not in usable],
             "thumbs": self.thumbs,
             "clip_model": self.clip_model_name,
             "tau_mode": "abs" if self.tau > 0 else f"q{self.tau_q}",

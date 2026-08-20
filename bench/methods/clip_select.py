@@ -285,11 +285,28 @@ def present_selected(paths, durs, ncaps, sel_idx, budget, floor, scaffold,
     w = list(weights) if weights is not None else sel_durs
     nframes = allocate_frames(w, budget, floor=floor, caps=sel_caps)
 
+    # Qwen's reader rounds an ``nframes`` request to the nearest even count
+    # (FRAME_FACTOR=2), so a request saturated at an odd cap overshoots the
+    # clip (39 -> 40 > 39 raises) and a 1-frame request rounds to 0. Clamp to
+    # the nearest legal even value; a clip that cannot show 2 frames gets 0
+    # and is skipped below rather than crashing the whole call.
+    def _reader_legal(n, c):
+        if c is not None and c < 2:
+            return 0
+        if n == 1:
+            n = 2                    # may exceed budget by 1; never a crash
+        if c is not None and n >= c and c % 2 == 1:
+            n = c - 1
+        return n
+    nframes = [_reader_legal(n, c) for n, c in zip(nframes, sel_caps)]
+
     if m == K:
         split = SPLIT_DESC["duration"].format(K=K)
         content = [{"type": "text", "text": PREFIX.format(K=K, budget=budget,
                                                           split=split)}]
         for k, (vp, n_k, d) in enumerate(zip(paths, nframes, sel_durs), 1):
+            if n_k == 0:             # clip too short to show; see _reader_legal
+                continue
             content.append({"type": "text",
                             "text": MARKER.format(k=k, K=K, n_k=n_k,
                                                   dur_s=(d if d is not None else 0.0))})
@@ -300,10 +317,18 @@ def present_selected(paths, durs, ncaps, sel_idx, budget, floor, scaffold,
             K=K, m=m, is_are=("is" if m == 1 else "are"), shown=shown,
             budget=budget)}]
         for i, n_k, d in zip(sel_idx, nframes, sel_durs):
+            if n_k == 0:             # clip too short to show; see _reader_legal
+                continue
             content.append({"type": "text",
                             "text": MARKER_SEL.format(orig=i, n_k=n_k,
                                                       dur_s=(d if d is not None else 0.0))})
             content.append({"type": "video", "video": paths[i - 1], "nframes": n_k})
+    if not any(c.get("type") == "video" for c in content):
+        # never fall through to a text-only prompt: a blind answer with
+        # error=null would poison the arm's numbers silently
+        raise ValueError(
+            f"present_selected: none of the {m} selected clip(s) can show >=2 "
+            f"frames (caps={sel_caps}); refusing to answer blind")
     content.append({"type": "text", "text": scaffold})
     return content, nframes
 
