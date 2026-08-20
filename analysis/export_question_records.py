@@ -110,6 +110,18 @@ LEGS = [
          glob="bench_crossview_meva_cap13_internvl_fs64_shard*.jsonl", budget="64 frames total"),
     dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
          glob="bench_crossview_meva_cap13_internvl_fs96_shard*.jsonl", budget="96 frames total"),
+    # option-aware selection matrix (jobs 86538-86545, TAG=_optu, strict prompt).
+    # The EgoExo pair needs no entry: the CrossView-EgoExo wildcard globs above
+    # already match bench_crossview_egoexo500_{cvbench,internvl}_optu_shard*.
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_optu_shard*.jsonl", budget="matched, 8xK frames total"),
+    dict(dataset="MVU-Eval", backend="Qwen2.5-VL-7B-Instruct", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_cvbench_optu_shard*.jsonl", budget="matched, 8xK frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_internvl_optu_shard*.jsonl", budget="matched, 8xK frames total"),
+    dict(dataset="CrossView-MEVA", backend="Qwen2.5-VL-7B-Instruct",
+         subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_cvbench_optu_shard*.jsonl", budget="matched, 8xK frames total"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]
