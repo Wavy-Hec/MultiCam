@@ -29,6 +29,7 @@ from .methods.clip_select import (SummarySelectMethod, ClipScoreSelectMethod,
                                   FrameSelectMethod)
 from .methods.option_union import (OptionUnionFrameSelect, OptionUnionClipSelect,
                                    QuerySearchMethod)
+from .methods.segment_select import SegmentSelectMethod
 from .backends.qwen import QwenBackend, QWEN_ALIASES
 from . import metrics
 
@@ -79,6 +80,11 @@ OPTION_UNION_CLIP_RE = re.compile(
 # Tool-based query search (Follow-up 2): the backend writes visual search
 # phrases from Question+Options, CLIP/SigLIP retrieves the frames.
 QUERY_SEARCH_RE = re.compile(r"^query_search(?:_(?P<tag>[a-z0-9]+))?$")
+# segment_select: top segments PER clip -> per-segment frames -> question-wide
+# near-duplicate removal -> even thinning to the budget (methods/segment_select.py).
+# Same tag/_opt grammar as frame_select; budget 0/omitted = matched nframes x K.
+SEGMENT_SELECT_RE = re.compile(
+    r"^segment_select(?:_(?P<tag>(?!opt(?:_|$))[a-z0-9]+))?(?P<opt>_opt)?$")
 
 # alias -> HF id (cached locally; runs under the `internvl` conda env, NOT cvbench,
 # because cvbench's transformers breaks the InternVL3 remote code).
@@ -200,6 +206,28 @@ def make_method(mname, backend, args):
             cell_px=args.cell_px, name=mname,
             nframes=args.nframes, max_new_tokens=args.max_new_tokens,
             temperature=args.temperature, reasoning=not args.no_reasoning)
+    sg = SEGMENT_SELECT_RE.match(mname)
+    if sg:
+        tag = sg.group("tag")
+        if tag == "viclip":
+            raise SystemExit(
+                "segment_select_viclip: ViCLIP embeds a whole tube jointly and "
+                "yields no per-frame embeddings for the dedup step — use a "
+                "CLIP/SigLIP tag.")
+        if tag and tag not in SCORER_ALIASES:
+            raise SystemExit(f"unknown segment_select scorer tag '{tag}'. "
+                             f"Known: {list(SCORER_ALIASES)}")
+        return SegmentSelectMethod(
+            backend, budget=union_budget,
+            segments_per_video=args.segments_per_video,
+            segments_keep=args.segments_keep,
+            frames_per_segment=args.frames_per_segment,
+            dedup_tau=args.dedup_tau,
+            clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
+            cell_px=args.cell_px, name=mname,
+            nframes=args.nframes, max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature, reasoning=not args.no_reasoning,
+            query="options" if sg.group("opt") else "question")
     fm = FRAME_SELECT_RE.match(mname)
     if fm:
         tag = fm.group("tag")
@@ -338,6 +366,22 @@ def main():
     ap.add_argument("--frame-candidates", type=int, default=32,
                     help="frame_select: uniform candidate frames decoded PER clip; "
                          "the global top-(--budget) across all clips' candidates is kept")
+    ap.add_argument("--segments-per-video", type=int, default=8,
+                    help="segment_select: contiguous equal-time segments each clip "
+                         "is split into (fewer when the clip is shorter)")
+    ap.add_argument("--segments-keep", type=int, default=4,
+                    help="segment_select: most-relevant segments kept PER clip")
+    ap.add_argument("--frames-per-segment", type=int, default=8,
+                    help="segment_select: frames sampled uniformly within each segment")
+    ap.add_argument("--dedup-tau", type=float, default=0.95,
+                    help="segment_select: image-embedding cosine at/above which a "
+                         "pooled frame is dropped as a near-duplicate. Must be in "
+                         "(0, 1]; 1.0 DISABLES dedup — this is NOT the --sel-tau "
+                         "'0 = off' convention (0 would collapse every question "
+                         "to one frame and is rejected). Scorer-specific scale; "
+                         "question-wide scope; static-camera footage (MEVA) "
+                         "collapses at the 0.95 default — calibrate or use 1.0 "
+                         "there")
     ap.add_argument("--sel-max-new-tokens", type=int, default=512,
                     help="summary_select_*: token cap for the selector call")
     ap.add_argument("--montage-frames", type=int, default=0,
@@ -375,19 +419,42 @@ def main():
                 and not FRAME_SELECT_RE.match(m) and not SINGLE_VIEW_RE.match(m)
                 and not OPTION_UNION_FRAME_RE.match(m)
                 and not OPTION_UNION_CLIP_RE.match(m)
-                and not QUERY_SEARCH_RE.match(m)):
+                and not QUERY_SEARCH_RE.match(m)
+                and not SEGMENT_SELECT_RE.match(m)):
             raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)} "
                              f"or clip_select[_<scorer>]_top<m> or frame_select[_<scorer>] "
                              f"or frame_select[_<scorer>]_optu or clip_select[_<scorer>|_viclip]_optu "
-                             f"or query_search[_<scorer>] or single_view<i>")
+                             f"or query_search[_<scorer>] or segment_select[_<scorer>][_opt] "
+                             f"or single_view<i>")
         # explicit --budget 0 is a matched-budget request only the new arms
         # implement; the legacy selection arms would select 0 frames and run
         # BLIND with error=null (frame_select) or emit 0-frame clips. Check
         # the new-arm regexes FIRST: tagless 'frame_select_optu' also matches
         # FRAME_SELECT_RE (as tag='optu'), but dispatches to the new arm.
+        # segment_select tags are checked HERE, not just in make_method: the
+        # backend loop loads the 8B model (and can drain a whole prior method)
+        # before make_method runs, so a typo like 'segment_select_optu' —
+        # inviting, since every sibling option-guided arm spells it '_optu'
+        # while this arm spells it '_opt' — would burn hours of queued GPU
+        # time before dying. Fail at submit instead.
+        sgm = SEGMENT_SELECT_RE.match(m)
+        if sgm and sgm.group("tag") and sgm.group("tag") not in SCORER_ALIASES:
+            tag = sgm.group("tag")
+            if tag == "viclip":
+                raise SystemExit(
+                    "segment_select_viclip: ViCLIP embeds a whole tube jointly "
+                    "and yields no per-frame embeddings for the dedup step — "
+                    "use a CLIP/SigLIP tag.")
+            hint = (" ('_optu' is the option-union arms' suffix; this arm's "
+                    "option-guided variant is spelled '_opt', e.g. "
+                    "segment_select_opt or segment_select_siglip_opt)"
+                    if tag == "optu" else "")
+            raise SystemExit(f"unknown segment_select scorer tag '{tag}'. "
+                             f"Known: {list(SCORER_ALIASES)}.{hint}")
         budget_zero_ok = (OPTION_UNION_FRAME_RE.match(m)
                           or OPTION_UNION_CLIP_RE.match(m)
-                          or QUERY_SEARCH_RE.match(m))
+                          or QUERY_SEARCH_RE.match(m)
+                          or SEGMENT_SELECT_RE.match(m))
         if (args.budget is not None and args.budget <= 0 and not budget_zero_ok
                 and (FRAME_SELECT_RE.match(m) or CLIP_SELECT_RE.match(m)
                      or m == "temporal_weighted"

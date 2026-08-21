@@ -53,6 +53,12 @@ FLOOR=${FLOOR:-2}                      # temporal_weighted: per-clip minimum fra
 SEL_TAU=${SEL_TAU:-0}                  # _optu arms: absolute per-option similarity cutoff; 0 = quantile mode
 SEL_TAU_Q=${SEL_TAU_Q:-0.85}           # _optu arms: per-option quantile when SEL_TAU=0
 N_QUERIES=${N_QUERIES:-4}              # query_search: generated search phrases per question
+SEGMENTS_PER_VIDEO=${SEGMENTS_PER_VIDEO:-8}   # segment_select: segments each clip is split into
+SEGMENTS_KEEP=${SEGMENTS_KEEP:-4}             # segment_select: most-relevant segments kept per clip
+FRAMES_PER_SEGMENT=${FRAMES_PER_SEGMENT:-8}   # segment_select: frames sampled per segment
+DEDUP_TAU=${DEDUP_TAU:-0.95}                  # segment_select: near-duplicate cosine cutoff, in (0,1].
+                                              # 1 = dedup OFF; 0 is INVALID (fails fast) — NOT the SEL_TAU
+                                              # '0 = off' convention. Static cams (MEVA) collapse at 0.95.
 QUERY_MAX_NEW_TOKENS=${QUERY_MAX_NEW_TOKENS:-256}  # query_search: phrase-generation token cap (raise for thinking backends)
 export VICLIP_DIR=${VICLIP_DIR:-$HOME/models/ViCLIP}   # clip_select_viclip_optu: local OpenGVLab/ViCLIP download
 WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
@@ -97,6 +103,7 @@ echo "GPU  @ $(hostname) $(nvidia-smi --query-gpu=name,memory.total --format=csv
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=${BUDGET:-auto} weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 echo "     sel_tau=$SEL_TAU sel_tau_q=$SEL_TAU_Q n_queries=$N_QUERIES query_max_new_tokens=$QUERY_MAX_NEW_TOKENS viclip_dir=$VICLIP_DIR"
+echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU"
 echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
@@ -105,6 +112,8 @@ python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$B
     "${BUDGET_ARG[@]}" --floor "$FLOOR" --weighting "$WEIGHTING" \
     --sel-tau "$SEL_TAU" --sel-tau-q "$SEL_TAU_Q" --n-queries "$N_QUERIES" \
     --query-max-new-tokens "$QUERY_MAX_NEW_TOKENS" \
+    --segments-per-video "$SEGMENTS_PER_VIDEO" --segments-keep "$SEGMENTS_KEEP" \
+    --frames-per-segment "$FRAMES_PER_SEGMENT" --dedup-tau "$DEDUP_TAU" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
     --perception-max-new-tokens "$PERCEPTION_MAX_NEW_TOKENS" --cell-px "$CELL_PX" \
     --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $NOREASON_ARG $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"

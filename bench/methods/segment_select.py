@@ -1,0 +1,340 @@
+"""SEGMENT selection: split each clip into temporal segments, keep each clip's
+most question-relevant segments, pool their frames, drop near-duplicates, and
+answer from an evenly-thinned subset of the unique pool.
+
+  segment_select[_<scorer>][_opt]
+      1. Each of the K clips is split into ``segments_per_video`` contiguous
+         equal-time segments (fewer when the clip is shorter than that).
+      2. ``frames_per_segment`` frames are sampled uniformly WITHIN each
+         segment; a segment's relevance is the best CLIP/SigLIP similarity of
+         its frames to the question (``_opt``: to any answer option). The top
+         ``segments_keep`` segments PER CLIP are kept — a within-clip lever,
+         unlike clip_select (whole clips) and frame_select (a global frame
+         pool with no temporal structure).
+      3. The kept segments' frames are pooled per question and near-duplicates
+         removed: frames are visited in DESCENDING relevance order and one is
+         dropped when its image-embedding cosine to ANY already-kept frame
+         reaches ``dedup_tau`` — so every near-duplicate cluster keeps its
+         best-scoring frame, and presentation afterwards reverts to canonical
+         (clip, playback) order. The embeddings are the scorer's own
+         (clip_scores returns them), so dedup costs no second encoder pass.
+         Dedup is question-wide by design — on synchronized-camera datasets a
+         frame can be dropped as a duplicate of another CLIP's frame;
+         ``dedup_dropped`` in frame_alloc records it.
+
+         Threshold semantics: ``dedup_tau`` must be in (0, 1]; 1.0 DISABLES
+         dedup (this is NOT the --sel-tau "0 = off" convention — a tau of 0
+         would collapse every question to one frame, so it is rejected).
+         Two measured caveats (2026-08-20 review, CPU, real repo clips):
+         (a) static-camera footage self-similarity sits ABOVE the 0.95
+         default — a 300s MEVA camera's 64 pooled frames all exceed 0.95
+         pairwise cosine and collapse to ONE frame, so on CrossView/MEVA the
+         default measures a one-still-per-view baseline, not segment
+         selection; run those legs with a calibrated tau or DEDUP_TAU=1, and
+         read ``n_unique``/``dedup_dropped`` before trusting a leg. (b) the
+         cosine scale is scorer-specific (SigLIP dedups harder than CLIP at
+         the same tau), so cross-scorer comparisons at one tau confound
+         ranking quality with effective visual budget — hold the scorer fixed
+         or set tau per scorer; every row stamps dedup_tau + clip_model.
+      4. The unique set is reduced to the frame budget: the budget is split
+         across clips in proportion to each clip's unique-frame count
+         (allocate_frames, per-clip floor so no clip is starved), and each
+         clip's share is thinned EVENLY IN TIME over its unique frames —
+         relevance chose the segments; within them, coverage stays uniform.
+
+  Ordering is chronological everywhere and clips keep their ORIGINAL slot
+  order/numbers: options reference clips by list position ("A. Video 1"), and
+  on MVU-Eval's temporal-reasoning records recovering the source-time order IS
+  the question — re-sorting clips would corrupt the answer key (see the
+  2026-08-20 feasibility audit). Frames within a clip are presented in
+  playback order.
+
+  Budget parity: --budget 0/omitted = MATCHED (nframes x K). On Qwen each
+  clip's kept frames are fed as ONE video item (a list of PIL frames), so the
+  reader's 2-frame temporal merge applies exactly as in the sequential arm —
+  feeding them as still images at video pixel caps (the _optu convention)
+  costs a verified 2.000x visual-token surplus because images skip the merge.
+  The reader pads an odd frame list to even by duplicating the last frame
+  (``qwen_even_pad_per_video`` records it). On InternVL frames go as still
+  images at max_tiles=1 (refused otherwise), where image/video-frame parity
+  is exact at 1 tile = 256 tokens. Rows stamp which mode applied
+  (``img_token_parity``). Selection is deterministic and cached across the 4
+  passes, so the std isolates the answer stage. ViCLIP is rejected as a
+  scorer: it embeds a whole tube jointly and yields no per-frame embeddings
+  for dedup.
+"""
+import os
+
+import numpy as np
+from decord import VideoReader, cpu
+
+from .base import require_video_record
+from .clip_select import FrameSelectMethod, clip_scores, query_for
+from .option_union import _check_token_parity, _frame_content
+from .temporal import allocate_frames
+from ..reuse import build_messages, letters_of, gt_choice, video_paths
+
+SEGMENT_SELECT_PREFIX = (
+    "The question below refers to {K} INDEPENDENT video clips (different, "
+    "unrelated scenes), numbered Video 1 to Video {K} in their original "
+    "order. Each clip was split into up to {S} equal time segments and only "
+    "its most relevant segments (at most {top}) are represented: frames were "
+    "sampled uniformly within those segments, near-duplicate frames were "
+    "removed, and the {n} frames shown remain (thinned evenly in time "
+    "wherever they exceeded the frame budget). Frames are shown grouped by "
+    "their source Video (ORIGINAL numbering) and in temporal order within "
+    "each Video; a banner '=== Video k ===' precedes each Video's frames. A "
+    "clip whose frames were all removed as duplicates is omitted. Reason "
+    "over the shown frames to answer.")
+
+SEGMENT_MARKER = ("=== Video {orig} — {cnt} frame(s) drawn from its {nseg} "
+                  "most relevant segment(s), in temporal order ===")
+
+
+def _dedup_keep_best(indices, scores, embs, tau):
+    """Greedy near-duplicate removal over ``indices`` (kept-frame pool).
+
+    Frames are visited in DESCENDING relevance-score order, so the survivor
+    of every near-duplicate cluster is its best-scoring frame — visiting in
+    canonical order instead kept whichever frame happened to come first,
+    discarding the relevance ranking exactly where dedup bites hardest
+    (static cameras). Returns (kept, dropped), both in the original order of
+    ``indices``. ``tau`` >= 1.0 disables dedup entirely."""
+    if tau >= 1.0:
+        return list(indices), []
+    order = sorted(indices, key=lambda j: -float(scores[j]))
+    kept_set = set()
+    kept_mat = None
+    for j in order:
+        e = embs[j]
+        if kept_mat is not None and float((kept_mat @ e).max()) >= tau:
+            continue
+        kept_set.add(j)
+        kept_mat = e[None, :] if kept_mat is None else np.vstack([kept_mat,
+                                                                  e[None, :]])
+    return ([j for j in indices if j in kept_set],
+            [j for j in indices if j not in kept_set])
+
+
+def _spread(items, n):
+    """n evenly-spaced elements of ``items`` (order preserved). For
+    1 < n <= len(items) the picked positions are distinct because consecutive
+    linspace points are >= 1 apart."""
+    if n >= len(items):
+        return list(items)
+    if n <= 0:
+        return []
+    if n == 1:
+        return [items[len(items) // 2]]
+    step = (len(items) - 1) / (n - 1)
+    return [items[round(i * step)] for i in range(n)]
+
+
+class SegmentSelectMethod(FrameSelectMethod):
+    """segment_select[_<scorer>][_opt] — top segments per clip, dedup, thin."""
+    name = "segment_select"
+
+    def __init__(self, backend, segments_per_video=8, segments_keep=4,
+                 frames_per_segment=8, dedup_tau=0.95, **kw):
+        super().__init__(backend, **kw)
+        self.segments_per_video = int(segments_per_video)
+        self.segments_keep = int(segments_keep)
+        self.frames_per_segment = int(frames_per_segment)
+        self.dedup_tau = float(dedup_tau)
+        if self.segments_per_video < 1 or self.segments_keep < 1 \
+                or self.frames_per_segment < 1:
+            raise ValueError(
+                f"{self.name}: segments_per_video/segments_keep/"
+                "frames_per_segment must all be >= 1")
+        if not (0.0 < self.dedup_tau <= 1.0):
+            # NOT the --sel-tau convention: tau 0 here is not "off" — every
+            # CLIP/SigLIP image pair has positive cosine (cone effect), so
+            # tau <= 0 silently collapses each question to ONE frame with
+            # error=null. 1.0 disables dedup.
+            raise ValueError(
+                f"{self.name}: dedup_tau must be in (0, 1], got "
+                f"{self.dedup_tau} (1.0 disables dedup; 0 is NOT 'off' — it "
+                "would drop every frame after the first)")
+        self.img_token_parity = _check_token_parity(backend, self.name)
+        if getattr(backend, "patch_size", None):
+            # true-parity path: kept frames go as per-clip VIDEO items so
+            # Qwen's 2-frame temporal merge applies as in the sequential arm;
+            # still images at video pixel caps cost a verified 2.000x surplus
+            self.img_token_parity = "qwen_video_list"
+
+    def _decode_segments(self, vp):
+        """[(segment_id, time_s, PIL)] in playback order, plus decode meta.
+
+        Same fail-loud recovery policy as ``_candidates``: decord flakiness
+        costs only the failed indices, a fully unreadable clip raises."""
+        from PIL import Image
+        try:
+            vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
+            n = len(vr)
+            fps = float(vr.get_avg_fps())
+        except Exception as e:
+            kind = "missing" if not os.path.exists(vp) else type(e).__name__
+            raise FileNotFoundError(
+                f"unreadable clip {vp} ({kind}) — check --video-root") from e
+        if n <= 0:
+            raise FileNotFoundError(f"unreadable clip {vp} (0 frames)")
+        S = max(1, min(self.segments_per_video, n))
+        bounds = [round(s * n / S) for s in range(S + 1)]
+        out = []
+        for sid in range(S):
+            a, b = bounds[sid], bounds[sid + 1]
+            if b <= a:
+                continue
+            m = min(self.frames_per_segment, b - a)
+            idx = sorted({a + min(b - a - 1, int((j + 0.5) * (b - a) / m))
+                          for j in range(m)})
+            for fi in idx:
+                try:
+                    fr = vr[fi].asnumpy()
+                except Exception:
+                    continue
+                out.append((sid, (fi / fps) if fps > 0 else None,
+                            Image.fromarray(fr).convert("RGB")))
+        if not out:
+            raise FileNotFoundError(f"unreadable clip {vp} (no decodable frames)")
+        return out, {"n_total": n,
+                     "fps": round(fps, 2) if fps > 0 else None,
+                     "n_segments": S}
+
+    def _prepare(self, rec, video_root):
+        key = rec.get("id")
+        if key in self._cache:
+            return self._cache[key]
+        require_video_record(rec, self.name)
+        base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True,
+                                       reasoning=self.reasoning)
+        scaffold = base_msgs[0]["content"][0]["text"]
+        paths = video_paths(rec, video_root)
+        K = len(paths)
+        budget_eff = self.budget if self.budget > 0 else self.nframes * K
+        if budget_eff < K:
+            raise ValueError(
+                f"budget {budget_eff} < {K} views: cannot keep one frame per "
+                "clip — raise --budget (or use 0 = matched nframes x K)")
+
+        # 1+2. decode per-segment frames; pool is canonical order by
+        # construction (clip 1..K, ascending frame index within each clip)
+        pool, decode_meta = [], []            # (video 1-based, seg_id, t, im)
+        for i, vp in enumerate(paths, 1):
+            entries, meta = self._decode_segments(vp)
+            decode_meta.append(meta)
+            for sid, t, im in entries:
+                pool.append((i, sid, t, im))
+        if not pool:
+            raise FileNotFoundError("no candidate frames from any clip")
+
+        # score every pooled frame once; scorer failures raise (inherited
+        # policy — no silent uniform fallback)
+        query, qmode = query_for(rec, self.query)
+        scores, embs = clip_scores(self._ensure_clip(), query,
+                                   [p[3] for p in pool], return_image_embs=True)
+        if scores.ndim == 2:
+            # [frames, options] -> a frame's score is its best option
+            scores = scores.max(axis=1)
+
+        # segment relevance = best frame in the segment; keep top per clip,
+        # then restore chronological (segment-id) order within the clip
+        seg_scores = {}                       # video -> {seg_id: best score}
+        for j, (v, sid, t, im) in enumerate(pool):
+            d = seg_scores.setdefault(v, {})
+            d[sid] = max(d.get(sid, float("-inf")), float(scores[j]))
+        kept_segs = {v: sorted(sorted(d, key=lambda s: -d[s])[: self.segments_keep])
+                     for v, d in seg_scores.items()}
+        kept = [j for j, (v, sid, t, im) in enumerate(pool)
+                if sid in kept_segs[v]]
+
+        # 3. near-duplicate removal; each cluster keeps its BEST-scoring frame
+        unique, dropped = _dedup_keep_best(kept, scores, embs, self.dedup_tau)
+        dropped_per_video = {}
+        for j in dropped:
+            v = pool[j][0]
+            dropped_per_video[v] = dropped_per_video.get(v, 0) + 1
+        n_unique = len(unique)
+
+        # 4. thin the unique set to the budget, proportional per clip
+        by_video_unique = {}
+        for j in unique:
+            by_video_unique.setdefault(pool[j][0], []).append(j)
+        vids = sorted(by_video_unique)
+        counts = [len(by_video_unique[v]) for v in vids]
+        floor = max(0, min(self.floor, budget_eff // len(vids))) if vids else 0
+        if n_unique <= budget_eff:
+            alloc = counts
+        else:
+            alloc = allocate_frames(counts, budget=budget_eff, floor=floor,
+                                    caps=counts)
+        selected = {v: _spread(by_video_unique[v], a)
+                    for v, a in zip(vids, alloc)}
+        n_selected = sum(len(s) for s in selected.values())
+        if n_selected == 0:
+            raise ValueError(
+                f"{self.name}: empty selection (unique={n_unique}, "
+                f"budget={budget_eff}) — a zero-image answer call must never "
+                "run as a vision row")
+
+        qwen_video_list = self.img_token_parity == "qwen_video_list"
+        qwen_pad = {}
+        content = [{"type": "text", "text": SEGMENT_SELECT_PREFIX.format(
+            K=K, S=self.segments_per_video, top=self.segments_keep,
+            n=n_selected)}]
+        for v in vids:
+            if not selected[v]:
+                continue
+            content.append({"type": "text", "text": SEGMENT_MARKER.format(
+                orig=v, cnt=len(selected[v]), nseg=len(kept_segs[v]))})
+            frames = [pool[j][3] for j in selected[v]]
+            if qwen_video_list:
+                # one video item per clip: the reader sizes the frames with
+                # its own video pixel caps AND applies the 2-frame temporal
+                # merge; an odd list is padded by duplicating the last frame
+                if len(frames) % 2 == 1:
+                    qwen_pad[v] = 1
+                content.append({"type": "video", "video": frames})
+            else:
+                for im in frames:
+                    content.append(_frame_content(im, self.backend,
+                                                  self._resize))
+        content.append({"type": "text", "text": scaffold})
+
+        letters = letters_of(rec)
+        gold = gt_choice(rec["answer"], yn, letters=letters)
+        alloc_meta = {
+            "mode": "segment_select",
+            "budget": budget_eff,
+            "budget_matched": self.budget <= 0,
+            "img_token_parity": self.img_token_parity,
+            "K": K,
+            "segments_per_video": self.segments_per_video,
+            "segments_keep": self.segments_keep,
+            "frames_per_segment": self.frames_per_segment,
+            "segments_kept_per_video": kept_segs,
+            # keyed by segment id (a bare list shifts silently when decord
+            # drops a whole segment's frames, mismapping scores post-hoc)
+            "segment_scores": {v: {s: round(d[s], 4) for s in sorted(d)}
+                               for v, d in seg_scores.items()},
+            "n_pool": len(pool),
+            "n_kept_segment_frames": len(kept),
+            "dedup_tau": self.dedup_tau,
+            "n_unique": n_unique,
+            "dedup_dropped": len(kept) - n_unique,
+            "dedup_dropped_per_video": dropped_per_video,
+            "n_selected": n_selected,
+            "selected_per_video": {v: len(selected[v]) for v in vids},
+            "selected_times_s": {v: [round(pool[j][2], 2)
+                                     if pool[j][2] is not None else None
+                                     for j in selected[v]] for v in vids},
+            "floor": floor,
+            "qwen_even_pad_per_video": qwen_pad if qwen_video_list else None,
+            "per_video_decode": decode_meta,
+            "clip_model": self.clip_model_name,
+            "query_mode": qmode,
+            "n_query_texts": len(query) if isinstance(query, list) else 1,
+            "selection_fallback": None,
+        }
+        self._cache = {key: (content, yn, gold, alloc_meta)}
+        return self._cache[key]
