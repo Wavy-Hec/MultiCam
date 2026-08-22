@@ -4,13 +4,20 @@ Given a question about a scene observed by several cameras, is it better to fuse
 the views into a single model input, or to run the model once per view and reason
 over the text descriptions? This repo benchmarks that question with open
 vision-language models (Qwen3-VL-8B Thinking, Qwen2.5-VL-7B Instruct,
-InternVL3-8B) across three presentation harnesses:
+InternVL3-8B) across these presentation harnesses:
 
 - **Native** — each view or clip fed sequentially to one model, unmodified.
 - **Centralized (stitch)** — the views are tiled into labeled grid-montage images
   and fed as one unified visual input.
 - **Decentralized (per-stream)** — one independent perception pass per view, then
   a text-only aggregation pass reasons over the descriptions.
+- **Selection** — the visual budget is spent on the question-relevant subset
+  instead of everything: whole clips (CLIP/SigLIP scoring or summary routing),
+  globally ranked frames, option-guided and option-union variants, generated-query
+  search, and segment selection — each clip is split into equal-time segments, the
+  most relevant segments are kept per clip, their frames pooled, near-duplicates
+  removed, and the unique set thinned evenly in time to the frame budget, with
+  chronological order preserved throughout.
 
 Every arm runs multiple sampled passes so each accuracy carries a std, and all
 runs keep the models' reasoning traces so failures stay interpretable.
@@ -49,6 +56,11 @@ SUBSET=analysis/allangles_dev_subset.json VIDEO_ROOT=data/allangles \
 # MVU-Eval, decentralized arm, InternVL3:
 ENV=internvl SUBSET=analysis/mvueval_dev_subset.json VIDEO_ROOT=data/mvueval \
   METHODS=per_stream STREAM_KIND=video BACKENDS=internvl3 \
+  sbatch bench/run_bench.sbatch
+
+# MVU-Eval, segment selection at a fixed total frame budget, InternVL3:
+ENV=internvl SUBSET=analysis/mvueval_qa.json VIDEO_ROOT=data/mvueval \
+  METHODS=segment_select_siglip BACKENDS=internvl3 BUDGET=32 DEDUP_TAU=1 \
   sbatch bench/run_bench.sbatch
 ```
 
