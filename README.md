@@ -91,9 +91,8 @@ reports paired-question consistency for All-Angles-Bench. Results land in
 - Vendored tree: [tulerfeng/Video-R1](https://github.com/tulerfeng/Video-R1), whose
   authors we thank. Everything under `bench/` and `analysis/` is this project's own work.
 
-This repo began as an evaluation harness for the CVBench dataset
-([Hokhim2/CVBench](https://github.com/Hokhim2/CVBench)); that work is archived at
-tag `cvbench-final`.
+This repo began as an evaluation harness for the CVBench dataset; that early
+work is archived at tag `cvbench-final`.
 
 The shared team harness lives at
 [adihebbalae/multicam-harness](https://github.com/adihebbalae/multicam-harness).
