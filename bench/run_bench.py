@@ -80,9 +80,11 @@ OPTION_UNION_CLIP_RE = re.compile(
 # Tool-based query search (Follow-up 2): the backend writes visual search
 # phrases from Question+Options, CLIP/SigLIP retrieves the frames.
 QUERY_SEARCH_RE = re.compile(r"^query_search(?:_(?P<tag>[a-z0-9]+))?$")
-# segment_select: top segments PER clip -> per-segment frames -> question-wide
+# segment_select: top-K segments PER clip -> per-segment frames -> question-wide
 # near-duplicate removal -> even thinning to the budget (methods/segment_select.py).
-# Same tag/_opt grammar as frame_select; budget 0/omitted = matched nframes x K.
+# Same tag/_opt grammar as frame_select, plus 'viclip' (joint tube embeddings for
+# segment relevance; --clip-model still supplies the dedup embeddings); budget
+# 0/omitted = matched nframes x K; --segments-keep 0 = budget-derived top-K.
 SEGMENT_SELECT_RE = re.compile(
     r"^segment_select(?:_(?P<tag>(?!opt(?:_|$))[a-z0-9]+))?(?P<opt>_opt)?$")
 
@@ -209,21 +211,22 @@ def make_method(mname, backend, args):
     sg = SEGMENT_SELECT_RE.match(mname)
     if sg:
         tag = sg.group("tag")
-        if tag == "viclip":
-            raise SystemExit(
-                "segment_select_viclip: ViCLIP embeds a whole tube jointly and "
-                "yields no per-frame embeddings for the dedup step — use a "
-                "CLIP/SigLIP tag.")
-        if tag and tag not in SCORER_ALIASES:
+        if tag and tag != "viclip" and tag not in SCORER_ALIASES:
             raise SystemExit(f"unknown segment_select scorer tag '{tag}'. "
-                             f"Known: {list(SCORER_ALIASES)}")
+                             f"Known: {list(SCORER_ALIASES) + ['viclip']}")
+        # 'viclip' scores segment RELEVANCE with joint tube embeddings; the
+        # per-frame dedup embeddings still come from --clip-model (a tube
+        # embedding has no per-frame components), so both models load.
         return SegmentSelectMethod(
             backend, budget=union_budget,
             segments_per_video=args.segments_per_video,
             segments_keep=args.segments_keep,
             frames_per_segment=args.frames_per_segment,
             dedup_tau=args.dedup_tau,
-            clip_model=SCORER_ALIASES[tag] if tag else args.clip_model,
+            seg_scorer="viclip" if tag == "viclip" else None,
+            seg_pool=args.seg_pool,
+            clip_model=(SCORER_ALIASES[tag] if tag in SCORER_ALIASES
+                        else args.clip_model),
             cell_px=args.cell_px, name=mname,
             nframes=args.nframes, max_new_tokens=args.max_new_tokens,
             temperature=args.temperature, reasoning=not args.no_reasoning,
@@ -370,7 +373,19 @@ def main():
                     help="segment_select: contiguous equal-time segments each clip "
                          "is split into (fewer when the clip is shorter)")
     ap.add_argument("--segments-keep", type=int, default=4,
-                    help="segment_select: most-relevant segments kept PER clip")
+                    help="segment_select: most-relevant segments kept PER clip "
+                         "(straight top-K over the per-option score matrix). "
+                         "0 = AUTO: K = --seg-pool // (frames_per_segment x "
+                         "n_streams), clamped to [1, min(16, "
+                         "segments_per_video)]")
+    ap.add_argument("--seg-pool", type=int, default=128,
+                    help="segment_select with --segments-keep 0: pooled-frame "
+                         "target the auto top-K fills with whole segments, "
+                         "split evenly across the record's streams (128 with "
+                         "8-frame segments: 4 streams -> 4 segments/clip, "
+                         "16+ -> 1). Auto K never exceeds --segments-per-video, "
+                         "so reaching 16 on 1-stream records needs "
+                         "--segments-per-video 16+")
     ap.add_argument("--frames-per-segment", type=int, default=8,
                     help="segment_select: frames sampled uniformly within each segment")
     ap.add_argument("--dedup-tau", type=float, default=0.95,
@@ -438,19 +453,15 @@ def main():
         # while this arm spells it '_opt' — would burn hours of queued GPU
         # time before dying. Fail at submit instead.
         sgm = SEGMENT_SELECT_RE.match(m)
-        if sgm and sgm.group("tag") and sgm.group("tag") not in SCORER_ALIASES:
+        if sgm and sgm.group("tag") and sgm.group("tag") != "viclip" \
+                and sgm.group("tag") not in SCORER_ALIASES:
             tag = sgm.group("tag")
-            if tag == "viclip":
-                raise SystemExit(
-                    "segment_select_viclip: ViCLIP embeds a whole tube jointly "
-                    "and yields no per-frame embeddings for the dedup step — "
-                    "use a CLIP/SigLIP tag.")
             hint = (" ('_optu' is the option-union arms' suffix; this arm's "
                     "option-guided variant is spelled '_opt', e.g. "
                     "segment_select_opt or segment_select_siglip_opt)"
                     if tag == "optu" else "")
             raise SystemExit(f"unknown segment_select scorer tag '{tag}'. "
-                             f"Known: {list(SCORER_ALIASES)}.{hint}")
+                             f"Known: {list(SCORER_ALIASES) + ['viclip']}.{hint}")
         budget_zero_ok = (OPTION_UNION_FRAME_RE.match(m)
                           or OPTION_UNION_CLIP_RE.match(m)
                           or QUERY_SEARCH_RE.match(m)

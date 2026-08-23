@@ -7,10 +7,22 @@ answer from an evenly-thinned subset of the unique pool.
          equal-time segments (fewer when the clip is shorter than that).
       2. ``frames_per_segment`` frames are sampled uniformly WITHIN each
          segment; a segment's relevance is the best CLIP/SigLIP similarity of
-         its frames to the question (``_opt``: to any answer option). The top
-         ``segments_keep`` segments PER CLIP are kept — a within-clip lever,
-         unlike clip_select (whole clips) and frame_select (a global frame
-         pool with no temporal structure).
+         its frames to the question (``_opt``: to any answer option), or —
+         scorer tag ``viclip`` — the ViCLIP similarity of the segment embedded
+         JOINTLY as one 8-frame tube (motion-aware; scored against each option
+         under ``_opt``). Selection is straight TOP-K: the per-option score
+         matrix is reduced to one best score per segment, sorted descending,
+         and the best ``segments_keep`` segments PER CLIP are kept.
+         ``segments_keep 0`` = AUTO: K is derived from the pooled-frame target
+         and the stream count instead — K = seg_pool // (frames_per_segment x
+         n_streams), clamped to [1, min(16, segments_per_video)] — so one
+         shared pool target (default 128 frames) splits into whole segments
+         evenly across streams (4 streams -> 4 segments each; 16+ streams ->
+         1; reaching 16 on a 1-stream record needs --segments-per-video >=
+         16, since a clip cannot contribute more segments than it was split
+         into). A
+         within-clip lever, unlike clip_select (whole clips) and frame_select
+         (a global frame pool with no temporal structure).
       3. The kept segments' frames are pooled per question and near-duplicates
          removed: frames are visited in DESCENDING relevance order and one is
          dropped when its image-embedding cosine to ANY already-kept frame
@@ -59,9 +71,12 @@ answer from an evenly-thinned subset of the unique pool.
   images at max_tiles=1 (refused otherwise), where image/video-frame parity
   is exact at 1 tile = 256 tokens. Rows stamp which mode applied
   (``img_token_parity``). Selection is deterministic and cached across the 4
-  passes, so the std isolates the answer stage. ViCLIP is rejected as a
-  scorer: it embeds a whole tube jointly and yields no per-frame embeddings
-  for dedup.
+  passes, so the std isolates the answer stage. Under the ``viclip`` tag the
+  tube scorer replaces only the segment-RELEVANCE signal; the dedup step
+  still needs per-frame image embeddings (a joint tube embedding has none),
+  so the CLIP/SigLIP image tower (--clip-model) runs alongside it for dedup
+  and frame-level ordering, and rows stamp both (``segment_scorer`` +
+  ``clip_model``).
 """
 import os
 
@@ -89,6 +104,14 @@ SEGMENT_SELECT_PREFIX = (
 
 SEGMENT_MARKER = ("=== Video {orig} — {cnt} frame(s) drawn from its {nseg} "
                   "most relevant segment(s), in temporal order ===")
+
+# Ceiling of the auto top-K rule (segments_keep 0): K = seg_pool //
+# (frames_per_segment x n_streams), clamped to [1, SEG_KEEP_MAX] and never
+# above segments_per_video (top-16-of-8 would select nothing while the row
+# stamped a binding-looking 16). With the 128-frame pool default, 8-frame
+# segments and segments_per_video >= 16, K spans exactly 1..16 as the stream
+# count runs 16..1.
+SEG_KEEP_MAX = 16
 
 
 def _dedup_keep_best(indices, scores, embs, tau):
@@ -135,17 +158,29 @@ class SegmentSelectMethod(FrameSelectMethod):
     name = "segment_select"
 
     def __init__(self, backend, segments_per_video=8, segments_keep=4,
-                 frames_per_segment=8, dedup_tau=0.95, **kw):
+                 frames_per_segment=8, dedup_tau=0.95, seg_scorer=None,
+                 seg_pool=128, **kw):
         super().__init__(backend, **kw)
         self.segments_per_video = int(segments_per_video)
+        # 0 = AUTO: K per clip derived from seg_pool and the record's stream
+        # count at _prepare time (clamped to [1, SEG_KEEP_MAX])
         self.segments_keep = int(segments_keep)
         self.frames_per_segment = int(frames_per_segment)
         self.dedup_tau = float(dedup_tau)
-        if self.segments_per_video < 1 or self.segments_keep < 1 \
+        # None -> the image tower scores segments too (historic); "viclip" ->
+        # each segment is embedded jointly as one tube for segment relevance,
+        # while the image tower still supplies dedup embeddings
+        self.seg_scorer = seg_scorer
+        self.seg_pool = int(seg_pool)
+        if self.segments_per_video < 1 or self.segments_keep < 0 \
                 or self.frames_per_segment < 1:
             raise ValueError(
-                f"{self.name}: segments_per_video/segments_keep/"
-                "frames_per_segment must all be >= 1")
+                f"{self.name}: segments_per_video/frames_per_segment must be "
+                ">= 1 and segments_keep >= 0 (0 = auto top-K from --seg-pool)")
+        if self.segments_keep == 0 and self.seg_pool < 1:
+            raise ValueError(
+                f"{self.name}: segments_keep 0 (auto) needs --seg-pool >= 1, "
+                f"got {self.seg_pool}")
         if not (0.0 < self.dedup_tau <= 1.0):
             # NOT the --sel-tau convention: tau 0 here is not "off" — every
             # CLIP/SigLIP image pair has positive cosine (cone effect), so
@@ -201,6 +236,29 @@ class SegmentSelectMethod(FrameSelectMethod):
                      "fps": round(fps, 2) if fps > 0 else None,
                      "n_segments": S}
 
+    def _viclip_segment_scores(self, pool, queries):
+        """{video: {seg_id: np.ndarray [n_queries]}} — each segment's decoded
+        frames as ONE ViCLIP tube (uniformly sampled, short segments padded by
+        repetition, to the fixed tube length), scored jointly against every
+        query. Per-record text cache: each option is encoded once, not once
+        per segment. Fail-loud like the image tower — a scorer failure must
+        never degrade to unguided selection."""
+        from .viclip_scorer import viclip_option_scores, VICLIP_NFRAMES
+        dev = getattr(self.backend, "device", "cuda:0")
+        frames_by_seg = {}                 # (video, seg_id) -> [PIL, ...]
+        for v, sid, t, im in pool:         # pool is in playback order
+            frames_by_seg.setdefault((v, sid), []).append(im)
+        text_cache = {}
+        out = {}
+        for (v, sid), ims in frames_by_seg.items():
+            n = len(ims)
+            tube = [ims[min(n - 1, int((j + 0.5) * n / VICLIP_NFRAMES))]
+                    for j in range(VICLIP_NFRAMES)]
+            s = viclip_option_scores(tube, queries, device=dev,
+                                     text_cache=text_cache)
+            out.setdefault(v, {})[sid] = np.asarray(s, dtype=np.float64)
+        return out
+
     def _prepare(self, rec, video_root):
         key = rec.get("id")
         if key in self._cache:
@@ -228,22 +286,41 @@ class SegmentSelectMethod(FrameSelectMethod):
         if not pool:
             raise FileNotFoundError("no candidate frames from any clip")
 
-        # score every pooled frame once; scorer failures raise (inherited
-        # policy — no silent uniform fallback)
+        # score every pooled frame once with the image tower (dedup needs its
+        # per-frame embeddings even under viclip); scorer failures raise
+        # (inherited policy — no silent uniform fallback)
         query, qmode = query_for(rec, self.query)
+        queries = query if isinstance(query, list) else [query]
         scores, embs = clip_scores(self._ensure_clip(), query,
                                    [p[3] for p in pool], return_image_embs=True)
+        S2 = scores if scores.ndim == 2 else None    # [frames, options]
         if scores.ndim == 2:
             # [frames, options] -> a frame's score is its best option
             scores = scores.max(axis=1)
 
-        # segment relevance = best frame in the segment; keep top per clip,
-        # then restore chronological (segment-id) order within the clip
-        seg_scores = {}                       # video -> {seg_id: best score}
-        for j, (v, sid, t, im) in enumerate(pool):
-            d = seg_scores.setdefault(v, {})
-            d[sid] = max(d.get(sid, float("-inf")), float(scores[j]))
-        kept_segs = {v: sorted(sorted(d, key=lambda s: -d[s])[: self.segments_keep])
+        # per-segment per-option score matrix: ViCLIP embeds each segment
+        # jointly as one tube; the image tower reduces max-over-frames per
+        # option (same segment scores as the historic scalar path)
+        if self.seg_scorer == "viclip":
+            seg_opt = self._viclip_segment_scores(pool, queries)
+        else:
+            seg_opt = {}                      # video -> {seg_id: [per-option]}
+            for j, (v, sid, t, im) in enumerate(pool):
+                row = S2[j] if S2 is not None else np.array([float(scores[j])])
+                d = seg_opt.setdefault(v, {})
+                d[sid] = np.maximum(d[sid], row) if sid in d else row.copy()
+        seg_scores = {v: {sid: float(r.max()) for sid, r in d.items()}
+                      for v, d in seg_opt.items()}
+
+        # straight TOP-K per clip over the reduced matrix (descending; a tie
+        # keeps the earlier segment), then restore chronological (segment-id)
+        # order within the clip. segments_keep 0 = AUTO: fill the seg_pool
+        # frame target with whole segments split evenly across the K streams,
+        # clamped to [1, SEG_KEEP_MAX].
+        keep_top = self.segments_keep or max(1, min(
+            SEG_KEEP_MAX, self.segments_per_video,
+            self.seg_pool // (self.frames_per_segment * K)))
+        kept_segs = {v: sorted(sorted(d, key=lambda s: -d[s])[: keep_top])
                      for v, d in seg_scores.items()}
         kept = [j for j, (v, sid, t, im) in enumerate(pool)
                 if sid in kept_segs[v]]
@@ -280,7 +357,7 @@ class SegmentSelectMethod(FrameSelectMethod):
         qwen_video_list = self.img_token_parity == "qwen_video_list"
         qwen_pad = {}
         content = [{"type": "text", "text": SEGMENT_SELECT_PREFIX.format(
-            K=K, S=self.segments_per_video, top=self.segments_keep,
+            K=K, S=self.segments_per_video, top=keep_top,
             n=n_selected)}]
         for v in vids:
             if not selected[v]:
@@ -310,13 +387,23 @@ class SegmentSelectMethod(FrameSelectMethod):
             "img_token_parity": self.img_token_parity,
             "K": K,
             "segments_per_video": self.segments_per_video,
-            "segments_keep": self.segments_keep,
+            # the EFFECTIVE per-clip K (auto rows resolve it per record)
+            "segments_keep": keep_top,
+            "segments_keep_auto": self.segments_keep == 0,
+            "seg_pool": self.seg_pool if self.segments_keep == 0 else None,
             "frames_per_segment": self.frames_per_segment,
             "segments_kept_per_video": kept_segs,
             # keyed by segment id (a bare list shifts silently when decord
             # drops a whole segment's frames, mismapping scores post-hoc)
             "segment_scores": {v: {s: round(d[s], 4) for s in sorted(d)}
                                for v, d in seg_scores.items()},
+            # the full per-option matrix behind the top-K (options mode only;
+            # with one query it would just duplicate segment_scores)
+            "segment_option_scores": (
+                {v: {s: [round(float(x), 4) for x in d[s]] for s in sorted(d)}
+                 for v, d in seg_opt.items()} if len(queries) > 1 else None),
+            "segment_scorer": ("viclip" if self.seg_scorer == "viclip"
+                               else self.clip_model_name),
             "n_pool": len(pool),
             "n_kept_segment_frames": len(kept),
             "dedup_tau": self.dedup_tau,
