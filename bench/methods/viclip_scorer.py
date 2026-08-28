@@ -19,7 +19,15 @@ Preprocessing is done here, NOT via the repo's `frames2tensor`: that helper
 expects cv2-style BGR arrays and flips them, while every frame in this harness
 is RGB (decord/PIL). Feeding RGB through it would swap channels silently and
 degrade every score with no error. Verified against the InternVideo reference:
-resize to 224, ImageNet mean/std, stack to [1, T, C, H, W], T == 8.
+resize to 224, ImageNet mean/std, stack to [1, T, C, H, W], T == 8. Two
+deliberate, measured departures (2026-08-27 audit; neither changes a ranking,
+and changing them now would invalidate the registered ViCLIP legs): the resize
+filter is PIL's default (bicubic, antialiased) rather than cv2 INTER_LINEAR
+(max score delta ~0.005, a common offset), and the callers sample the 8 tube
+frames at centred positions with repeat-padding instead of the demo's
+front-anchored step=len//8 (closer to the model's training-time sampler).
+The text encoder's context is 32 tokens (max_txt_l), silently truncated —
+not CLIP's 77.
 """
 import importlib.util
 import os

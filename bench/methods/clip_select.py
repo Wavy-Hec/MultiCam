@@ -120,8 +120,9 @@ def option_texts(rec):
 
     The meeting's follow-up 1 formulation: score against EACH option and reduce
     by max, with the question never used. Each option is embedded on its own, so
-    nothing is lost to the text encoder's 64/77-token cap — unlike one
-    concatenated question+options blob, which is silently truncated.
+    the text encoder's cap (CLIP 77 / SigLIP 64 / ViCLIP 32 tokens, all
+    silently truncating) bites far less than one concatenated question+options
+    blob would — but not never: 7% of MVU-Eval options exceed ViCLIP's 32.
 
     ``analysis/clip_scorer_gate.py`` imports this so the offline gate and the
     inference-time arm cannot drift: whatever the gate measures is what the arm
@@ -395,7 +396,12 @@ def load_summary_cache(path_or_glob):
                     row = json.loads(line)
                 except Exception:
                     continue
-                if (row.get("summary") and not row.get("error")
+                # summaries decoded from a raw .avi (pre-remux rows lack the
+                # stamp; CVBENCH_ALLOW_AVI rows stamp avi-raw) are stale
+                stale_media = (row.get("media_remap") == "avi-raw"
+                               or ("media_remap" not in row
+                                   and str(row.get("video")).lower().endswith(".avi")))
+                if (row.get("summary") and not row.get("error") and not stale_media
                         and row.get("prompt_ver", SUMMARY_PROMPT_VER) == SUMMARY_PROMPT_VER):
                     cache[row["video"]] = row["summary"]
     return cache, paths
