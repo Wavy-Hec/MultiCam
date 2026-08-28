@@ -17,11 +17,12 @@
 #SBATCH --output=analysis/logs/%A_%a.bench.out
 #SBATCH --error=analysis/logs/%A_%a.bench.err
 #SBATCH -N 1
+### kimq only (2026-08-28): the same A100 nodes as sxmq at a lower priority tier, 12 h max.
 ### gpuq belongs to the physics group — do not submit there without permission.
-#SBATCH -p sxmq,gpul40q
+#SBATCH -p kimq
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=6
-#SBATCH --time=08:00:00
+#SBATCH --time=12:00:00
 
 set -euo pipefail
 REPO=$HOME/CVBench
