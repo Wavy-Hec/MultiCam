@@ -191,6 +191,54 @@ LEGS = [
          glob="bench_crossview_egoexo500_internvl_sgva64_shard*.jsonl", budget="64 frames total, auto K"),
     dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
          glob="bench_crossview_egoexo500_internvl_sgva96_shard*.jsonl", budget="96 frames total, auto K"),
+    # MEVA rerun on the remuxed .mp4 siblings (jobs 91629-91637, TAG=_mp4fs /
+    # _mp4sg / _mp4sgva, 2026-08-27/28): the same three arms and protocol as
+    # the fs / sg / sgva legs above, decoding the right frames this time. The
+    # pre-remux MEVA legs stay listed so the registry shows both, with
+    # media_ok telling them apart — every (method, budget) key below has an
+    # invalid twin above, so filter records.jsonl on media_remap == 'avi->mp4'
+    # (or the registry on media_ok) before pooling MEVA rows by budget label.
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4fs32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4fs64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4fs96_shard*.jsonl", budget="96 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sg32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sg64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sg96_shard*.jsonl", budget="96 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgva32_shard*.jsonl", budget="32 frames total, auto K"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgva64_shard*.jsonl", budget="64 frames total, auto K"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgva96_shard*.jsonl", budget="96 frames total, auto K"),
+    # Query-mode legs (2026-08-28 plan): _sgvs = ViCLIP auto-K scored against
+    # each event-ordering STATEMENT (segment_select_viclip_stmt; the temporal
+    # half of EgoExo falls back to the options = a same-protocol replicate of
+    # sgva); _sgo = SigLIP top-4 scored against the OPTIONS
+    # (segment_select_siglip_opt), separating the scorer from the query mode
+    # in the sg -> sgv step. Entries with no files on disk are skipped.
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgvs32_shard*.jsonl", budget="32 frames total, auto K"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgvs64_shard*.jsonl", budget="64 frames total, auto K"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgo64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgo32_shard*.jsonl", budget="32 frames total"),
+    # The 8-frames/video centralized / native / per_stream MEVA split rerun on
+    # the remuxed clips (2026-08-28, TAG=_mp4t1iv / _mp4t1q25, 8 shards each):
+    # same protocol as the invalid t1iv / t1q25 legs above (temp 0.1,
+    # reasoning off, max_tiles 6 on InternVL).
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_internvl_mp4t1iv_shard*.jsonl", budget="8 frames/video"),
+    dict(dataset="CrossView-MEVA", backend="Qwen2.5-VL-7B-Instruct",
+         subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_cvbench_mp4t1q25_shard*.jsonl", budget="8 frames/video"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]
@@ -270,6 +318,9 @@ def main():
                         "abstained": bool(r.get("abstained")),
                         "latency_s": lat,
                         "latency_ms": None if lat is None else round(lat * 1000.0, 1),
+                        # selection-stage wall time (segment/frame_select rows written
+                        # after 2026-08-28; None before, and for the native arms)
+                        "selection_latency_s": (r.get("frame_alloc") or {}).get("selection_latency_s"),
                         "perception_latency_par_s": r.get("perception_latency_par_s"),
                         "aggregate_latency_s": r.get("aggregate_latency_s"),
                         "num_model_calls": r.get("num_model_calls"),

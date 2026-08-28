@@ -40,9 +40,12 @@ DATASETS = {
                  {"fs": "fs", "sg": "sg", "sgv": "sgv", "sgva": "sgva"}),
     "CrossView-EgoExo": ("crossview_egoexo500.json", "bench_crossview_egoexo500_internvl",
                          {"fs": "fs", "sg": "sg", "sgva": "sgva"}),
+    # MEVA reads the post-remux legs (TAG=_mp4*): the bare fs/sg/sgva tags on
+    # this subset decoded the wrong frames (see hosting/remux_avi.py) and are
+    # kept on disk only to size that defect.
     "CrossView-MEVA": ("crossview_meva1033_subset.json",
                        "bench_crossview_meva1033_subset_internvl",
-                       {"fs": "fs", "sg": "sg", "sgva": "sgva"}),
+                       {"fs": "mp4fs", "sg": "mp4sg", "sgva": "mp4sgva"}),
 }
 BUDGETS = (32, 64, 96)
 BASELINE_METHOD = "cvbench_native"
