@@ -86,8 +86,13 @@ QUERY_SEARCH_RE = re.compile(r"^query_search(?:_(?P<tag>[a-z0-9]+))?$")
 # Same tag/_opt grammar as frame_select, plus 'viclip' (joint tube embeddings for
 # segment relevance; --clip-model still supplies the dedup embeddings); budget
 # 0/omitted = matched nframes x K; --segments-keep 0 = budget-derived top-K.
+# Query mode suffix: none = the question, _opt = each answer option, _stmt =
+# each Roman-numbered statement of an event-ordering question (falls back to
+# the options on records without statements; clip_select.query_for).
 SEGMENT_SELECT_RE = re.compile(
-    r"^segment_select(?:_(?P<tag>(?!opt(?:_|$))[a-z0-9]+))?(?P<opt>_opt)?$")
+    r"^segment_select(?:_(?P<tag>(?!(?:opt|stmt)(?:_|$))[a-z0-9]+))?"
+    r"(?P<qmode>_opt|_stmt)?$")
+SEGMENT_QUERY_MODES = {None: "question", "_opt": "options", "_stmt": "statements"}
 
 # alias -> HF id (cached locally; runs under the `internvl` conda env, NOT cvbench,
 # because cvbench's transformers breaks the InternVL3 remote code).
@@ -231,7 +236,7 @@ def make_method(mname, backend, args):
             cell_px=args.cell_px, name=mname,
             nframes=args.nframes, max_new_tokens=args.max_new_tokens,
             temperature=args.temperature, reasoning=not args.no_reasoning,
-            query="options" if sg.group("opt") else "question")
+            query=SEGMENT_QUERY_MODES[sg.group("qmode")])
     fm = FRAME_SELECT_RE.match(mname)
     if fm:
         tag = fm.group("tag")
@@ -445,7 +450,7 @@ def main():
             raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)} "
                              f"or clip_select[_<scorer>]_top<m> or frame_select[_<scorer>] "
                              f"or frame_select[_<scorer>]_optu or clip_select[_<scorer>|_viclip]_optu "
-                             f"or query_search[_<scorer>] or segment_select[_<scorer>][_opt] "
+                             f"or query_search[_<scorer>] or segment_select[_<scorer>][_opt|_stmt] "
                              f"or single_view<i>")
         # explicit --budget 0 is a matched-budget request only the new arms
         # implement; the legacy selection arms would select 0 frames and run

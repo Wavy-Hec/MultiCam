@@ -43,6 +43,7 @@ import glob
 import json
 import os
 import re
+import time
 
 import numpy as np
 from decord import VideoReader, cpu
@@ -131,13 +132,64 @@ def option_texts(rec):
     return [OPT_PREFIX.sub("", str(o)).strip() for o in rec.get("options", [])]
 
 
+# Event-ordering questions enumerate the events as Roman-numbered statements
+# — one per line on EgoExo ("...:\nI. The person ...\nII. ..."; five records
+# spell the newline as a literal backslash-n), inline on MEVA ("...: I. A
+# person ... II. A vehicle ... Which sequence is correct?") — and their
+# options are permutations of the numerals: content-free as queries
+# (segment_select stamps options_are_clip_refs), while the whole question
+# never fits ViCLIP's 32-token window (median 77 tokens on EgoExo). The
+# statements themselves do (median 17; 1 of 867 EgoExo statements over).
+_STATEMENT_RE = re.compile(
+    r"(?:^|\\n|(?<=[\s:.]))\s*(I{1,3}|IV|V|VI{1,3}|IX|X)\.\s+(?=\S)")
+_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+# the closing question MEVA appends after the last statement
+_STATEMENT_TAIL_RE = re.compile(r"\s+(?:What|Which)\b[^.?!]*\?\s*$")
+
+
+def statement_texts(rec):
+    """The Roman-numbered statements of an event-ordering question, in the
+    question's order, numeral and delimiter stripped; [] when the question
+    holds fewer than two (then it is not an event-ordering question and the
+    caller falls back).
+
+    Numerals are accepted only in sequence (I, II, III, ...), so a stray
+    "the man X." inside a statement cannot open a new one (EgoExo id 87).
+    """
+    q = str(rec.get("question") or "")
+    cuts, expect = [], 0
+    for m in _STATEMENT_RE.finditer(q):
+        if expect < len(_ROMAN) and m.group(1) == _ROMAN[expect]:
+            cuts.append((m.start(), m.end()))
+            expect += 1
+    if len(cuts) < 2:
+        return []
+    texts = []
+    for k, (_, b) in enumerate(cuts):
+        end = cuts[k + 1][0] if k + 1 < len(cuts) else len(q)
+        # a statement runs to the next numeral; on the one-per-line format
+        # cut at the line break so an appended tail never rides along
+        texts.append(re.split(r"\r?\n|\\n", q[b:end])[0].strip())
+    texts[-1] = _STATEMENT_TAIL_RE.sub("", texts[-1]).strip()
+    texts = [t for t in texts if t]
+    return texts if len(texts) >= 2 else []
+
+
 def query_for(rec, mode):
     """(query, mode_actually_used) for a record under ``mode``.
 
     Falls back to the question when a record carries no options, so an
     option-guided leg can never silently score against an empty query — and the
-    row records which of the two it really used.
+    row records which of the two it really used. ``statements`` (the _stmt
+    arms) queries the event-ordering statements and falls back to the options
+    on a record that has none, so a mixed subset runs its non-ordering records
+    exactly as the _opt arm does; the row records the mode really used.
     """
+    if mode == "statements":
+        stmts = statement_texts(rec)
+        if stmts:
+            return stmts, "statements"
+        mode = "options"
     if mode == "options":
         opts = [o for o in option_texts(rec) if o]
         if opts:
@@ -780,6 +832,8 @@ class FrameSelectMethod(Method):
         key = rec.get("id")
         if key in self._cache:
             return self._cache[key]
+        # wall time of the selection stage, once per record (see segment_select)
+        t_sel = time.perf_counter()
         require_video_record(rec, self.name)
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True,
                                        reasoning=self.reasoning)
@@ -886,6 +940,7 @@ class FrameSelectMethod(Method):
             "n_query_texts": len(query) if isinstance(query, list) else 1,
             "selected_times_s": {v: [round(t, 2) if t is not None else None
                                      for t, _, _ in by_video[v]] for v in sorted(by_video)},
+            "selection_latency_s": round(time.perf_counter() - t_sel, 3),
         }
         self._cache = {key: (content, yn, gold, alloc_meta)}
         return self._cache[key]

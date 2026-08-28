@@ -135,6 +135,16 @@ def _tube(frames_pil, device):
     return torch.from_numpy(x).float().to(device)
 
 
+def viclip_text_overflow(texts, device="cuda:0"):
+    """How many of ``texts`` exceed the text tower's 32-token window (SOT +
+    BPE tokens + EOT > max_txt_l) and are silently truncated when scored. The
+    _stmt arms stamp this so a leg can show its statements fit; whole
+    questions almost never do."""
+    model, tokenizer, _ = ensure_viclip(device)
+    cap = int(getattr(model, "max_txt_l", 32))
+    return sum(1 for t in texts if len(tokenizer.encode(str(t))) + 2 > cap)
+
+
 def viclip_option_scores(frames_pil, texts, device="cuda:0", text_cache=None):
     """Cosine similarity of ONE clip (8 RGB PIL frames, embedded jointly)
     against each text in ``texts``. Returns np.ndarray [len(texts)].

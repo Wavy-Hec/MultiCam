@@ -2,7 +2,11 @@
 most question-relevant segments, pool their frames, drop near-duplicates, and
 answer from an evenly-thinned subset of the unique pool.
 
-  segment_select[_<scorer>][_opt]
+  segment_select[_<scorer>][_opt|_stmt]
+      (``_stmt``: the query texts are the Roman-numbered statements of an
+      event-ordering question — clip_select.statement_texts — falling back to
+      the options on a record without any; rows stamp ``query_mode``,
+      ``n_query_texts`` and, under ViCLIP, ``n_query_texts_truncated``.)
       1. Each of the K clips is split into ``segments_per_video`` contiguous
          equal-time segments (fewer when the clip is shorter than that).
       2. ``frames_per_segment`` frames are sampled uniformly WITHIN each
@@ -84,6 +88,7 @@ answer from an evenly-thinned subset of the unique pool.
 """
 import os
 import re
+import time
 
 import numpy as np
 from decord import VideoReader, cpu
@@ -292,6 +297,10 @@ class SegmentSelectMethod(FrameSelectMethod):
         key = rec.get("id")
         if key in self._cache:
             return self._cache[key]
+        # wall time of the selection stage (decode + scoring + dedup + thin),
+        # paid once per record and shared by its passes; the answer call's own
+        # latency_s never includes it
+        t_sel = time.perf_counter()
         require_video_record(rec, self.name)
         base_msgs, yn = build_messages(rec, video_root, self.nframes, no_video=True,
                                        reasoning=self.reasoning)
@@ -338,8 +347,12 @@ class SegmentSelectMethod(FrameSelectMethod):
         # per-segment per-option score matrix: ViCLIP embeds each segment
         # jointly as one tube; the image tower reduces max-over-frames per
         # option (same segment scores as the historic scalar path)
+        n_trunc = None
         if self.seg_scorer == "viclip":
             seg_opt = self._viclip_segment_scores(pool, queries)
+            from .viclip_scorer import viclip_text_overflow
+            n_trunc = viclip_text_overflow(
+                queries, device=getattr(self.backend, "device", "cuda:0"))
         else:
             seg_opt = {}                      # video -> {seg_id: [per-option]}
             for j, (v, sid, t, im) in enumerate(pool):
@@ -445,7 +458,10 @@ class SegmentSelectMethod(FrameSelectMethod):
                                else self.clip_model_name),
             # True when every option is a bare clip reference ("Video 3",
             # "II -> I -> III"): the scorer then ranks segments by similarity
-            # to that token, not to any content — 35% of MVU-Eval records
+            # to that token, not to any content — 35% of MVU-Eval records.
+            # Statement queries are content by construction (None, like the
+            # question mode) — a _stmt row that stamps a bool fell back to
+            # the options on a record without statements
             "options_are_clip_refs": _options_are_clip_refs(queries) if qmode == "options" else None,
             # the per-clip K that actually bound (a clip cannot contribute
             # more than its segment count), and whether selection did
@@ -475,7 +491,12 @@ class SegmentSelectMethod(FrameSelectMethod):
             "qwen_timing_unsafe": True if qwen_video_list else None,
             "query_mode": qmode,
             "n_query_texts": len(query) if isinstance(query, list) else 1,
+            # query texts the ViCLIP text tower truncated (None under the
+            # image tower); EgoExo statements ~0, MEVA statements ~5% (their
+            # verb sits past token 32), whole questions ~100%
+            "n_query_texts_truncated": n_trunc,
             "selection_fallback": None,
+            "selection_latency_s": round(time.perf_counter() - t_sel, 3),
         }
         self._cache = {key: (content, yn, gold, alloc_meta)}
         return self._cache[key]
