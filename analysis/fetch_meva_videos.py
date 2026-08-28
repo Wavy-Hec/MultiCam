@@ -8,9 +8,10 @@ but the hour sub-dir does not map cleanly from the filename, so for each needed
 date we LIST drops-123-r13/<date>/ and match clips by basename.
 
 The release QA paths are like `videos/meva/mp4_resized/<date>/<hour>/<slot>/<name>.EXT`.
-Source files are `.avi`. If the subset was built with `--meva-video-ext avi`
-(recommended) the .avi is saved directly. If the path ends in `.mp4`, the .avi is
-transcoded with ffmpeg (must be installed).
+Source files are `.avi`; the converter spells MEVA paths `.avi` by default and
+the .avi is saved directly (the harness decodes the verified .mp4 sibling that
+hosting/remux_avi.py writes next to it — run it after fetching). A path spelled
+`.mp4` instead triggers a full ffmpeg transcode here (must be installed).
 
 Run (no GPU; needs internet):
   python3 analysis/fetch_meva_videos.py --subset analysis/crossview_subset.json

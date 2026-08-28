@@ -122,7 +122,7 @@ def cap_cameras_ego(video_paths, cap):
     return (aria + rest)[:cap]
 
 
-def convert(sources, meva_ext="mp4", require_local_root=None, cap=MAX_SLOTS):
+def convert(sources, meva_ext="avi", require_local_root=None, cap=MAX_SLOTS):
     stats = Counter()
     pool = []
     for source, files in SOURCE_FILES.items():
@@ -325,9 +325,11 @@ def main():
                     help=f"cap each question to K views (default {MAX_SLOTS}, the "
                          "harness MAX_SLOTS scraped from eval_thinking.py). Pass 4 "
                          "to reproduce records built before the slot extension.")
-    ap.add_argument("--meva-video-ext", default="mp4", choices=["mp4", "avi"],
-                    help="extension for MEVA video paths; 'avi' matches the public "
-                         "MEVA source so no transcoding is needed (decord reads avi)")
+    ap.add_argument("--meva-video-ext", default="avi", choices=["mp4", "avi"],
+                    help="extension for MEVA video paths; 'avi' (default) matches "
+                         "the public MEVA source on disk — the harness decodes the "
+                         "remuxed .mp4 sibling (hosting/remux_avi.py) and stamps "
+                         "media_remap; keep records spelled .avi")
     ap.add_argument("--require-local", default=None, metavar="RELEASE_ROOT",
                     help="drop questions whose videos are not present under this release "
                          "root; use to build a runnable subset from a partial/incremental "

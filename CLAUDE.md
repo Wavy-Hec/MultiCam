@@ -55,8 +55,23 @@ stay so one parser serves both modes.
 silently runs a handful of questions per shard and still writes a normal-looking
 summary.
 
-**MEVA media is `.avi`.** `convert_crossview.convert(..., require_local_root=...)`
-returns nothing unless `meva_ext='avi'` is passed; the default is `.mp4`.
+**MEVA media is `.avi` on disk, and records must keep spelling it that way.**
+`convert_crossview` defaults to `meva_ext='avi'`; do not regenerate subsets with
+`mp4` — a `.mp4`-spelled record decodes the same file but loses the `media_remap`
+stamp and misses the summary-cache keys.
+
+**MEVA `.avi` must never reach a decoder.** decord returns the wrong frame on random
+access into the release's AVI containers: the packets carry no pts, every seek lands
+on keyframe 0 and decodes forward, so `vr[i]` comes back as frame `i` minus the
+preceding keyframe index (`i mod 60` on the usual 60-frame grid) — every sighted arm
+saw only the first seconds of each five-minute clip in every MEVA result produced
+before 2026-08-27. `video_paths` resolves a record's `.avi` to the `.mp4` sibling
+written by `hosting/remux_avi.py` (sequential decode identical; random access within
+the H.264 reorder depth, at most three frames) and refuses to run without it
+(`CVBENCH_ALLOW_AVI=1` only to reproduce the defect). Before submitting a MEVA leg:
+`hosting/remux_avi.py --check` must exit 0, and the leg needs a NEW TAG — `run_bench`
+refuses to resume into a file holding unstamped (pre-remux) rows. Rows since then
+stamp `media_remap`, and the registry marks pre-remux legs `media_ok: false`.
 
 ## Before launching anything
 

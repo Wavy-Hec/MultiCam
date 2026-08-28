@@ -77,11 +77,13 @@ LEGS = [
     dict(dataset="CrossView-MEVA", backend="Qwen2.5-VL-7B-Instruct",
          subset="crossview_meva_cap13.json",
          glob="bench_crossview_meva_cap13_cvbench_t1q25_shard*.jsonl", budget="8 frames/video"),
+    # The EgoExo globs name their tag: a wildcard here would also swallow the
+    # fs/sg frame-sweep shards below and merge three budgets into one leg.
     dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
-         glob="bench_crossview_egoexo500_internvl_*_shard*.jsonl", budget="8 frames/video"),
+         glob="bench_crossview_egoexo500_internvl_t1iv_shard*.jsonl", budget="8 frames/video"),
     dict(dataset="CrossView-EgoExo", backend="Qwen2.5-VL-7B-Instruct",
          subset="crossview_egoexo500.json",
-         glob="bench_crossview_egoexo500_cvbench_*_shard*.jsonl", budget="8 frames/video"),
+         glob="bench_crossview_egoexo500_cvbench_t1q25_shard*.jsonl", budget="8 frames/video"),
     dict(dataset="All-Angles", backend="InternVL3-8B", subset="allangles_qa.json",
          glob="bench_allangles_qa_internvl_t1iv_shard*.jsonl", budget="stills, cell_px=448"),
     dict(dataset="All-Angles", backend="Qwen2.5-VL-7B-Instruct", subset="allangles_qa.json",
@@ -111,8 +113,11 @@ LEGS = [
     dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
          glob="bench_crossview_meva_cap13_internvl_fs96_shard*.jsonl", budget="96 frames total"),
     # option-aware selection matrix (jobs 86538-86545, TAG=_optu, strict prompt).
-    # The EgoExo pair needs no entry: the CrossView-EgoExo wildcard globs above
-    # already match bench_crossview_egoexo500_{cvbench,internvl}_optu_shard*.
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_optu_shard*.jsonl", budget="matched, 8xK frames total"),
+    dict(dataset="CrossView-EgoExo", backend="Qwen2.5-VL-7B-Instruct",
+         subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_cvbench_optu_shard*.jsonl", budget="matched, 8xK frames total"),
     dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
          glob="bench_mvueval_qa_internvl_optu_shard*.jsonl", budget="matched, 8xK frames total"),
     dict(dataset="MVU-Eval", backend="Qwen2.5-VL-7B-Instruct", subset="mvueval_qa.json",
@@ -122,6 +127,70 @@ LEGS = [
     dict(dataset="CrossView-MEVA", backend="Qwen2.5-VL-7B-Instruct",
          subset="crossview_meva_cap13.json",
          glob="bench_crossview_meva_cap13_cvbench_optu_shard*.jsonl", budget="matched, 8xK frames total"),
+    # segment_select sweep (jobs 89992-90012, TAG=_sg{B}, DEDUP_TAU=1). The MEVA
+    # legs ran on the 1033-question subset, whose ids/questions/answers match
+    # crossview_meva_cap13.json exactly — filter the cap13 fs legs to its ids
+    # for the baseline. EgoExo had no fixed-total baseline, hence its fs legs.
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sg32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sg64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sg96_shard*.jsonl", budget="96 frames total"),
+    # The cap13 fs legs are NOT that baseline (13 vs 4 cameras on 955/1033
+    # questions) — jobs 90615-90617 rerun cvbench_native on the 4-cap pool.
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_fs32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_fs64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_fs96_shard*.jsonl", budget="96 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_sg32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_sg64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_sg96_shard*.jsonl", budget="96 frames total"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_fs32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_fs64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_fs96_shard*.jsonl", budget="96 frames total"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sg32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sg64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sg96_shard*.jsonl", budget="96 frames total"),
+    # ViCLIP segment scoring (jobs 90863-90874, TAG=_sgv{B} fixed K=4 /
+    # _sgva{B} auto top-K). Fixed and auto stamp the same method string —
+    # segments_keep_auto lives in frame_alloc, not the method — so the auto
+    # legs get their own budget label or the registry rows are twins.
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgv32_shard*.jsonl", budget="32 frames total"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgv64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgv96_shard*.jsonl", budget="96 frames total"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgva32_shard*.jsonl", budget="32 frames total, auto K"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgva64_shard*.jsonl", budget="64 frames total, auto K"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgva96_shard*.jsonl", budget="96 frames total, auto K"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_sgva32_shard*.jsonl", budget="32 frames total, auto K"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_sgva64_shard*.jsonl", budget="64 frames total, auto K"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_sgva96_shard*.jsonl", budget="96 frames total, auto K"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgva32_shard*.jsonl", budget="32 frames total, auto K"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgva64_shard*.jsonl", budget="64 frames total, auto K"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgva96_shard*.jsonl", budget="96 frames total, auto K"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]
@@ -210,6 +279,9 @@ def main():
                         "has_think": bool(r.get("think")),
                         "response_chars": len(r.get("response_text") or ""),
                         "error": r.get("error"), "run_id": r.get("run_id"),
+                        # provenance stamps (rows before 2026-08-27 lack both)
+                        "media_remap": r.get("media_remap"),
+                        "strict_prompt": r.get("strict_prompt"),
                     }
                     frec.write(json.dumps(rec) + "\n")
                     n_rec += 1
@@ -219,6 +291,12 @@ def main():
                     n_think += bool(r.get("think"))
                     if r.get("temperature") is not None:
                         proto["temperature"].add(r["temperature"])
+                    # media provenance: sighted rows on an .avi subset (MEVA)
+                    # written before the remux decoded the wrong frames and
+                    # carry no stamp -> "pre-remux"
+                    if r["method"] != "blind" and any(
+                            str(m).lower().endswith(".avi") for m in media):
+                        proto["media_remap"].add(r.get("media_remap") or "pre-remux")
                     fa = r.get("frame_alloc") or {}
                     for k in ("total_frames", "cell_px", "max_tiles"):
                         if fa.get(k) is not None:
@@ -274,7 +352,13 @@ def main():
                     "total_frames": sorted(proto["total_frames"]) or None,
                     "cell_px": sorted(proto["cell_px"]) or None,
                     "max_tiles": sorted(proto["max_tiles"]) or None,
+                    "media_remap": sorted(proto["media_remap"]) or None,
                 },
+                # False = decoded the wrong frames (pre-remux MEVA, or a
+                # CVBENCH_ALLOW_AVI run); see hosting/remux_avi.py. A leg
+                # with more than one stamp value is a mixed file.
+                "media_ok": not (proto["media_remap"] & {"pre-remux", "avi-raw"}),
+                "media_mixed": len(proto["media_remap"]) > 1,
             })
 
     frec.close()

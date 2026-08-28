@@ -26,7 +26,7 @@ import os
 from .methods.clip_select import (SUMMARY_PROMPT, SUMMARY_PROMPT_VER,
                                   SUMMARY_NFRAMES, SUMMARY_MAX_NEW_TOKENS,
                                   summary_cache_files, _clip_meta)
-from .reuse import MAX_SLOTS
+from .reuse import MAX_SLOTS, media_remap, resolve_media
 
 DEFAULT_OUT = os.path.join(os.path.dirname(__file__), "results",
                            "clip_summaries_internvl3.jsonl")
@@ -74,7 +74,12 @@ def existing_rows(out):
                 except Exception:
                     continue
                 v = row.get("video")
-                if (row.get("summary") and not row.get("error")
+                # a summary built from a raw .avi decode (pre-remux, or the
+                # CVBENCH_ALLOW_AVI override) is stale like a prompt bump
+                stale_media = (row.get("media_remap") == "avi-raw"
+                               or ("media_remap" not in row
+                                   and str(v).lower().endswith(".avi")))
+                if (row.get("summary") and not row.get("error") and not stale_media
                         and row.get("prompt_ver", SUMMARY_PROMPT_VER) == SUMMARY_PROMPT_VER):
                     ok.add(v)
                 else:
@@ -138,9 +143,14 @@ def main():
     n_err = 0
     with open(out, "a") as fh:
         for rel in tqdm(todo, desc="summarize"):
-            vp = os.path.normpath(os.path.join(args.video_root, rel))
+            # .avi records decode from their remuxed .mp4 sibling; a missing
+            # sibling raises here, outside the try, so it aborts the run
+            # instead of filling the cache with error rows. The cache key
+            # stays the raw record path (clip_select._rel_keys matches on it).
+            vp = resolve_media(os.path.normpath(os.path.join(args.video_root, rel)))
             dur, ndec = _clip_meta(vp)
             row = {"video": rel, "summary": "", "model": backend.name,
+                   "media_remap": media_remap({"video_1": rel}),
                    "nframes": args.nframes,
                    "duration_s": round(dur, 2) if dur is not None else None,
                    "n_decoded": ndec, "max_new_tokens": args.max_new_tokens,

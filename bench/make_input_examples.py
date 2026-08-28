@@ -63,7 +63,7 @@ os.environ.setdefault("DECORD_EOF_RETRY_MAX", "20480")
 from PIL import Image, ImageDraw, ImageFont  # noqa: E402
 from decord import VideoReader, cpu  # noqa: E402
 
-from .reuse import build_messages, image_paths, num_images, video_paths  # noqa: E402
+from .reuse import build_messages, image_paths, num_images, num_videos, video_paths  # noqa: E402
 from .methods.stitch import (build_image_montage, build_montages,  # noqa: E402
                              sample_frame_indices)
 from .methods.centralized import (MONTAGE_PREFIX_VIDEO,  # noqa: E402
@@ -373,7 +373,7 @@ def auto_pick(qmap, recs, k_low, k_high, n_each=1):
             rec = recs.get(qid)
             if rec is None:
                 continue
-            k = num_images(rec) or len(video_paths(rec, ""))
+            k = num_images(rec) or num_videos(rec)
             if k != want:
                 continue
             cands.append((spread(method_summary(qrows)), -int(qid), qid))

@@ -55,7 +55,9 @@ SEL_TAU_Q=${SEL_TAU_Q:-0.85}           # _optu arms: per-option quantile when SE
 N_QUERIES=${N_QUERIES:-4}              # query_search: generated search phrases per question
 SEGMENTS_PER_VIDEO=${SEGMENTS_PER_VIDEO:-8}   # segment_select: segments each clip is split into
 SEGMENTS_KEEP=${SEGMENTS_KEEP:-4}             # segment_select: top-K segments kept per clip; 0 = AUTO
-                                              # (K = SEG_POOL/(frames x streams), clamped to [1,16])
+                                              # (K = SEG_POOL/(frames x streams), clamped to
+                                              # [1, min(16, SEGMENTS_PER_VIDEO)]; on 1-2 streams
+                                              # that keeps every segment = no selection)
 SEG_POOL=${SEG_POOL:-128}                     # segment_select AUTO mode: pooled-frame target
 CLIP_MODEL=${CLIP_MODEL:-}                    # selection arms' image tower override (e.g. hold the
                                               # *_viclip arms' DEDUP embeddings on the SigLIP id the
@@ -75,6 +77,12 @@ REASONING=${REASONING:-1}              # 0 = direct-answer prompt, no <think> tr
 # v2 answer-hygiene prompt (enumerate all letters + no-refusal sentence). It
 # changes generation, so never flip it mid-campaign; rows record it either way.
 export STRICT_ANSWER_PROMPT=${STRICT_ANSWER_PROMPT:-0}
+# MEVA .avi bypass and the Qwen segment-arm override (diagnostics only): both
+# inherit the submitting shell (sbatch --export=ALL), so they are defaulted
+# here and echoed on the RUN line to make a stray export visible; rows stamp
+# media_remap / qwen_timing_unsafe and the registry flags such legs
+export CVBENCH_ALLOW_AVI=${CVBENCH_ALLOW_AVI:-0}
+export SEGMENT_SELECT_QWEN_UNSAFE=${SEGMENT_SELECT_QWEN_UNSAFE:-0}
 VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. roots under data/)
 CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
@@ -114,7 +122,7 @@ echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=${BUDGET:-auto} weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 echo "     sel_tau=$SEL_TAU sel_tau_q=$SEL_TAU_Q n_queries=$N_QUERIES query_max_new_tokens=$QUERY_MAX_NEW_TOKENS viclip_dir=$VICLIP_DIR"
 echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU"
-echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT"
+echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT allow_avi=$CVBENCH_ALLOW_AVI qwen_unsafe=$SEGMENT_SELECT_QWEN_UNSAFE"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
     --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" --stream-kind "$STREAM_KIND" \

@@ -18,7 +18,8 @@ import os
 import re
 import socket
 
-from .reuse import DEFAULT_VIDEO_ROOT, STRICT_ANSWER_PROMPT
+from .reuse import (DEFAULT_VIDEO_ROOT, STRICT_ANSWER_PROMPT, ALLOW_AVI,
+                    media_remap, video_paths)
 from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
 from .methods.cvbench_native import CVBenchNativeMethod
@@ -279,8 +280,11 @@ def load_done(path):
 
 
 def existing_identity(path):
-    """(backends, datasets) already present in an output file we would append to."""
-    backends, datasets = set(), set()
+    """(backends, datasets, media_remaps) already present in an output file we
+    would append to. media_remaps holds the sighted rows' `media_remap`
+    stamps, with "unstamped" for rows written before the stamp existed (i.e.
+    before the MEVA remux — those decoded the wrong frames)."""
+    backends, datasets, remaps = set(), set(), set()
     if os.path.exists(path):
         with open(path) as fh:
             for line in fh:
@@ -292,7 +296,9 @@ def existing_identity(path):
                     backends.add(r["backend"])
                 if r.get("dataset"):
                     datasets.add(r["dataset"])
-    return backends, datasets
+                if r.get("method") != "blind":
+                    remaps.add(r["media_remap"] if "media_remap" in r else "unstamped")
+    return backends, datasets, remaps
 
 
 def run_identity(subset):
@@ -462,6 +468,17 @@ def main():
                     if tag == "optu" else "")
             raise SystemExit(f"unknown segment_select scorer tag '{tag}'. "
                              f"Known: {list(SCORER_ALIASES) + ['viclip']}.{hint}")
+        # same submit-time rule for the Qwen path: SegmentSelectMethod refuses
+        # it (fabricated PIL-list timestamps), and that refusal must not wait
+        # for the model load either
+        if sgm and os.environ.get("SEGMENT_SELECT_QWEN_UNSAFE", "0") != "1" and any(
+                b in QWEN_ALIASES or ("/" in b and "internvl" not in b.lower())
+                for b in backends):
+            raise SystemExit(
+                f"{m} on a Qwen backend: the per-clip PIL-list video items get "
+                "fabricated timestamps from qwen_vl_utils (see "
+                "SegmentSelectMethod.__init__); attach real frame times first, "
+                "or set SEGMENT_SELECT_QWEN_UNSAFE=1 knowingly.")
         budget_zero_ok = (OPTION_UNION_FRAME_RE.match(m)
                           or OPTION_UNION_CLIP_RE.match(m)
                           or QUERY_SEARCH_RE.match(m)
@@ -491,7 +508,7 @@ def main():
     # 'cvbench' — would append into ONE file and silently pollute every
     # glob-based leg in export_handoff.py. Rows stay distinguishable via
     # `backend`, but the file does not. Refuse rather than mix.
-    prior_backends, prior_datasets = existing_identity(out)
+    prior_backends, prior_datasets, prior_remaps = existing_identity(out)
     # backend.name is the HF id basename, so resolve aliases the same way
     want_backends = {
         (QWEN_ALIASES.get(b) or INTERNVL_ALIASES.get(b) or b).rstrip("/").split("/")[-1]
@@ -508,12 +525,47 @@ def main():
             + "  Set a distinct TAG (run_bench.sbatch) or --out so each "
               "(dataset, backend) gets its own file.\n"
               "  Pass --allow-mixed only if you genuinely intend one mixed file.")
+    # media provenance: MEVA rows written before the 2026-08-27 remux decoded
+    # the wrong frames and carry no stamp; resume/append must not pool them
+    # with remuxed rows under a reused TAG
+    this_remap = {media_remap(rec) for rec in data} - {None}
+    prior_stamped = prior_remaps - {"unstamped", None}
+    # refuse when (a) this run names .avi records and the file holds rows
+    # written before the stamp existed (pre-remux MEVA), or (b) the file's
+    # stamps disagree with this run's (avi-raw vs avi->mp4, or an mp4-spelled
+    # MEVA subset over remuxed rows). A new/empty file, or a non-MEVA file
+    # (stamps None), is always compatible.
+    mixed = ((this_remap and "unstamped" in prior_remaps)
+             or (prior_stamped and prior_stamped != this_remap))
+    if mixed and not args.allow_mixed:
+        raise SystemExit(
+            f"refusing to append to {out}\n"
+            f"  it holds rows with media_remap {sorted(map(str, prior_remaps))}; "
+            f"this run would stamp {sorted(map(str, this_remap)) or [None]}\n"
+            "  (rows without the stamp predate the MEVA remux and decoded the "
+            "wrong frames). Use a new TAG.\n"
+            "  Pass --allow-mixed only if you genuinely intend one mixed file.")
 
     print(f"subset={args.subset} n={len(data)} methods={methods} backends={backends} "
           f"passes={args.passes} seeds={seeds} temp={args.temperature} "
-          f"strict_prompt={int(STRICT_ANSWER_PROMPT)}")
+          f"strict_prompt={int(STRICT_ANSWER_PROMPT)} allow_avi={int(ALLOW_AVI)}")
     print(f"dataset={dataset} run_id={run_id} node={node}")
     print(f"video_root={args.video_root}\nout={out} (already done: {len(done)})", flush=True)
+
+    # resolve every record's media BEFORE the model loads: a missing .mp4
+    # sibling (MEVA remux) must fail here, not after an 8B load on a GPU node
+    if any(m != "blind" for m in methods):
+        missing = []
+        for rec in data:
+            try:
+                video_paths(rec, args.video_root)
+            except FileNotFoundError as e:
+                missing.append(str(e).split(":")[0])
+        if missing:
+            raise SystemExit(
+                f"{len(missing)} record(s) name an .avi without a verified .mp4 "
+                "sibling (run hosting/remux_avi.py, then --check); first: "
+                f"{missing[:3]}")
 
     from tqdm import tqdm
     with open(out, "a") as fh:
@@ -540,6 +592,11 @@ def main():
                     # the strict prompt is a generation change visible only in
                     # the submit-time env; stamp rows so v1/v2 never pool silently
                     row["strict_prompt"] = STRICT_ANSWER_PROMPT
+                    # .avi records decode from their remuxed .mp4 sibling
+                    # (eval_thinking.resolve_media); stamp it so rows from
+                    # before the remux (wrapped frames) never pool with these
+                    row["media_remap"] = (None if method.name == "blind"
+                                          else media_remap(rec))
                     fh.write(json.dumps(row, ensure_ascii=False) + "\n")
                     fh.flush()
 

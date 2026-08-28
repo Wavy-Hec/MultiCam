@@ -57,6 +57,12 @@ python3 hosting/fetch_videos.py subset \
 # full-eval stage: everything for one dataset
 python3 hosting/fetch_videos.py dataset meva
 
+# MEVA (either path above): remux the .avi clips to verified .mp4 siblings
+# before any eval — decord returns the wrong frames from the AVI container.
+# Needs ffmpeg + decord (the cvbench env has both); originals are untouched.
+conda run -n cvbench python hosting/remux_avi.py
+conda run -n cvbench python hosting/remux_avi.py --check   # must exit 0 before a MEVA leg
+
 # sanity check before running evals
 python3 hosting/fetch_videos.py verify --qa <same json>
 ```
