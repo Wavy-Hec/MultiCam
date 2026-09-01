@@ -216,6 +216,19 @@ LEGS = [
          glob="bench_crossview_meva1033_subset_internvl_mp4sgva64_shard*.jsonl", budget="64 frames total, auto K"),
     dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
          glob="bench_crossview_meva1033_subset_internvl_mp4sgva96_shard*.jsonl", budget="96 frames total, auto K"),
+    # _mp4rd = the relevance-free control (segment_select_random: keep 4 of 8
+    # segments per clip by a deterministic per-record hash, no scorer) at the
+    # two budgets where the scored pickers beat uniform — random ~= sg/sgva
+    # would mean the gain is denser sampling, random ~= fs would mean it is
+    # the relevance. Launch with SEGMENTS_KEEP=4 (fixed): nothing in the code
+    # pins it, and SEGMENTS_KEEP=0 would silently make the leg auto-K and
+    # falsify this label. Fixed 4 is the SigLIP arm's geometry everywhere;
+    # it matches the ViCLIP auto-K arm only on the 955 four-camera records
+    # (sgva keeps 8/8 on two-camera records), so read random-vs-sgva there.
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4rd64_shard*.jsonl", budget="64 frames total"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4rd96_shard*.jsonl", budget="96 frames total"),
     # Query-mode legs (2026-08-28 plan): _sgvs = ViCLIP auto-K scored against
     # each event-ordering STATEMENT (segment_select_viclip_stmt; the temporal
     # half of EgoExo falls back to the options = a same-protocol replicate of
@@ -226,6 +239,16 @@ LEGS = [
          glob="bench_crossview_egoexo500_internvl_sgvs32_shard*.jsonl", budget="32 frames total, auto K"),
     dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
          glob="bench_crossview_egoexo500_internvl_sgvs64_shard*.jsonl", budget="64 frames total, auto K"),
+    # _sgvsc = the same statement legs under --seg-reduce coverage (each
+    # statement claims its own argmax segment; only statement-scored records
+    # differ from _sgvs). Distinct budget label so the registry keys are not
+    # twins of the _sgvs legs — the method name is the same.
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgvsc32_shard*.jsonl",
+         budget="32 frames total, auto K, coverage reduce"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgvsc64_shard*.jsonl",
+         budget="64 frames total, auto K, coverage reduce"),
     dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
          glob="bench_mvueval_qa_internvl_sgo64_shard*.jsonl", budget="64 frames total"),
     dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
@@ -239,6 +262,31 @@ LEGS = [
     dict(dataset="CrossView-MEVA", backend="Qwen2.5-VL-7B-Instruct",
          subset="crossview_meva_cap13.json",
          glob="bench_crossview_meva_cap13_cvbench_mp4t1q25_shard*.jsonl", budget="8 frames/video"),
+    # _mp4t1ivnp / _mp4t1q25np = the same centralized arm under
+    # MONTAGE_KIND=neutral (no montage preamble, 'Video i' cell labels): the
+    # matched-PROMPT control for the comparison above, whose montage arm alone
+    # carried a synchrony preamble and 'Camera i' naming. Distinct budget
+    # label so the registry keys are not twins; rows also stamp montage_kind.
+    # Submit with METHODS=centralized ONLY — the comparison recipe's
+    # three-method line would rerun native/per_stream (which never read
+    # MONTAGE_KIND) into these files and register them under this
+    # 'neutral prompt' label.
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_internvl_mp4t1ivnp_shard*.jsonl",
+         budget="8 frames/video, neutral prompt"),
+    dict(dataset="CrossView-MEVA", backend="Qwen2.5-VL-7B-Instruct",
+         subset="crossview_meva_cap13.json",
+         glob="bench_crossview_meva_cap13_cvbench_mp4t1q25np_shard*.jsonl",
+         budget="8 frames/video, neutral prompt"),
+    # Bounds campaign on meva1033 (scratchpad/bounds_campaign_meva.sh, jobs
+    # 92461/92462): _mp4bd = the blind text-prior floor, _mp4sv8 = the
+    # single-view oracle sweep (single_view1..4, 8 frames of the one view =
+    # per-view parity with the 32-total native leg at K=4).
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4bd_shard*.jsonl", budget="no images"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sv8_shard*.jsonl",
+         budget="8 frames/view, single view"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]
@@ -254,6 +302,26 @@ def sha256(path, cap=1 << 20):
         while chunk := f.read(cap):
             h.update(chunk)
     return h.hexdigest()[:16]
+
+
+def leg_tag(g):
+    """Per-leg identifier derived from the LEG'S GLOB (not any one matched
+    file's stem): the glob minus the 'bench_' prefix, the shard suffix and
+    any remaining wildcards ('crossview_meva_cap13_internvl_mp4t1iv', ...).
+    Written onto every records.jsonl and questions.jsonl row so runs sharing
+    a (dataset, backend, method, budget) key — e.g. the three cap-13
+    comparison runs — stay distinguishable without a join against the
+    registry. The bare submission TAG is not enough: fs32/64/96 name both a
+    cap13 and a meva1033 leg, so the stem keeps the subset spelling too.
+    Eight legs glob with interior wildcards (e.g. 'mvublind*shard*'), which
+    defeat the '_shard' split — strip the '*'s so the value is shell- and
+    regex-safe; the results stay unique across all LEGS entries."""
+    stem = g.split("_shard")[0]
+    if stem.endswith(".jsonl"):
+        stem = stem[: -len(".jsonl")]
+    if stem.startswith("bench_"):
+        stem = stem[len("bench_"):]
+    return stem.replace("*", "")
 
 
 def main():
@@ -303,6 +371,7 @@ def main():
                     rec = {
                         "dataset": leg["dataset"], "backend": leg["backend"],
                         "method": r["method"], "budget": leg["budget"],
+                        "leg": leg_tag(leg["glob"]),
                         "pass_idx": r.get("pass_idx"), "id": r["id"],
                         "task_type": r.get("task_type"), "source": r.get("source"),
                         # what the question pointed at — the join the raw rows lack
@@ -361,6 +430,12 @@ def main():
                                       "source", "media", "n_media", "n_delivered",
                                       "orig_num_cameras", "truncated", "n_options",
                                       "gold")},
+                # the run this row came from: without these, the three cap-13
+                # comparison runs (temp-0.7, pre-remux, rerun) are literally
+                # indistinguishable here and any groupby-average pools
+                # invalid rows with valid ones
+                "leg": leg_tag(leg["glob"]),
+                "media_remap": r0["media_remap"],
                 "method": method, "id": qid, "n_passes": len(rs),
                 "acc_mean": round(sum(x["correct"] for x in rs) / len(rs), 4),
                 "n_correct": sum(x["correct"] for x in rs),
