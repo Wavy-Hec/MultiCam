@@ -6,7 +6,24 @@ answer from an evenly-thinned subset of the unique pool.
       (``_stmt``: the query texts are the Roman-numbered statements of an
       event-ordering question — clip_select.statement_texts — falling back to
       the options on a record without any; rows stamp ``query_mode``,
-      ``n_query_texts`` and, under ViCLIP, ``n_query_texts_truncated``.)
+      ``n_query_texts`` and, under ViCLIP, ``n_query_texts_truncated``.
+
+      Scorer tag ``random`` is the relevance-free CONTROL: each segment's
+      "score" is a deterministic hash of (record id, clip slot, segment id)
+      — a uniform draw fixed across passes, shards and reruns — so the arm
+      keeps K-of-S segments per clip with the scored arms' exact machinery
+      while carrying no signal. It separates "denser sampling inside fewer
+      segments" from "the RIGHT segments". No scorer model loads; it refuses
+      a query suffix (submit-time) and dedup (a dedup survivor is picked by
+      image-tower relevance, which would reintroduce the signal).
+
+      ``--seg-reduce coverage`` (statement queries only): statement i claims
+      its own argmax segment — claim order = statement order, remaining
+      slots by best overall score — instead of the straight max-reduce
+      top-K, so one salient statement cannot absorb every slot. Records that
+      fall back to the options reduce by max regardless, keeping a coverage
+      leg's non-ordering half an exact replicate of the ``_opt`` protocol;
+      rows stamp the EFFECTIVE reduce in ``segment_reduce``.)
       1. Each of the K clips is split into ``segments_per_video`` contiguous
          equal-time segments (fewer when the clip is shorter than that).
       2. ``frames_per_segment`` frames are sampled uniformly WITHIN each
@@ -86,6 +103,7 @@ answer from an evenly-thinned subset of the unique pool.
   ranking carried no content), ``segments_keep_effective`` and
   ``selection_noop``.
 """
+import hashlib
 import os
 import re
 import time
@@ -181,7 +199,7 @@ class SegmentSelectMethod(FrameSelectMethod):
 
     def __init__(self, backend, segments_per_video=8, segments_keep=4,
                  frames_per_segment=8, dedup_tau=0.95, seg_scorer=None,
-                 seg_pool=128, **kw):
+                 seg_pool=128, seg_reduce="max", **kw):
         super().__init__(backend, **kw)
         self.segments_per_video = int(segments_per_video)
         # 0 = AUTO: K per clip derived from seg_pool and the record's stream
@@ -191,9 +209,22 @@ class SegmentSelectMethod(FrameSelectMethod):
         self.dedup_tau = float(dedup_tau)
         # None -> the image tower scores segments too (historic); "viclip" ->
         # each segment is embedded jointly as one tube for segment relevance,
-        # while the image tower still supplies dedup embeddings
+        # while the image tower still supplies dedup embeddings; "random" ->
+        # a deterministic per-record hash replaces the score (control arm),
+        # no scorer model loads
         self.seg_scorer = seg_scorer
         self.seg_pool = int(seg_pool)
+        self.seg_reduce = str(seg_reduce)
+        if self.seg_reduce not in ("max", "coverage"):
+            raise ValueError(
+                f"{self.name}: seg_reduce must be 'max' or 'coverage', got "
+                f"{self.seg_reduce!r}")
+        if self.seg_scorer == "random" and self.dedup_tau < 1.0:
+            raise SystemExit(
+                f"{self.name}: dedup (dedup_tau {self.dedup_tau} < 1) picks "
+                "duplicate survivors by image-tower relevance, reintroducing "
+                "the signal the random control removes — run with "
+                "--dedup-tau 1")
         if self.segments_per_video < 1 or self.segments_keep < 0 \
                 or self.frames_per_segment < 1:
             raise ValueError(
@@ -333,7 +364,8 @@ class SegmentSelectMethod(FrameSelectMethod):
         # no silent uniform fallback).
         query, qmode = query_for(rec, self.query)
         queries = query if isinstance(query, list) else [query]
-        need_img = self.seg_scorer != "viclip" or self.dedup_tau < 1.0
+        need_img = (self.seg_scorer not in ("viclip", "random")
+                    or self.dedup_tau < 1.0)
         if need_img:
             scores, embs = clip_scores(self._ensure_clip(), query,
                                        [p[3] for p in pool], return_image_embs=True)
@@ -353,6 +385,18 @@ class SegmentSelectMethod(FrameSelectMethod):
             from .viclip_scorer import viclip_text_overflow
             n_trunc = viclip_text_overflow(
                 queries, device=getattr(self.backend, "device", "cuda:0"))
+        elif self.seg_scorer == "random":
+            # relevance-free control: one uniform draw per segment, fixed by
+            # (record id, clip slot, segment id) so the selection is identical
+            # across passes, shards and reruns — the scored arms' determinism,
+            # with no signal. The query above is never scored.
+            seg_opt = {}
+            for v, sid, t, im in pool:
+                d = seg_opt.setdefault(v, {})
+                if sid not in d:
+                    h = hashlib.sha256(f"{key}|{v}|{sid}".encode()).digest()
+                    d[sid] = np.array(
+                        [int.from_bytes(h[:8], "big") / 2.0 ** 64])
         else:
             seg_opt = {}                      # video -> {seg_id: [per-option]}
             for j, (v, sid, t, im) in enumerate(pool):
@@ -370,8 +414,33 @@ class SegmentSelectMethod(FrameSelectMethod):
         keep_top = self.segments_keep or max(1, min(
             SEG_KEEP_MAX, self.segments_per_video,
             self.seg_pool // (self.frames_per_segment * K)))
-        kept_segs = {v: sorted(sorted(d, key=lambda s: -d[s])[: keep_top])
-                     for v, d in seg_scores.items()}
+        cover = (self.seg_reduce == "coverage" and qmode == "statements"
+                 and len(queries) > 1)
+        if cover:
+            # coverage reduce: statement qi claims its own argmax segment
+            # (claim order = statement order; a tie keeps the earlier
+            # segment), remaining slots by best overall score — a max-reduce
+            # can spend every slot on segments matching one salient
+            # statement, leaving the other events unlocalised. With K below
+            # the statement count, the earlier statements claim first.
+            kept_segs = {}
+            for v, d in seg_opt.items():
+                chosen = []
+                for qi in range(len(queries)):
+                    best = min(d, key=lambda s: (-float(d[s][qi]), s))
+                    if best not in chosen:
+                        chosen.append(best)
+                    if len(chosen) >= keep_top:
+                        break
+                for s in sorted(d, key=lambda s: (-seg_scores[v][s], s)):
+                    if len(chosen) >= keep_top:
+                        break
+                    if s not in chosen:
+                        chosen.append(s)
+                kept_segs[v] = sorted(chosen)
+        else:
+            kept_segs = {v: sorted(sorted(d, key=lambda s: -d[s])[: keep_top])
+                         for v, d in seg_scores.items()}
         kept = [j for j, (v, sid, t, im) in enumerate(pool)
                 if sid in kept_segs[v]]
 
@@ -454,8 +523,13 @@ class SegmentSelectMethod(FrameSelectMethod):
             "segment_option_scores": (
                 {v: {s: [round(float(x), 6) for x in d[s]] for s in sorted(d)}
                  for v, d in seg_opt.items()} if len(queries) > 1 else None),
-            "segment_scorer": ("viclip" if self.seg_scorer == "viclip"
+            "segment_scorer": (self.seg_scorer
+                               if self.seg_scorer in ("viclip", "random")
                                else self.clip_model_name),
+            # the reduce that ACTUALLY picked this record's segments —
+            # "coverage" only where statement queries were scored; fallback
+            # and non-statement records stamp "max" whatever was configured
+            "segment_reduce": "coverage" if cover else "max",
             # True when every option is a bare clip reference ("Video 3",
             # "II -> I -> III"): the scorer then ranks segments by similarity
             # to that token, not to any content — 35% of MVU-Eval records.

@@ -33,9 +33,18 @@ MONTAGE_PREFIX_VIEW = (
     "captured at the same moment. Every cell is labeled 'View i' (top-left), "
     "corresponding to View 1..View {k} in the question. Reason across the views "
     "to answer.")
+# "neutral" — the matched-PROMPT control: NO preamble at all (the uniform arm
+# has none either), and 'Video i' cell labels to mirror the uniform arm's
+# interleaved 'Video k:' markers. The other kinds all prepend montage-arm-only
+# text; on the cap-13 comparison that text (plus the Camera-vs-Video naming,
+# itself worth ~5 points historically) is a confound this kind removes. Note
+# the labels are burned into the montage pixels, so this kind changes preamble
+# AND label naming jointly — attributing a delta between the two needs a
+# further variant.
 MONTAGE_PREFIXES = {"camera": MONTAGE_PREFIX_CAMERA, "video": MONTAGE_PREFIX_VIDEO,
-                    "view": MONTAGE_PREFIX_VIEW}
-MONTAGE_LABELS = {"camera": "Camera", "video": "Video", "view": "View"}
+                    "view": MONTAGE_PREFIX_VIEW, "neutral": ""}
+MONTAGE_LABELS = {"camera": "Camera", "video": "Video", "view": "View",
+                  "neutral": "Video"}
 MONTAGE_PREFIX = MONTAGE_PREFIX_CAMERA  # backward-compat alias
 
 
@@ -76,6 +85,10 @@ class CentralizedMethod(Method):
             # sbatch log. Without them a leg run at a different cell size is
             # indistinguishable from one that was not.
             alloc = {"kind": "image_montage", "K": len(paths),
+                     # the EFFECTIVE prompt/label variant (stills force "view");
+                     # without it, rows of different montage_kind legs differ
+                     # only by file path and a glob aggregation blends them
+                     "montage_kind": "view",
                      "cell_px": self.cell_px,
                      "canvas_wh": list(montages[0].size),
                      # InternVL re-tiles the canvas by aspect ratio, so max_tiles
@@ -107,6 +120,8 @@ class CentralizedMethod(Method):
                                       cell_px=self.cell_px, label_prefix=self._label)
             prefix = self._prefix
             alloc = {"kind": "montage", "T": t, "K": len(paths),
+                     # prompt/label variant — see the still-image branch note
+                     "montage_kind": self.montage_kind,
                      "frames_total": t * len(paths),
                      "total_frames": self.total_frames or None,
                      # same reason as the still-image branch above: cell_px and
@@ -132,7 +147,11 @@ class CentralizedMethod(Method):
                           prediction="", gold=gold, correct=False, abstained=True,
                           pass_idx=None, seed=seed, temperature=self.temperature,
                           num_model_calls=1, error=f"stitch:{type(e).__name__}: {e}")
-        content = [{"type": "text", "text": prefix.format(T=len(montages), k=k)}]
+        # montage_kind 'neutral' has an EMPTY prefix — emit no text block at
+        # all rather than an empty one (every other kind is non-empty, so
+        # existing arms are byte-identical)
+        content = ([{"type": "text", "text": prefix.format(T=len(montages), k=k)}]
+                   if prefix else [])
         content += [{"type": "image", "image": m} for m in montages]
         content += [{"type": "text", "text": scaffold}]
         messages = [{"role": "user", "content": content}]

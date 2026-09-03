@@ -84,7 +84,10 @@ QUERY_SEARCH_RE = re.compile(r"^query_search(?:_(?P<tag>[a-z0-9]+))?$")
 # segment_select: top-K segments PER clip -> per-segment frames -> question-wide
 # near-duplicate removal -> even thinning to the budget (methods/segment_select.py).
 # Same tag/_opt grammar as frame_select, plus 'viclip' (joint tube embeddings for
-# segment relevance; --clip-model still supplies the dedup embeddings); budget
+# segment relevance; --clip-model still supplies the dedup embeddings) and
+# 'random' (relevance-free CONTROL: segments kept by a deterministic per-record
+# hash, no scorer model loads; requires --dedup-tau 1 and takes no _opt/_stmt
+# suffix — it never reads a query); budget
 # 0/omitted = matched nframes x K; --segments-keep 0 = budget-derived top-K.
 # Query mode suffix: none = the question, _opt = each answer option, _stmt =
 # each Roman-numbered statement of an event-ordering question (falls back to
@@ -217,19 +220,27 @@ def make_method(mname, backend, args):
     sg = SEGMENT_SELECT_RE.match(mname)
     if sg:
         tag = sg.group("tag")
-        if tag and tag != "viclip" and tag not in SCORER_ALIASES:
+        if tag and tag not in ("viclip", "random") \
+                and tag not in SCORER_ALIASES:
             raise SystemExit(f"unknown segment_select scorer tag '{tag}'. "
-                             f"Known: {list(SCORER_ALIASES) + ['viclip']}")
+                             f"Known: {list(SCORER_ALIASES) + ['viclip', 'random']}")
+        if tag == "random" and sg.group("qmode"):
+            raise SystemExit(
+                f"{mname}: the random control never reads a query — drop the "
+                "_opt/_stmt suffix (spell it segment_select_random)")
         # 'viclip' scores segment RELEVANCE with joint tube embeddings; the
         # per-frame dedup embeddings still come from --clip-model (a tube
         # embedding has no per-frame components), so both models load.
+        # 'random' loads neither: a deterministic per-record hash replaces
+        # the score, and __init__ refuses it with dedup on.
         return SegmentSelectMethod(
             backend, budget=union_budget,
             segments_per_video=args.segments_per_video,
             segments_keep=args.segments_keep,
             frames_per_segment=args.frames_per_segment,
             dedup_tau=args.dedup_tau,
-            seg_scorer="viclip" if tag == "viclip" else None,
+            seg_scorer=tag if tag in ("viclip", "random") else None,
+            seg_reduce=args.seg_reduce,
             seg_pool=args.seg_pool,
             clip_model=(SCORER_ALIASES[tag] if tag in SCORER_ALIASES
                         else args.clip_model),
@@ -408,6 +419,18 @@ def main():
                          "question-wide scope; static-camera footage (MEVA) "
                          "collapses at the 0.95 default — calibrate or use 1.0 "
                          "there")
+    ap.add_argument("--seg-reduce", choices=("max", "coverage"), default="max",
+                    help="segment_select _stmt legs: how the per-statement score "
+                         "matrix picks the kept segments. 'max' (default) = each "
+                         "segment keeps its best single-statement score, straight "
+                         "top-K (the historic reduce, shared with _opt). "
+                         "'coverage' = each statement first claims its own argmax "
+                         "segment (statement order; remaining slots by best "
+                         "score), so one salient statement cannot absorb every "
+                         "slot. Applies only where the effective query mode is "
+                         "statements — fallback records and _opt/question legs "
+                         "reduce by max regardless, so a coverage leg's "
+                         "non-ordering half stays an exact replicate")
     ap.add_argument("--sel-max-new-tokens", type=int, default=512,
                     help="summary_select_*: token cap for the selector call")
     ap.add_argument("--montage-frames", type=int, default=0,
@@ -418,9 +441,14 @@ def main():
                          "(MEVA, byte-identical to the original prompt) or independent "
                          "'video' clips (matches questions whose text says 'Video k', "
                          "wording, mirroring --montage-kind)")
-    ap.add_argument("--montage-kind", default="camera", choices=["camera", "video", "view"],
-                    help="centralized montage framing: 'camera' (synced views, default) "
-                         "or 'video' (independent clips — 'Video i' labels matching the question wording)")
+    ap.add_argument("--montage-kind", default="camera",
+                    choices=["camera", "video", "view", "neutral"],
+                    help="centralized montage framing: 'camera' (synced views, default), "
+                         "'video' (independent clips — 'Video i' labels matching the "
+                         "question wording), 'view' (still-image sets force this), or "
+                         "'neutral' (matched-prompt control: NO preamble, 'Video i' "
+                         "labels — the montage-arm-only preamble is a confound in the "
+                         "centralized-vs-native comparison)")
     ap.add_argument("--internvl-max-tiles", type=int, default=1,
                     help="InternVL tiles per montage image (4 lets a 2x2 montage keep per-camera 448 res)")
     ap.add_argument("--chunk", type=int, default=0, help="number of shards (Slurm array)")
@@ -464,7 +492,7 @@ def main():
         # while this arm spells it '_opt' — would burn hours of queued GPU
         # time before dying. Fail at submit instead.
         sgm = SEGMENT_SELECT_RE.match(m)
-        if sgm and sgm.group("tag") and sgm.group("tag") != "viclip" \
+        if sgm and sgm.group("tag") and sgm.group("tag") not in ("viclip", "random") \
                 and sgm.group("tag") not in SCORER_ALIASES:
             tag = sgm.group("tag")
             hint = (" ('_optu' is the option-union arms' suffix; this arm's "
@@ -472,7 +500,21 @@ def main():
                     "segment_select_opt or segment_select_siglip_opt)"
                     if tag == "optu" else "")
             raise SystemExit(f"unknown segment_select scorer tag '{tag}'. "
-                             f"Known: {list(SCORER_ALIASES) + ['viclip']}.{hint}")
+                             f"Known: {list(SCORER_ALIASES) + ['viclip', 'random']}.{hint}")
+        # the random control's constraints fail at submit too, not after the
+        # 8B model load: it never reads a query (no _opt/_stmt), and dedup
+        # would rank duplicate survivors by an image-tower relevance score,
+        # reintroducing the very signal the control removes
+        if sgm and sgm.group("tag") == "random":
+            if sgm.group("qmode"):
+                raise SystemExit(
+                    f"{m}: the random control never reads a query — drop the "
+                    "_opt/_stmt suffix (spell it segment_select_random)")
+            if args.dedup_tau < 1.0:
+                raise SystemExit(
+                    f"{m}: dedup (--dedup-tau {args.dedup_tau} < 1) would pick "
+                    "duplicate survivors by image-tower relevance inside the "
+                    "relevance-free control — run it with --dedup-tau 1")
         # same submit-time rule for the Qwen path: SegmentSelectMethod refuses
         # it (fabricated PIL-list timestamps), and that refusal must not wait
         # for the model load either
@@ -484,6 +526,18 @@ def main():
                 "fabricated timestamps from qwen_vl_utils (see "
                 "SegmentSelectMethod.__init__); attach real frame times first, "
                 "or set SEGMENT_SELECT_QWEN_UNSAFE=1 knowingly.")
+        # --seg-reduce coverage only ever fires where the effective query mode
+        # is statements, i.e. on a _stmt method: on every other segment_select
+        # method it silently no-ops — the leg would burn a full GPU array
+        # producing selections byte-identical to the max-reduce leg while the
+        # sbatch log echoes seg_reduce=coverage. Same fail-at-submit rule as
+        # the tag typos above.
+        if sgm and args.seg_reduce == "coverage" and sgm.group("qmode") != "_stmt":
+            raise SystemExit(
+                f"{m}: --seg-reduce coverage applies only to _stmt methods "
+                "(statement queries); on this method it would silently no-op "
+                "and reproduce the max-reduce selection. Drop SEG_REDUCE or "
+                "use a segment_select_*_stmt method.")
         budget_zero_ok = (OPTION_UNION_FRAME_RE.match(m)
                           or OPTION_UNION_CLIP_RE.match(m)
                           or QUERY_SEARCH_RE.match(m)

@@ -46,6 +46,7 @@ TEMPERATURE=${TEMPERATURE:-0.7}
 MONTAGE_FRAMES=${MONTAGE_FRAMES:-0}
 TOTAL_FRAMES=${TOTAL_FRAMES:-0}        # >0: fixed TOTAL frames/question for native/centralized/per_stream
 MONTAGE_KIND=${MONTAGE_KIND:-camera}   # montage labels: 'camera' | 'video' | 'view' (still-image sets force 'view')
+                                       # | 'neutral' = matched-prompt control: NO preamble, 'Video i' labels
 STREAM_KIND=${STREAM_KIND:-camera}     # per_stream labels: 'camera' | 'video' | 'view' (still-image sets force 'view')
 BUDGET=${BUDGET:-}                     # selection arms: TOTAL frames per question. Empty = per-arm default
                                        # (legacy arms 64; _optu/query_search MATCHED = nframes x K). Explicit 0
@@ -67,6 +68,9 @@ FRAMES_PER_SEGMENT=${FRAMES_PER_SEGMENT:-8}   # segment_select: frames sampled p
 DEDUP_TAU=${DEDUP_TAU:-0.95}                  # segment_select: near-duplicate cosine cutoff, in (0,1].
                                               # 1 = dedup OFF; 0 is INVALID (fails fast) — NOT the SEL_TAU
                                               # '0 = off' convention. Static cams (MEVA) collapse at 0.95.
+SEG_REDUCE=${SEG_REDUCE:-max}                 # segment_select _stmt legs: 'max' = historic top-K over the
+                                              # best-statement score; 'coverage' = each statement claims its
+                                              # argmax segment first. Only statement-scored records differ.
 QUERY_MAX_NEW_TOKENS=${QUERY_MAX_NEW_TOKENS:-256}  # query_search: phrase-generation token cap (raise for thinking backends)
 export VICLIP_DIR=${VICLIP_DIR:-$HOME/models/ViCLIP}   # *_viclip arms: local OpenGVLab/ViCLIP download
 WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
@@ -122,7 +126,7 @@ echo "GPU  @ $(hostname) $(nvidia-smi --query-gpu=name,memory.total --format=csv
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=${BUDGET:-auto} weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 echo "     sel_tau=$SEL_TAU sel_tau_q=$SEL_TAU_Q n_queries=$N_QUERIES query_max_new_tokens=$QUERY_MAX_NEW_TOKENS viclip_dir=$VICLIP_DIR"
-echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU"
+echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU seg_reduce=$SEG_REDUCE"
 echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT allow_avi=$CVBENCH_ALLOW_AVI qwen_unsafe=$SEGMENT_SELECT_QWEN_UNSAFE"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
@@ -134,6 +138,7 @@ python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$B
     --segments-per-video "$SEGMENTS_PER_VIDEO" --segments-keep "$SEGMENTS_KEEP" \
     "${SEGPOOL_ARG[@]}" "${CLIPMODEL_ARG[@]}" \
     --frames-per-segment "$FRAMES_PER_SEGMENT" --dedup-tau "$DEDUP_TAU" \
+    --seg-reduce "$SEG_REDUCE" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
     --perception-max-new-tokens "$PERCEPTION_MAX_NEW_TOKENS" --cell-px "$CELL_PX" \
     --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $NOREASON_ARG $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"
