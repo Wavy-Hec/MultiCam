@@ -3,7 +3,7 @@
 Replaces the hard-to-read ASCII pipeline diagrams with one rendered figure:
   bench/results/figs_exp64/how_it_works.png
 
-Run from repo root:  python -m bench.how_it_works_fig
+Run from repo root:  python -m bench.legacy.how_it_works_fig
 """
 import os
 
@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, Rectangle, FancyArrow
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "results", "figs_exp64", "how_it_works.png")
+OUT = os.path.join(HERE, "..", "results", "figs_exp64", "how_it_works.png")
 
 NATIVE = "#7f7f7f"
 STITCH = "#1f77b4"

@@ -3,8 +3,8 @@
 Given a question about a scene observed by several cameras, is it better to fuse
 the views into a single model input, or to run the model once per view and reason
 over the text descriptions? This repo benchmarks that question with open
-vision-language models (Qwen3-VL-8B Thinking, Qwen2.5-VL-7B Instruct,
-InternVL3-8B) across these presentation harnesses:
+vision-language models (Qwen3-VL-8B Thinking, Qwen3-VL-8B Instruct,
+Qwen2.5-VL-7B Instruct, InternVL3-8B) across these presentation harnesses:
 
 - **Native** — each view or clip fed sequentially to one model, unmodified.
 - **Centralized (stitch)** — the views are tiled into labeled grid-montage images
@@ -18,6 +18,9 @@ InternVL3-8B) across these presentation harnesses:
   most relevant segments are kept per clip, their frames pooled, near-duplicates
   removed, and the unique set thinned evenly in time to the frame budget, with
   chronological order preserved throughout.
+- **Controls and bounds** — blind (no visual input, the text-prior floor),
+  temporal_weighted / temporal_even (budget-matched within-clip weighting control),
+  single_view1..K (one view at a time, for the optimal-view oracle).
 
 Every arm runs multiple sampled passes so each accuracy carries a std, and all
 runs keep the models' reasoning traces so failures stay interpretable.
@@ -38,7 +41,8 @@ Two conda envs are used (`cvbench` for Qwen legs and analysis; `internvl` for
 InternVL3, which needs an older transformers). Benchmark data lives under
 `data/` (untracked); question subsets are JSONs under `analysis/`, produced by
 the converter scripts there (`convert_allangles.py`, `convert_mvueval.py`,
-`convert_crossview.py`).
+`convert_crossview.py`). See `analysis/README.md` for which JSON is which and
+what every script there does.
 
 All-Angles-Bench downloads from its HF release; its Ego-Exo4D scenes additionally
 require accepting the Ego-Exo4D license. MVU-Eval downloads from its HF release.
@@ -77,7 +81,9 @@ Scoring and figures: `python -m bench.plots` builds the summary table and plots
 from result JSONLs (one benchmark per call); `python -m bench.chance_level`
 prints a subset's random-guessing floor; `analysis/allangles_consistency.py`
 reports paired-question consistency for All-Angles-Bench. Results land in
-`bench/results/` (untracked).
+`bench/results/` (untracked). Per-question records and the run registry come
+from `python3 analysis/export_question_records.py`; `analysis/README.md`
+indexes the rest.
 
 ## Attribution and licenses
 

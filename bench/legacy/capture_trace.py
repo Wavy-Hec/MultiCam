@@ -2,17 +2,17 @@
 full model output (the reasoning trace), which the sweep harness doesn't persist.
 
 Usage (internvl env, GPU):
-  python -m bench.capture_trace --id 14 \
+  python -m bench.legacy.capture_trace --id 14 \
       --subset analysis/crossview_meva1033_subset.json
 """
 import argparse
 import json
 import os
 
-from .reuse import build_messages, gt_choice, letters_of, parse_choice, video_paths
-from .methods.stitch import build_montages
-from .methods.centralized import MONTAGE_PREFIX
-from .backends.internvl import InternVL3Backend
+from ..reuse import build_messages, gt_choice, letters_of, parse_choice, video_paths
+from ..methods.stitch import build_montages
+from ..methods.centralized import MONTAGE_PREFIX
+from ..backends.internvl import InternVL3Backend
 
 
 def main():

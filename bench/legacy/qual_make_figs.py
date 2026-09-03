@@ -7,23 +7,23 @@ and once:
   qual_montage_zoom.png  a single montage at full size (shows the 'Camera i' labels)
 
 These are the literal pixels each method sends to InternVL3-8B. Run from repo root:
-  python -m bench.qual_make_figs
+  python -m bench.legacy.qual_make_figs
 """
 import os
 
 from PIL import Image, ImageDraw, ImageFont
 from decord import VideoReader, cpu
 
-from .reuse import DEFAULT_VIDEO_ROOT, video_paths
-from .methods.stitch import build_montages, sample_frame_indices
+from ..reuse import DEFAULT_VIDEO_ROOT, video_paths
+from ..methods.stitch import build_montages, sample_frame_indices
 
 import json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIGS = os.path.join(HERE, "results", "figs_qualitative")
+FIGS = os.path.join(HERE, "..", "results", "figs_qualitative")
 os.makedirs(FIGS, exist_ok=True)
 SUB = {r["id"]: r for r in json.load(open(os.path.join(
-    HERE, "..", "analysis", "crossview_meva4cam_subset.json")))}
+    HERE, "..", "..", "analysis", "crossview_meva4cam_subset.json")))}
 
 NFRAMES = 16
 EXAMPLES = [106, 300, 1008]

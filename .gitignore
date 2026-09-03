@@ -52,16 +52,6 @@ __pycache__/
 # result shards plus the subset JSONs. Large, and every number in it is derived.
 /analysis/records/
 
-# Leftovers on disk from the retired lmms-eval CrossView pipeline (its scripts
-# were removed; recover them from history if a rerun is ever needed). Rendered
-# numbers are not published, and these are the superseded cap-4 single-pass run
-# — not comparable to anything current.
-/analysis/crossview_out/
-/analysis/crossview_meva1033_out/
-/analysis/crossview_internvl3_normalized.json
-/analysis/crossview_internvl3_meva1033_normalized.json
-/analysis/stitch_audit_meva.png
-
 # Prose: working notes, dated runbooks, reference decks, the task spec and the lit
 # review — all on-disk only. The repo ships code; the write-ups live outside it.
 /docs/
@@ -69,6 +59,8 @@ __pycache__/
 # Personal task lists / prompt scratchpads carrying unpublished numbers
 /CLAUDE_TASKS.md
 /Claude CLI Prompts*.md
+# staged, not-yet-run launch plans; kept on disk at the repo root because analysis/export_question_records.py cites the path
+/scratchpad/
 
 # Meeting notes, transcripts and reference decks — internal, name real people,
 # and carry unpublished numbers. docs/ is already ignored above; this catches
@@ -85,4 +77,3 @@ __pycache__/
 # regenerable analysis outputs (code ships, results do not)
 analysis/counting_failures*.md
 analysis/counting_failures*.json
-analysis/records/

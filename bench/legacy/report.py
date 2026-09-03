@@ -2,7 +2,7 @@
 headline (method x backend) + accuracy by task_type + by orig_num_cameras.
 
 Usage (from repo root):
-  python -m bench.report --jsonl bench/results/sweep_combined.jsonl
+  python -m bench.legacy.report --jsonl bench/results/sweep_combined.jsonl
 """
 import argparse
 import csv
@@ -10,7 +10,7 @@ import json
 import os
 from collections import defaultdict
 
-from . import metrics
+from .. import metrics
 
 
 def _f(x, nd=1):

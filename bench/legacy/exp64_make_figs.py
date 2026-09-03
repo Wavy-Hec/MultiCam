@@ -7,7 +7,7 @@ and writes three PNGs into `bench/results/figs_exp64/`:
   exp64_cameras.png    accuracy vs original camera count (line)
   exp64_budget.png     the equal-frame / NOT-equal-token budget (grouped bars)
 
-Run from the repo root:  python -m bench.exp64_make_figs
+Run from the repo root:  python -m bench.legacy.exp64_make_figs
 """
 import json
 import os
@@ -17,7 +17,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RES = os.path.join(HERE, "results")
+RES = os.path.join(HERE, "..", "results")
 FIGS = os.path.join(RES, "figs_exp64")
 os.makedirs(FIGS, exist_ok=True)
 

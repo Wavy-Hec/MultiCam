@@ -9,11 +9,18 @@ for what the project is and how to run it.
   is the runner, `run_bench.sbatch` a thin env-var wrapper around it, `methods/` the
   arms, `backends/` the two model wrappers.
 - `analysis/` — dataset converters, video fetchers, the record exporter, and the deck
-  generators. Flat by convention; do not add subdirectories.
+  generators. Flat by convention; do not add subdirectories — the rule is for scripts,
+  the gitignored output dirs (`figs_deck/`, `records/`, `logs/`) live there too.
+  `analysis/README.md` indexes the scripts by kind and says which tracked JSON/TXT
+  files are live eval subsets, fetch manifests, or generator defaults; add a line
+  there when adding a script.
 - `hosting/` — packaging and fetching for the CrossView video store.
 - `Video-R1/` — vendored, but `src/eval_thinking.py` inside it is **ours**, not upstream.
+- `bench/legacy/` — retired experiment entry points with no referrers, kept for
+  provenance, not maintained.
 - `docs/` — gitignored. Prose, runbooks, meeting notes, the task spec. The repo ships
-  code; write-ups live outside git.
+  code; write-ups live outside git. `docs/archive/` holds superseded output whose
+  generating script no longer exists; `docs/screenshots/` holds loose image exports.
 
 ## Environments
 
@@ -33,6 +40,16 @@ a submitted job — but editing anything under `bench/` or `Video-R1/src/` can, 
 pending array task will pick up whatever is on disk when it starts. Editing harness
 semantics while an array is draining splits one run across two code versions. Check
 `squeue` before touching harness code, and prefer landing changes between campaigns.
+
+**The checkout is `~/MultiCam`; `~/CVBench` is a temporary compat symlink.** The
+repo was renamed on disk while jobs 92461/92462 were queued — Slurm had already
+recorded `WorkDir`, `Command` and `StdOut` under the old absolute path, and a
+pending task resolves all three through the symlink. The three `.sbatch` files now
+say `$HOME/MultiCam`, so anything submitted from here on is independent of it.
+Delete the symlink once `squeue` is empty. The conda env is still `cvbench` and the
+sequential arm is still `cvbench_native` — both are keys baked into 241 result
+filenames (`bench_<subset>_${ENV}<tag>_shard*.jsonl`), `registry.json` and
+`records.jsonl`; renaming either orphans every historical leg.
 
 **`bench/reuse.py` imports `eval_thinking` by path.** It does a `sys.path.insert` on
 `Video-R1/src/` so the harness scores identically to the eval entry point. Moving or
@@ -79,6 +96,11 @@ Read `analysis/records/registry.json` — it records what has been run, with wha
 Regenerate it with `python3 analysis/export_question_records.py`. Prefer a filter over
 that export to launching a new job.
 
+- `registry.json` lists only registered legs; to ask whether a subset was ever run,
+  test the results tree instead: `ls bench/results/ | grep "^bench_$(basename SUBSET .json)_"`
+  — the two disagree (the results tree keys on more subset stems than the registry
+  names). Never judge a subset dead from the registry alone.
+
 ## Git
 
 - `origin` is the only remote. The original CVBench repo used to be wired up as
@@ -89,4 +111,10 @@ that export to launching a new job.
 - Keep results numbers, internal references and real names out of `README.md` and out of
   commit messages. Those belong in `docs/`, which is gitignored.
 - Rendered figures, stats snapshots and result rows are regenerable and stay untracked.
-  Curated question subsets are inputs and stay tracked.
+  Curated question subsets are inputs and stay tracked. Their directory is not a key
+  but their filename is — `run_bench.sbatch` builds the shard name from
+  `basename "${SUBSET%.json}"` and `registry.json` stores the bare basename, so a
+  subset can move between directories without touching a result filename, but
+  renaming one orphans every leg that recorded the old name.
+- `scratchpad/` is gitignored on purpose (staged launch scripts); it stays at the
+  repo root because `analysis/export_question_records.py` cites the path.
