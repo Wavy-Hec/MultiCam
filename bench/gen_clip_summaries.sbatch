@@ -18,7 +18,7 @@
 #SBATCH --time=08:00:00
 
 set -euo pipefail
-REPO=$HOME/CVBench
+REPO=$HOME/MultiCam
 cd "$REPO"
 source ~/anaconda3/etc/profile.d/conda.sh
 ENV=${ENV:-internvl}

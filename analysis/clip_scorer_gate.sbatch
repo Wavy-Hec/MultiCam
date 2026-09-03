@@ -26,7 +26,7 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --time=04:00:00
 set -euo pipefail
-cd "$HOME/CVBench"
+cd "$HOME/MultiCam"
 source "$HOME/anaconda3/etc/profile.d/conda.sh"
 conda activate "${ENV:-internvl}"
 export HF_HUB_OFFLINE=1

@@ -386,11 +386,11 @@ def main():
                   "Every clip and image behind every card, byte-identical.")
     add_text(s, Inches(0.55), Inches(1.8), W - Inches(1.1), Inches(4.0), [
         [("Bundle on the cluster:  ", True, INK),
-         ("CVBench/bench/results/repq_media/ — one folder per question "
+         ("MultiCam/bench/results/repq_media/ — one folder per question "
           "(mvu_<id> / aab_<id>), files prefixed with their Video/View "
           "number; index.json maps folders to question text.", False, INK)],
         [("Fetch:  ", True, INK),
-         ("scp -r <user>@<cluster>:~/CVBench/bench/"
+         ("scp -r <user>@<cluster>:~/MultiCam/bench/"
           "results/repq_media ~/Downloads/", False, INK)],
         [("", False, INK)],
         [("Full doc (all 33 cards, thumbnails, per-pass results): ",
