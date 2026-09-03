@@ -41,15 +41,15 @@ pending array task will pick up whatever is on disk when it starts. Editing harn
 semantics while an array is draining splits one run across two code versions. Check
 `squeue` before touching harness code, and prefer landing changes between campaigns.
 
-**The checkout is `~/MultiCam`; `~/CVBench` is a temporary compat symlink.** The
-repo was renamed on disk while jobs 92461/92462 were queued — Slurm had already
-recorded `WorkDir`, `Command` and `StdOut` under the old absolute path, and a
-pending task resolves all three through the symlink. The three `.sbatch` files now
-say `$HOME/MultiCam`, so anything submitted from here on is independent of it.
-Delete the symlink once `squeue` is empty. The conda env is still `cvbench` and the
-sequential arm is still `cvbench_native` — both are keys baked into 241 result
-filenames (`bench_<subset>_${ENV}<tag>_shard*.jsonl`), `registry.json` and
-`records.jsonl`; renaming either orphans every historical leg.
+**The checkout was renamed `~/CVBench` → `~/MultiCam`; the compat symlink is gone.**
+The repo was renamed on disk on 2026-08-31, while jobs 92461/92462 were queued —
+Slurm had already recorded `WorkDir`, `Command` and `StdOut` under the old absolute
+path, and the pending tasks resolved all three through a compat symlink at
+`~/CVBench`, removed on 2026-09-03. The three `.sbatch` files say `$HOME/MultiCam`,
+so anything submitted since the rename was independent of the symlink. The conda
+env is still `cvbench` and the sequential arm is still `cvbench_native` — both are
+keys baked into 241 result filenames (`bench_<subset>_${ENV}<tag>_shard*.jsonl`),
+`registry.json` and `records.jsonl`; renaming either orphans every historical leg.
 
 **`bench/reuse.py` imports `eval_thinking` by path.** It does a `sys.path.insert` on
 `Video-R1/src/` so the harness scores identically to the eval entry point. Moving or
