@@ -71,6 +71,15 @@ DEDUP_TAU=${DEDUP_TAU:-0.95}                  # segment_select: near-duplicate c
 SEG_REDUCE=${SEG_REDUCE:-max}                 # segment_select _stmt legs: 'max' = historic top-K over the
                                               # best-statement score; 'coverage' = each statement claims its
                                               # argmax segment first. Only statement-scored records differ.
+SEG_SELECT=${SEG_SELECT:-per_clip}            # segment_select: WHERE the top-K is taken. 'per_clip' = historic
+                                              # (each clip keeps its own best segments); 'global' = one ranking
+                                              # over every (clip, segment) pair, N = budget/FRAMES_PER_SEGMENT
+                                              # segments total, so a clip may contribute several, one, or none.
+                                              # Exclusive with SEG_REDUCE=coverage; run segment_select_random
+                                              # beside a global leg (it samples denser inside fewer segments).
+SEG_FLOOR=${SEG_FLOOR:-1}                     # SEG_SELECT=global only: segments reserved per clip before the
+                                              # global fill (0 = pure top-N), capped at N/streams. Refused at
+                                              # submit if set non-1 under per_clip.
 QUERY_MAX_NEW_TOKENS=${QUERY_MAX_NEW_TOKENS:-256}  # query_search: phrase-generation token cap (raise for thinking backends)
 export VICLIP_DIR=${VICLIP_DIR:-$HOME/models/ViCLIP}   # *_viclip arms: local OpenGVLab/ViCLIP download
 WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
@@ -118,6 +127,11 @@ SEGPOOL_ARG=()             # --seg-pool only matters in auto mode (SEGMENTS_KEEP
 if [ "$SEGMENTS_KEEP" = "0" ]; then SEGPOOL_ARG=(--seg-pool "$SEG_POOL"); fi
 CLIPMODEL_ARG=()           # only pass --clip-model when set, so the runner default stands
 if [ -n "$CLIP_MODEL" ]; then CLIPMODEL_ARG=(--clip-model "$CLIP_MODEL"); fi
+SEGSEL_ARG=()              # --seg-select/--seg-floor only matter in global mode, and gating
+                           # them keeps this sbatch launchable against a pre---seg-select runner.
+                           # SEG_FLOOR rides along: alone it no-ops (and the runner refuses it),
+                           # exactly as SEG_POOL no-ops outside SEGMENTS_KEEP=0
+if [ "$SEG_SELECT" != "per_clip" ]; then SEGSEL_ARG=(--seg-select "$SEG_SELECT" --seg-floor "$SEG_FLOOR"); fi
 
 # Slurm exposes no GPU model here (Gres is just gpu:N and node features are unset),
 # so record it per job — placement across sxmq/gpul40q/gpua30q differs in VRAM and
@@ -126,7 +140,7 @@ echo "GPU  @ $(hostname) $(nvidia-smi --query-gpu=name,memory.total --format=csv
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=${BUDGET:-auto} weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 echo "     sel_tau=$SEL_TAU sel_tau_q=$SEL_TAU_Q n_queries=$N_QUERIES query_max_new_tokens=$QUERY_MAX_NEW_TOKENS viclip_dir=$VICLIP_DIR"
-echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU seg_reduce=$SEG_REDUCE"
+echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU seg_reduce=$SEG_REDUCE seg_select=$SEG_SELECT seg_floor=$SEG_FLOOR"
 echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT allow_avi=$CVBENCH_ALLOW_AVI qwen_unsafe=$SEGMENT_SELECT_QWEN_UNSAFE"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
@@ -138,7 +152,7 @@ python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$B
     --segments-per-video "$SEGMENTS_PER_VIDEO" --segments-keep "$SEGMENTS_KEEP" \
     "${SEGPOOL_ARG[@]}" "${CLIPMODEL_ARG[@]}" \
     --frames-per-segment "$FRAMES_PER_SEGMENT" --dedup-tau "$DEDUP_TAU" \
-    --seg-reduce "$SEG_REDUCE" \
+    --seg-reduce "$SEG_REDUCE" "${SEGSEL_ARG[@]}" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
     --perception-max-new-tokens "$PERCEPTION_MAX_NEW_TOKENS" --cell-px "$CELL_PX" \
     --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $NOREASON_ARG $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"

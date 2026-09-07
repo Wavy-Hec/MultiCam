@@ -89,6 +89,9 @@ QUERY_SEARCH_RE = re.compile(r"^query_search(?:_(?P<tag>[a-z0-9]+))?$")
 # hash, no scorer model loads; requires --dedup-tau 1 and takes no _opt/_stmt
 # suffix — it never reads a query); budget
 # 0/omitted = matched nframes x K; --segments-keep 0 = budget-derived top-K.
+# --seg-select global takes that top-K over ALL clips at once (a clip may
+# contribute several segments, one, or none; --seg-floor reserves a per-clip
+# minimum first) — a FLAG, not a name: the mode is carried by the run TAG.
 # Query mode suffix: none = the question, _opt = each answer option, _stmt =
 # each Roman-numbered statement of an event-ordering question (falls back to
 # the options on records without statements; clip_select.query_for).
@@ -241,6 +244,8 @@ def make_method(mname, backend, args):
             dedup_tau=args.dedup_tau,
             seg_scorer=tag if tag in ("viclip", "random") else None,
             seg_reduce=args.seg_reduce,
+            seg_select=args.seg_select,
+            seg_floor=args.seg_floor,
             seg_pool=args.seg_pool,
             clip_model=(SCORER_ALIASES[tag] if tag in SCORER_ALIASES
                         else args.clip_model),
@@ -431,6 +436,27 @@ def main():
                          "statements — fallback records and _opt/question legs "
                          "reduce by max regardless, so a coverage leg's "
                          "non-ordering half stays an exact replicate")
+    ap.add_argument("--seg-select", choices=("per_clip", "global"),
+                    default="per_clip",
+                    help="segment_select: WHERE the top-K is taken. 'per_clip' "
+                         "(default, historic) = each clip keeps its own best "
+                         "--segments-keep segments, so every clip is "
+                         "represented. 'global' = every (clip, segment) pair "
+                         "is ranked together and the best N survive, N = "
+                         "budget // --frames-per-segment (--segments-keep and "
+                         "--seg-pool stop binding); a clip may contribute "
+                         "several segments, one, or none, subject to "
+                         "--seg-floor. Exclusive with --seg-reduce coverage. "
+                         "At a fixed budget global samples denser inside fewer "
+                         "segments than per_clip, so run segment_select_random "
+                         "beside it")
+    ap.add_argument("--seg-floor", type=int, default=1,
+                    help="segment_select --seg-select global: segments reserved "
+                         "per clip before the global fill, so one ranking "
+                         "cannot blind a camera (0 = pure global top-N). "
+                         "Capped at N // n_streams, i.e. dropped where the "
+                         "segment budget cannot seat one per clip. Ignored — "
+                         "and refused at submit — outside global mode")
     ap.add_argument("--sel-max-new-tokens", type=int, default=512,
                     help="summary_select_*: token cap for the selector call")
     ap.add_argument("--montage-frames", type=int, default=0,
@@ -538,6 +564,36 @@ def main():
                 "(statement queries); on this method it would silently no-op "
                 "and reproduce the max-reduce selection. Drop SEG_REDUCE or "
                 "use a segment_select_*_stmt method.")
+        # --seg-select global takes the top-K over ALL clips at once; coverage
+        # divides a PER-CLIP slot budget among the statements. There is no
+        # per-clip budget under a global ranking, so the pair is refused here
+        # too rather than after the model load (SegmentSelectMethod.__init__
+        # raises the same rule).
+        if sgm and args.seg_select == "global" and args.seg_reduce == "coverage":
+            raise SystemExit(
+                f"{m}: --seg-select global and --seg-reduce coverage are "
+                "exclusive — coverage spends a PER-CLIP slot budget that the "
+                "global ranking does not have. Run the coverage leg per_clip, "
+                "or the global leg with SEG_REDUCE=max.")
+        # --seg-floor is the global fill's per-clip reservation; under per_clip
+        # every clip keeps its own top-K unconditionally, so a non-default
+        # value there changes nothing and the sbatch log would still echo it.
+        if sgm and args.seg_floor != 1 and args.seg_select != "global":
+            raise SystemExit(
+                f"{m}: --seg-floor {args.seg_floor} applies only to "
+                "--seg-select global (per_clip represents every clip by "
+                "construction); on this leg it would silently no-op. Drop "
+                "SEG_FLOOR or set SEG_SELECT=global.")
+        # both flags reach SegmentSelectMethod and nothing else, so a leg that
+        # sets them without a segment_select method would run the historic
+        # protocol under a global-looking tag
+        if not sgm and (args.seg_select != "per_clip" or args.seg_floor != 1):
+            raise SystemExit(
+                f"{m}: --seg-select/--seg-floor are segment_select-only "
+                f"levers (got seg_select={args.seg_select}, "
+                f"seg_floor={args.seg_floor}); on '{m}' they would silently "
+                "no-op. Drop SEG_SELECT/SEG_FLOOR or run a "
+                "segment_select[_<scorer>][_opt|_stmt] method.")
         budget_zero_ok = (OPTION_UNION_FRAME_RE.match(m)
                           or OPTION_UNION_CLIP_RE.match(m)
                           or QUERY_SEARCH_RE.match(m)
