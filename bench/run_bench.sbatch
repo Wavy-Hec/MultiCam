@@ -129,9 +129,14 @@ CLIPMODEL_ARG=()           # only pass --clip-model when set, so the runner defa
 if [ -n "$CLIP_MODEL" ]; then CLIPMODEL_ARG=(--clip-model "$CLIP_MODEL"); fi
 SEGSEL_ARG=()              # --seg-select/--seg-floor only matter in global mode, and gating
                            # them keeps this sbatch launchable against a pre---seg-select runner.
-                           # SEG_FLOOR rides along: alone it no-ops (and the runner refuses it),
-                           # exactly as SEG_POOL no-ops outside SEGMENTS_KEEP=0
-if [ "$SEG_SELECT" != "per_clip" ]; then SEGSEL_ARG=(--seg-select "$SEG_SELECT" --seg-floor "$SEG_FLOOR"); fi
+                           # Gated SEPARATELY, on purpose: folded into one test, a bare SEG_FLOOR
+                           # never reached the runner, so run_bench's refusal for it could not
+                           # fire — while the RUN echo below still printed the value, i.e. the
+                           # log claimed a setting the leg did not apply. Each flag is emitted
+                           # only when it differs from the runner's own default, so a defaults
+                           # run still passes neither.
+if [ "$SEG_SELECT" != "per_clip" ]; then SEGSEL_ARG+=(--seg-select "$SEG_SELECT"); fi
+if [ "$SEG_FLOOR" != "1" ]; then SEGSEL_ARG+=(--seg-floor "$SEG_FLOOR"); fi
 
 # Slurm exposes no GPU model here (Gres is just gpu:N and node features are unset),
 # so record it per job — placement across sxmq/gpul40q/gpua30q differs in VRAM and
