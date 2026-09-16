@@ -13,13 +13,14 @@ reused across methods/passes. ``--chunk N --offset i`` shards the subset
 (``data[i::N]``) for Slurm-array sweeps.
 """
 import argparse
+import collections
 import json
 import os
 import re
 import socket
 
 from .reuse import (DEFAULT_VIDEO_ROOT, STRICT_ANSWER_PROMPT, ALLOW_AVI,
-                    media_remap, video_paths)
+                    media_remap, num_videos, video_paths)
 from .methods.centralized import CentralizedMethod
 from .methods.per_stream import PerStreamMethod
 from .methods.cvbench_native import CVBenchNativeMethod
@@ -300,12 +301,143 @@ def load_done(path):
     return done
 
 
+def seg_identity(args):
+    """This leg's (seg_select, seg_floor): the CONFIGURED pair that the write
+    loop stamps on every segment_select row and that the resume guard compares.
+
+    seg_floor is None outside global mode — per_clip has no such lever — so a
+    per_clip leg, a per_clip row and a row written before the flags existed all
+    read as ("per_clip", None) and stay mutually resumable.
+
+    The CONFIGURED floor, never the effective one: select_segments caps the
+    floor at (segment budget // K) per record, so a leg run at --seg-floor 1
+    stamps frame_alloc.seg_floor 0 on every record whose budget cannot seat one
+    segment per clip. Keying identity on that capped value made a leg refuse to
+    resume ITSELF on the K-spread pools, and let two different configured
+    floors pool in one file wherever both capped to the same number.
+    """
+    return (args.seg_select,
+            args.seg_floor if args.seg_select == "global" else None)
+
+
+def stamp_seg_identity(row, method_name, args):
+    """Stamp seg_identity() top-level on a segment_select row (no-op on any
+    other method).
+
+    Applied to EVERY row, error rows included: a failure in _prepare returns a
+    Result with no frame_alloc at all (clip_select.FrameSelectMethod.answer), so
+    frame_alloc cannot carry the mode for those rows — one unreadable clip would
+    otherwise read back as per_clip and block every later resume of a global leg.
+    """
+    if SEGMENT_SELECT_RE.match(method_name or ""):
+        row["seg_select"], row["seg_floor"] = seg_identity(args)
+    return row
+
+
+def check_global_regimes(methods, data, args):
+    """Submit-time regime check for a --seg-select global leg; returns the
+    per-record regime Counter (also refuses / warns).
+
+    A global leg whose segment budget cannot outrun its camera count is per_clip
+    top-f wearing a global tag: the floor pass seats f segments in every clip,
+    consumes the whole budget, and the cross-clip ranking never decides
+    anything. It runs clean and reports nothing, so refuse the fully-degenerate
+    case and warn on a mixed one. The segment budget N and the floor cap both
+    depend on K, which varies per record on the K-spread pools, so classify the
+    subset record by record.
+
+    Depends only on `args` and `data`, never on which segment arm is being run,
+    so the caller runs it ONCE per leg — inside the per-method loop it repeated
+    its WARNING once per segment method named.
+    """
+    label = ",".join(m for m in methods if SEGMENT_SELECT_RE.match(m))
+    fps = args.frames_per_segment
+    regimes = collections.Counter()
+    for rec in data:
+        K = num_videos(rec)
+        if not K:
+            continue
+        budget_eff = (args.budget if args.budget and args.budget > 0
+                      else args.nframes * K)
+        # SegmentSelectMethod._prepare raises exactly this — but only after
+        # make_backend has loaded the 8B model, and then once per pass, so the
+        # leg burns the GPU to write prepare-error rows. Refuse at submit.
+        if budget_eff < K:
+            raise SystemExit(
+                f"{label}: --budget resolves to {budget_eff} frames for the "
+                f"{K} clips of record id={rec.get('id')}; the arm cannot keep "
+                "one frame per clip and raises in _prepare AFTER the model "
+                "load (one error row per pass).\n"
+                f"  budget={args.budget or f'auto (nframes {args.nframes} x K)'} "
+                f"frames_per_segment={fps} seg_floor={args.seg_floor}\n"
+                "  Raise --budget to at least frames_per_segment x "
+                "(K x seg_floor + 1) — below K it cannot run at all — or omit "
+                "--budget for the matched nframes x K.")
+        N = max(1, budget_eff // fps)
+        f = max(0, min(args.seg_floor, N // K))
+        if f == 0:
+            # N < K x 1: the floor is capped away, so the ranking picks the N
+            # best pairs over all clips and decides everything (it just leaves
+            # clips unrepresented) — a live global regime either way
+            regimes["pure global" if args.seg_floor == 0
+                    else "floor cancelled by the budget"] += 1
+        elif N > K * f:
+            regimes["competes"] += 1
+        else:
+            regimes[f"degenerate (== per_clip top-{f})"] += 1
+    live = sum(v for k, v in regimes.items() if not k.startswith("degen"))
+    spread = ", ".join(f"{k}: {v}" for k, v in sorted(regimes.items()))
+    if regimes and not live:
+        raise SystemExit(
+            f"{label}: --seg-select global selects nothing this budget cannot "
+            f"already reach — every record resolves to N <= K x seg_floor, so "
+            f"the floor pass fills the budget and the global ranking is inert "
+            f"({spread}).\n"
+            f"  budget={args.budget or f'auto (nframes {args.nframes} x K)'} "
+            f"frames_per_segment={fps} seg_floor={args.seg_floor}\n"
+            "  Raise --budget to at least frames_per_segment x "
+            "(K x seg_floor + 1), lower --frames-per-segment, or set "
+            "SEG_FLOOR=0.")
+    if regimes and live < sum(regimes.values()):
+        print(f"WARNING {label}: --seg-select global resolves to a different "
+              f"rule per record ({spread}); the leg mixes selection regimes. "
+              "Raise --budget so every record competes, or stratify by "
+              "frame_alloc.K when reading it.", flush=True)
+    # A record whose segment budget cannot seat one segment per clip has its
+    # floor capped to 0: the ranking still decides (so the bucket is live, and
+    # a leg made only of these is NOT refused), but the starvation guard the
+    # operator asked for is not in force and clips go unrepresented. Say so —
+    # silence here reads as "SEG_FLOOR applied".
+    cancelled = regimes.get("floor cancelled by the budget", 0)
+    if cancelled:
+        print(f"WARNING {label}: --seg-floor {args.seg_floor} is capped away on "
+              f"{cancelled}/{sum(regimes.values())} record(s) — their segment "
+              f"budget N = budget // {fps} is below K x seg_floor, so the floor "
+              "pass seats nothing, they run pure global top-N and leave clips "
+              "with no frame at all. Raise --budget to at least "
+              "frames_per_segment x (K x seg_floor + 1) to put the floor back "
+              "in force, or set SEG_FLOOR=0 to mean it.", flush=True)
+    return regimes
+
+
 def existing_identity(path):
-    """(backends, datasets, media_remaps) already present in an output file we
-    would append to. media_remaps holds the sighted rows' `media_remap`
-    stamps, with "unstamped" for rows written before the stamp existed (i.e.
-    before the MEVA remux — those decoded the wrong frames)."""
-    backends, datasets, remaps = set(), set(), set()
+    """(backends, datasets, media_remaps, seg_modes) already present in an
+    output file we would append to. media_remaps holds the sighted rows'
+    `media_remap` stamps, with "unstamped" for rows written before the stamp
+    existed (i.e. before the MEVA remux — those decoded the wrong frames).
+    seg_modes holds (seg_select, seg_floor) for segment_select rows: the mode
+    is a FLAG, not part of the method name, so per_clip and global rows are
+    otherwise indistinguishable in a file and in `done`.
+
+    Both segment keys are read TOP-LEVEL, where stamp_seg_identity writes the
+    configured pair; frame_alloc.seg_floor is deliberately not read (it is the
+    per-record EFFECTIVE floor — see seg_identity). A row written before the
+    stamp existed carries neither key and was per_clip by construction, which
+    is exactly what the ("per_clip", None) default says, so the September
+    per_clip files stay resumable and a prepare-error row (no frame_alloc at
+    all) still reports its own leg's mode.
+    """
+    backends, datasets, remaps, seg_modes = set(), set(), set(), set()
     if os.path.exists(path):
         with open(path) as fh:
             for line in fh:
@@ -319,7 +451,10 @@ def existing_identity(path):
                     datasets.add(r["dataset"])
                 if r.get("method") != "blind":
                     remaps.add(r["media_remap"] if "media_remap" in r else "unstamped")
-    return backends, datasets, remaps
+                if SEGMENT_SELECT_RE.match(r.get("method") or ""):
+                    seg_modes.add((r.get("seg_select", "per_clip"),
+                                   r.get("seg_floor")))
+    return backends, datasets, remaps, seg_modes
 
 
 def run_identity(subset):
@@ -482,9 +617,11 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--allow-mixed", action="store_true",
                     help="permit appending to a file that already holds a different "
-                         "backend or dataset (default: refuse — filenames key on the "
-                         "conda env, not the model, so two backends sharing an env "
-                         "would silently land in one file)")
+                         "backend, dataset, media_remap stamp or segment-selection "
+                         "mode (seg_select/seg_floor) — it waives ALL FOUR file-identity "
+                         "refusals, not just the backend one (default: refuse — "
+                         "filenames key on the conda env, not the model, so two "
+                         "backends sharing an env would silently land in one file)")
     args = ap.parse_args()
 
     data = json.load(open(args.subset))
@@ -575,6 +712,18 @@ def main():
                 "exclusive — coverage spends a PER-CLIP slot budget that the "
                 "global ranking does not have. Run the coverage leg per_clip, "
                 "or the global leg with SEG_REDUCE=max.")
+        # A negative floor is refused HERE, ahead of the outside-global guard
+        # below: it is also != 1, so the other order answered "--seg-floor -2
+        # applies only to global" — sending the operator to set SEG_SELECT
+        # rather than to fix the typo. SegmentSelectMethod.__init__ raises on it
+        # too, but only after make_backend has loaded the 8B model, and argparse
+        # has no lower bound.
+        if sgm and args.seg_floor < 0:
+            raise SystemExit(
+                f"{m}: --seg-floor {args.seg_floor} is negative; the floor is "
+                "a count of segments reserved per clip before the global fill "
+                "(0 = pure global top-N, 1 = the starvation guard). Set "
+                "SEG_FLOOR >= 0.")
         # --seg-floor is the global fill's per-clip reservation; under per_clip
         # every clip keeps its own top-K unconditionally, so a non-default
         # value there changes nothing and the sbatch log would still echo it.
@@ -607,6 +756,11 @@ def main():
                 f"for the _optu/query_search arms; '{m}' would select 0 frames "
                 "and answer blind. Give the legacy selection arms an explicit "
                 "positive --budget (or omit the flag for their default 64).")
+    # Hoisted out of the loop above: the scan reads only `args` and `data`, so a
+    # leg naming two segment arms classifies its records once (and warns once).
+    if (args.seg_select == "global"
+            and any(SEGMENT_SELECT_RE.match(m) for m in methods)):
+        check_global_regimes(methods, data, args)
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()][: args.passes]
     if len(seeds) < args.passes:
         raise SystemExit(f"need >= {args.passes} seeds, got {seeds}")
@@ -623,7 +777,7 @@ def main():
     # 'cvbench' — would append into ONE file and silently pollute every
     # glob-based leg in export_handoff.py. Rows stay distinguishable via
     # `backend`, but the file does not. Refuse rather than mix.
-    prior_backends, prior_datasets, prior_remaps = existing_identity(out)
+    prior_backends, prior_datasets, prior_remaps, prior_seg = existing_identity(out)
     # backend.name is the HF id basename, so resolve aliases the same way
     want_backends = {
         (QWEN_ALIASES.get(b) or INTERNVL_ALIASES.get(b) or b).rstrip("/").split("/")[-1]
@@ -661,9 +815,39 @@ def main():
             "wrong frames). Use a new TAG.\n"
             "  Pass --allow-mixed only if you genuinely intend one mixed file.")
 
+    # The selection mode is a FLAG, not part of the method name, so both modes
+    # write e.g. 'segment_select_viclip_opt' and resume keys on
+    # (id, method, backend, pass_idx) alone. Reusing a per_clip TAG for a global
+    # leg therefore fails SILENTLY and looks like success: every key is already
+    # done, nothing is appended, and a normal _summary.json is rewritten over
+    # the first mode's rows. Refuse it the way a stray backend or an unstamped
+    # MEVA row is refused — a distinct TAG is the only thing separating them.
+    if any(SEGMENT_SELECT_RE.match(m) for m in methods):
+        this_seg = {seg_identity(args)}
+        stray_s = prior_seg - this_seg
+        if stray_s and not args.allow_mixed:
+            raise SystemExit(
+                f"refusing to append to {out}\n"
+                f"  it already holds segment_select rows selected "
+                f"{sorted(map(str, stray_s))} (seg_select, seg_floor); this run "
+                f"is {sorted(map(str, this_seg))}\n"
+                "  The mode is a flag, not part of the method name, so resume "
+                "would treat those rows as done and append nothing.\n"
+                "  Use a NEW TAG (run_bench.sbatch) or --out.\n"
+                "  Pass --allow-mixed only if you genuinely intend one mixed file.")
+
+    # the segment-selection mode is a flag, not part of the method name, so a
+    # leg launched directly (not via run_bench.sbatch, which echoes the raw
+    # SEG_* env) would otherwise leave no trace of the mode in its job log.
+    # Echo the seg_identity() pair, not the raw args: that is what the rows
+    # stamp and what a later resume compares, and under per_clip the inert
+    # --seg-floor default would otherwise read as a floor in force.
+    seg_echo = (" seg_select={} seg_floor={}".format(*seg_identity(args))
+                if any(SEGMENT_SELECT_RE.match(m) for m in methods) else "")
     print(f"subset={args.subset} n={len(data)} methods={methods} backends={backends} "
           f"passes={args.passes} seeds={seeds} temp={args.temperature} "
-          f"strict_prompt={int(STRICT_ANSWER_PROMPT)} allow_avi={int(ALLOW_AVI)}")
+          f"strict_prompt={int(STRICT_ANSWER_PROMPT)} allow_avi={int(ALLOW_AVI)}"
+          f"{seg_echo}")
     print(f"dataset={dataset} run_id={run_id} node={node}")
     print(f"video_root={args.video_root}\nout={out} (already done: {len(done)})", flush=True)
 
@@ -712,6 +896,11 @@ def main():
                     # before the remux (wrapped frames) never pool with these
                     row["media_remap"] = (None if method.name == "blind"
                                           else media_remap(rec))
+                    # the segment-selection MODE is a flag, not part of the
+                    # method name, so it is stamped here (error rows included —
+                    # they carry no frame_alloc) and read back by
+                    # existing_identity on resume
+                    stamp_seg_identity(row, method.name, args)
                     fh.write(json.dumps(row, ensure_ascii=False) + "\n")
                     fh.flush()
 

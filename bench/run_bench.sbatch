@@ -75,11 +75,27 @@ SEG_SELECT=${SEG_SELECT:-per_clip}            # segment_select: WHERE the top-K 
                                               # (each clip keeps its own best segments); 'global' = one ranking
                                               # over every (clip, segment) pair, N = budget/FRAMES_PER_SEGMENT
                                               # segments total, so a clip may contribute several, one, or none.
-                                              # Exclusive with SEG_REDUCE=coverage; run segment_select_random
-                                              # beside a global leg (it samples denser inside fewer segments).
+                                              # Exclusive with SEG_REDUCE=coverage.
+                                              # The ranking DECIDES NOTHING unless
+                                              #   BUDGET >= FRAMES_PER_SEGMENT x (K x SEG_FLOOR + 1)
+                                              # below that N <= K x SEG_FLOOR, the floor pass seats SEG_FLOOR
+                                              # segments in every clip and spends the whole budget, i.e. per_clip
+                                              # top-SEG_FLOOR wearing a global tag (run_bench refuses the leg at
+                                              # submit when EVERY record lands there, and warns when some do).
+                                              # At the defaults (8 frames/segment, SEG_FLOOR=1) that is more than
+                                              # 8 x K, so an empty BUDGET (auto = NFRAMES x K = 8 x K) is always
+                                              # inert; on MEVA (K=4) use 64 or 96, never 32.
+                                              # A global leg meant to pair with the segment_select_random control
+                                              # must run with DEDUP_TAU=1: the control refuses any dedup (it would
+                                              # rank duplicate survivors by relevance), and under global the dedup
+                                              # losses are never refilled -- kept <= N x FRAMES_PER_SEGMENT, so a
+                                              # dedup'd global leg shows FEWER frames than its per_clip twin and
+                                              # the arm delta would carry a frame-count confound.
 SEG_FLOOR=${SEG_FLOOR:-1}                     # SEG_SELECT=global only: segments reserved per clip before the
-                                              # global fill (0 = pure top-N), capped at N/streams. Refused at
-                                              # submit if set non-1 under per_clip.
+                                              # global fill (0 = pure top-N), capped at N/streams (the cap is what
+                                              # rows stamp in frame_alloc.seg_floor; the resume identity keys on
+                                              # the configured value here). Refused at submit if negative, or if
+                                              # set non-1 under per_clip.
 QUERY_MAX_NEW_TOKENS=${QUERY_MAX_NEW_TOKENS:-256}  # query_search: phrase-generation token cap (raise for thinking backends)
 export VICLIP_DIR=${VICLIP_DIR:-$HOME/models/ViCLIP}   # *_viclip arms: local OpenGVLab/ViCLIP download
 WEIGHTING=${WEIGHTING:-duration}       # temporal_weighted: 'duration' (weighted) | 'even' (control)
