@@ -512,6 +512,15 @@ def arm_of(row):
     return f"other:{m or 'unknown'}"
 
 
+def selection_latency_of(row):
+    """The segment-scoring time (decode + scorer) stamped on a selection arm's
+    row. None for arms that do no selection - the all-cameras and blind arms -
+    whose own decode is not timed."""
+    fa = row.get("frame_alloc") or {}
+    v = fa.get("selection_latency_s")
+    return v if isinstance(v, (int, float)) else None
+
+
 def protocol_of(rows):
     """Reasoning is imposed by the prompt, not a model switch, so it is read off
     the rows: a non-empty think block, or <think> left in the raw response."""
@@ -1304,7 +1313,7 @@ TABLE_COLS = [
     ("Arm", 0.215, "left"),
     ("Pred", 0.050, "center"),
     ("Result", 0.185, "left"),
-    ("Latency", 0.085, "right"),
+    ("Answer call", 0.085, "right"),
     ("Input tok", 0.090, "right"),
     ("Video tok", 0.090, "right"),
     ("Protocol", 0.285, "left"),
@@ -1320,6 +1329,25 @@ def fig_answer(q, out_path, dpi):
     trace, trace_src, trace_len, trace_reasons, trace_blind = trace_text(
         groups, prefer=q.get("sel"))
 
+    # The latency column is the InternVL answer call only. Segment scoring
+    # (decode + scorer) is a separate stamp on the selection arms' rows, and
+    # the all-cameras arm's own decode is never timed at all.
+    sel_lat = None
+    if q.get("sel"):
+        sel_lat = selection_latency_of(q["sel"]["first"])
+    if sel_lat is None:
+        for g in groups:
+            if g["arm"] in SEG_ARMS:
+                sel_lat = selection_latency_of(g["first"])
+                if sel_lat is not None:
+                    break
+    foot = ("Answer call only, the same call for every arm. Segment selection "
+            "is timed separately: "
+            + (f"{sel_lat:.1f} s" if sel_lat is not None else "not stamped on these rows")
+            + " for this arm (SigLIP or ViCLIP scoring, mostly frame "
+              "decoding). The all-cameras arm's frame decode is not timed.")
+    foot_lines = textwrap.wrap(foot, 158) or [""]
+
     W = 16.0
     M = 0.42
     qlines = textwrap.wrap(rec.get("question", ""), 132)
@@ -1334,7 +1362,8 @@ def fig_answer(q, out_path, dpi):
     h_head = 0.46
     h_q = 0.27 * len(qlines) + 0.16
     h_opts = sum(0.26 * len(ls) for ls in opt_lines) + 0.26
-    h_tbl = 0.40 + 0.40 * max(1, len(groups)) + 0.34
+    h_tbl = (0.40 + 0.40 * max(1, len(groups)) + 0.34
+             + 0.16 + 0.225 * len(foot_lines))
     h_trace = (0.34 + 0.225 * max(1, len(trace_lines)) + 0.30
                + (0.38 if trace_blind else 0.0))
     H = M + h_head + h_q + h_opts + h_tbl + h_trace + M
@@ -1431,6 +1460,11 @@ def fig_answer(q, out_path, dpi):
                      va="center", ha=align, zorder=2,
                      weight="bold" if weight == "bold" else "normal")
         y -= row_h
+    y -= 0.16
+    for line in foot_lines:
+        fig.text(fx(x_left), fy(y), line, fontsize=FS_TINY, color=C_MUTE,
+                 va="top", zorder=2)
+        y -= 0.225
     y -= 0.34
 
     # ---- trace ------------------------------------------------------------
@@ -1663,6 +1697,7 @@ def manifest_entry(q):
             "gold": r.get("gold"),
             "correct": bool(r.get("correct")),
             "latency_s": r.get("latency_s"),
+            "selection_latency_s": selection_latency_of(r),
             "input_tokens": r.get("input_tokens"),
             "video_tokens": r.get("video_tokens"),
             "predictions_all_passes": [x.get("prediction") for x in g["rows"]],

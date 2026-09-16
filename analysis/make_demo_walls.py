@@ -44,7 +44,8 @@ shared fit (wall_geometry) rather than a fit per camera.
 
 THE CLOCK is clip time on each camera's own clip, identical across the four
 tiles. It is not wall-clock time: the MEVA release starts the clips of one slot
-within about 8 s of each other, and the footer on every frame says so.
+within a few seconds of each other; the footer on every frame carries that
+question's own measured spread, read off the clip filenames.
 """
 from __future__ import annotations
 
@@ -142,27 +143,64 @@ def scorer_words(leg):
     return name, query
 
 
-def footer_text(mode, leg):
+def clip_start_spread(q):
+    """Seconds between the earliest and the latest clip start on this question.
+
+    MEVA spells the start in the clip filename's second field
+    (``2018-03-11.14-10-00.14-15-00...`` -> ``14-10-00``), so the spread is read
+    off the four camera paths rather than asserted as a constant. None when a
+    path does not carry a parsable start."""
+    secs = []
+    for c in (q or {}).get("cameras", []):
+        parts = os.path.basename(str(c.get("path", ""))).split(".")
+        if len(parts) < 2:
+            return None
+        m = re.fullmatch(r"(\d{2})-(\d{2})-(\d{2})", parts[1])
+        if not m:
+            return None
+        h, mi, sec = (int(x) for x in m.groups())
+        secs.append(h * 3600 + mi * 60 + sec)
+    if len(secs) < 2:
+        return None
+    return max(secs) - min(secs)
+
+
+def footer_text(mode, leg, spread=None):
     name, query = scorer_words(leg)
     head = f"Selection: {name} scores 8 segments per camera {query}; "
     if mode == "per_clip":
-        body = "top 4 per camera kept (96 frames total). "
+        # 4 of 8 segments x 8 frames = 128 frames, thinned down to the budget.
+        body = ("top 4 segments per camera kept (128 frames), thinned to the "
+                "96-frame budget, 24 per camera. ")
     else:
         # --seg-select global spends one budget across the four cameras (12 of
         # the 32 segments, one per camera as a floor), so the per-clip wording
         # would be wrong.
-        body = ("the best 12 segments across all four cameras are kept, one per "
-                "camera as a floor (96 frames total). ")
-    return head + body + ("Cameras share a clip clock; clip starts within a "
-                          "slot differ by up to 8 s.")
+        body = ("the best 12 segments across all four cameras kept, one per "
+                "camera as a floor (96 frames), 8 per segment. ")
+    tail = ("Cameras share a clip clock; clip starts on this question differ "
+            + (f"by up to {spread:.0f} s." if spread is not None
+               else "by an unknown amount (clip start not parsable)."))
+    return head + body + tail
 
 
 MARK_OK = "✓"
 MARK_BAD = "✗"
 MID = "·"
 
-ARM_ORDER = ["blind", "native", "seg_perclip", "seg_global"]
-MODE_ARM = {"per_clip": "seg_perclip", "global": "seg_global"}
+def scorer_arms(leg):
+    """Manifest arm keys of the scorer that drove this manifest's selection, read
+    from selection_leg.scorer (never from a flag): the closing card must list and
+    highlight the ViCLIP arms on a ViCLIP wall, the SigLIP arms on a SigLIP wall."""
+    sc = str((leg or {}).get("scorer", "")).lower()
+    if "viclip" in sc:
+        return {"per_clip": "viclip_perclip", "global": "viclip_global"}
+    return {"per_clip": "seg_perclip", "global": "seg_global"}
+
+
+def arm_order(leg):
+    m = scorer_arms(leg)
+    return ["blind", "native", m["per_clip"], m["global"]]
 
 NOTES: list[str] = []
 
@@ -598,7 +636,7 @@ def draw_tile(canvas, draw, cs: CamStream, tile_img, ox, oy, t, mode):
             f"{wdw.get('label', '')} {MID} ",
             str(wdw.get("description", "")),
             f" {MID} {float(wdw['start_sec']):.1f}-{float(wdw['end_sec']):.1f} s",
-            fcap, TILE_W - 48, 2)
+            fcap, TILE_W - 48, 3)
         ch = len(lines) * (FS_CAP + 6) + 10
         cy = sy - 42 - ch - 6
         draw.rectangle([ox + 12, cy, ox + TILE_W - 12, cy + ch],
@@ -655,10 +693,35 @@ def answer_card(last_frame, q, plan):
     canvas = last_frame.point(DIM_LUT)
     draw = ImageDraw.Draw(canvas, "RGBA")
     arms = {a["arm"]: a for a in q.get("arms", [])}
-    rows = [arms[k] for k in ARM_ORDER if k in arms]
-    driver = MODE_ARM[plan["mode"]]
+    rows = [arms[k] for k in arm_order(q.get("selection_leg")) if k in arms]
+    driver = scorer_arms(q.get("selection_leg"))[plan["mode"]]
 
-    cw, ch = 1180, 180 + 54 * len(rows) + 70
+    # The cost line names both clocks - the answer call and, separately, the
+    # segment scoring - so it is built before the card is sized and the card
+    # widens to hold it rather than letting it run off the panel.
+    drv = arms.get(driver)
+    tail = None
+    if drv is not None:
+        proto = ("direct answer" if drv.get("protocol") == "direct"
+                 else str(drv.get("protocol", "?")))
+        temp = drv.get("temperature")
+        # latency_s is the InternVL answer call only; the segment scoring
+        # (decode + scorer) is its own stamp and is named separately.
+        sel = drv.get("selection_latency_s")
+        tail = (f"{drv.get('label', driver)}: {float(drv['latency_s']):.2f} s "
+                f"answer call"
+                + (f" + {float(sel):.0f} s segment scoring"
+                   if isinstance(sel, (int, float)) else "")
+                + f" per question {MID} {proto}"
+                + (f", T={temp}" if temp is not None else ""))
+
+    f_tail = font(FS_CARD_SM)
+    cw = 1180
+    if tail is not None:
+        # +96: 40 px of left inset plus a little slack, so the line never
+        # comes back elided by a fraction of a pixel.
+        cw = int(max(cw, min(W - 80, tw(tail, f_tail) + 96)))
+    ch = 180 + 54 * len(rows) + 70
     cx, cy = (W - cw) // 2, (H - ch) // 2
     draw.rounded_rectangle([cx, cy, cx + cw, cy + ch], radius=18,
                            fill=(16, 18, 22, 248), outline=(90, 96, 104),
@@ -686,15 +749,9 @@ def answer_card(last_frame, q, plan):
                   font=font(FS_CARD_H, bold=True), fill=C_OK if ok else C_BAD)
         y += 54
 
-    drv = arms.get(driver)
-    if drv is not None:
-        proto = ("direct answer" if drv.get("protocol") == "direct"
-                 else str(drv.get("protocol", "?")))
-        temp = drv.get("temperature")
-        tail = (f"{drv.get('label', driver)}: {float(drv['latency_s']):.2f} s "
-                f"per question {MID} {proto}"
-                + (f", T={temp}" if temp is not None else ""))
-        draw.text((cx + 40, y + 8), tail, font=font(FS_CARD_SM), fill=C_MUTE)
+    if tail is not None:
+        draw.text((cx + 40, y + 8), elide(tail, f_tail, cw - 80),
+                  font=f_tail, fill=C_MUTE)
     return canvas
 
 
@@ -749,7 +806,8 @@ def ffmpeg_writer(path, fps, crf):
 
 def render_question(q, args, out_dir):
     plan = plan_window(q, args)
-    plan["footer"] = footer_text(plan["mode"], q.get("selection_leg"))
+    plan["footer"] = footer_text(plan["mode"], q.get("selection_leg"),
+                                 clip_start_spread(q))
     norm = shared_norm(q)
     streams = [CamStream(c, args.mode, norm, qid=q["id"])
                for c in sorted(q["cameras"], key=lambda c: c["slot"])[:4]]
