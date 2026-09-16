@@ -40,6 +40,8 @@ __pycache__/
 # Regenerable deck/doc artifacts (rebuilt by make_slide_figs.py / make_repq_doc.py /
 # clip_selection_diagnostic.py from tracked scripts + result rows; files stay on disk)
 /analysis/figs_deck/
+/analysis/figs_demo/
+/analysis/figs_demo_viclip/
 /analysis/repq_doc.html
 /analysis/repq_doc.md
 /analysis/repq_doc_manifest.json
