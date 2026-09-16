@@ -115,6 +115,8 @@ report to stdout regardless.
 | `crossview_meva1033_subset.json` | eval subset | 308 | 23 | live; default subset for most MEVA analysis scripts |
 | `crossview_meva4cam_subset.json` | eval subset | 0 | 0 | sole consumer `bench/legacy/qual_make_figs.py` (retired, no other referrers) |
 | `crossview_meva_cap13.json` | eval subset | 166 | 27 | live |
+| `crossview_nuscenes12_subset.json` | eval subset | 0 | 0 | live; 12-record stratified preflight pool (3 per task type) drawn from `crossview_nuscenes1497_subset.json`; preflight results are staged outside `bench/results/` and are never registered |
+| `crossview_nuscenes1497_subset.json` | eval subset | 16 | 1 | live; 1497 nuScenes MCQ records, four task types, six cameras each; compiled 2026-09-09 from the release annotations by a gitignored shim (no tracked generator); blind-only pool — no nuScenes media is on disk |
 | `crossview_subset.json` | eval subset | 0 | 0 | generator default (`convert_crossview.py --out-subset`, `fetch_meva_videos.py --subset`); superseded by `crossview_meva1033_subset.json` / `crossview_meva_cap13.json` for live runs |
 | `crossview_subset_fetch.json` | fetch manifest | 0 | 0 | generator default (`convert_crossview.py --out-fetch`); consumed by `hosting/fetch_videos.py` |
 | `crossview_subset_videos.txt` | video list | 0 | 0 | generator default (`convert_crossview.py --out-videos`); consumed by `bench/gen_clip_summaries.py` |

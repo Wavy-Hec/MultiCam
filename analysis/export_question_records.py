@@ -287,6 +287,13 @@ LEGS = [
     dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
          glob="bench_crossview_meva1033_subset_internvl_mp4sv8_shard*.jsonl",
          budget="8 frames/view, single view"),
+    # _nsbd = the nuScenes text-prior floor (job 98513): blind-ONLY, because no
+    # nuScenes media is on disk — there is no sighted leg on this pool to pair it
+    # with, and its floor lives in analysis/records/letter_floors_nuscenes.json.
+    dict(dataset="CrossView-nuScenes", backend="InternVL3-8B",
+         subset="crossview_nuscenes1497_subset.json",
+         glob="bench_crossview_nuscenes1497_subset_internvl_nsbd_shard*.jsonl",
+         budget="no images"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]
