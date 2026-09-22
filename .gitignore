@@ -42,6 +42,10 @@ __pycache__/
 /analysis/figs_deck/
 /analysis/figs_demo/
 /analysis/figs_demo_viclip/
+# the demo page's optional case-study assets (case_q<ID>.json, the case figures and
+# wall clips, how_it_works.png): rendered in adihebbalae/multicam-harness
+# (demo/scripts/render_case_contrast.py, render_case_wall.py) and copied in
+/analysis/figs_case/
 /analysis/repq_doc.html
 /analysis/repq_doc.md
 /analysis/repq_doc_manifest.json
