@@ -40,7 +40,33 @@ answer from an evenly-thinned subset of the unique pool.
       segment CHOICE with sampling density — run ``segment_select_random``
       beside it at the same seg_select and budget. Rows stamp
       ``segment_select_mode``, ``seg_floor``, ``segments_kept_total`` and
-      ``clips_with_no_segment``.)
+      ``clips_with_no_segment``.
+
+      ``--segment-seconds T`` (default 0 = off): the partition of step 1 is
+      by TIME instead of by count — every clip is cut into consecutive
+      T-second segments, S_c = duration_c / T (segment_bounds), so with the
+      default 8 frames per segment and T = 8 a ViCLIP tube is 8 s at 1 fps.
+      This is the PI's rule as written (2026-09-17: "each camera stream ...
+      partitioned to 8 second clips ... 4 cameras x 64 s -> 32 clips"); the
+      count rule gives the same 8 segments only on a 64 s clip and is 37.5 s
+      per segment on a 300 s MEVA camera. ``--segments-per-video`` does not
+      bind under it. With the image tower off (viclip/random scorer, dedup
+      off) selection runs on 224-px copies and only the KEPT segments are
+      decoded at full resolution, since a 300 s camera is ~38 segments and
+      holding every candidate frame would cost ~7.5 GB per MEVA record. Rows
+      stamp ``segment_seconds`` and, per clip, ``n_segments`` and
+      ``segment_frames`` (the window w in frames): the partition is exactly
+      [s * w for s in range(n_segments)] + [n_total] — NOT the count formula,
+      which readers of older rows apply. Not every segment is T seconds: a
+      clip's last one is T/2 .. 3T/2 (a tail under half a window joins it, a
+      longer one stands alone) and a clip shorter than T is one segment, so
+      an 8-frame tube runs at 0.67-2 fps on a last segment, and faster on a
+      clip shorter than half a window (MVU-Eval only). A record whose clips total
+      fewer segments than the budget seats keeps them all
+      (``selection_noop``) and shows fewer frames than the budget. The
+      per-clip auto-K clamp uses the record's longest clip's segment count
+      in place of ``segments_per_video``. The resume identity carries the
+      window (run_bench.seg_identity).)
       1. Each of the K clips is split into ``segments_per_video`` contiguous
          equal-time segments (fewer when the clip is shorter than that).
       2. ``frames_per_segment`` frames are sampled uniformly WITHIN each
@@ -121,6 +147,7 @@ answer from an evenly-thinned subset of the unique pool.
   ``selection_noop``.
 """
 import hashlib
+import math
 import os
 import re
 import time
@@ -129,7 +156,8 @@ import numpy as np
 from decord import VideoReader, cpu
 
 from .base import require_video_record
-from .clip_select import FrameSelectMethod, clip_scores, query_for
+from .clip_select import (FrameSelectMethod, clip_scores, option_texts,
+                          query_for, statement_texts)
 from .option_union import _check_token_parity, _floor_then_fill, _frame_content
 from .temporal import allocate_frames
 from ..reuse import build_messages, letters_of, gt_choice, video_paths
@@ -180,6 +208,67 @@ SEGMENT_MARKER = ("=== Video {orig} — {cnt} frame(s) drawn from its {nseg} "
 # count runs 16..1.
 SEG_KEEP_MAX = 16
 
+# --segment-seconds: the one sentence of the prompt that names the partition.
+# Swapped in by _prefix_for so both prefixes stay byte-identical constants for
+# every count-partition leg (the shipped ones included).
+_PARTITION_COUNT_PHRASE = "up to {S} equal time segments"
+_PARTITION_SECONDS_PHRASE = "consecutive segments of about {sec:g} seconds"
+
+
+def segment_window_frames(fps, segment_seconds):
+    """Frames in one --segment-seconds window: round(fps x seconds), >= 1.
+    Raises when the container reports no usable frame rate — a time partition
+    cannot be cut without one."""
+    if not fps or not math.isfinite(fps) or fps <= 0:
+        raise ValueError(
+            "segment_seconds needs the clip's frame rate, got "
+            f"fps={fps!r} — a time partition cannot be cut without it")
+    return max(1, int(round(float(fps) * float(segment_seconds))))
+
+
+def segment_bounds(n, fps, segments_per_video, segment_seconds=0.0):
+    """Frame-index bounds [0, ..., n] of a clip's contiguous segments; segment
+    ``s`` is frames [bounds[s], bounds[s + 1]).
+
+    ``segment_seconds`` <= 0 (historic): ``segments_per_video`` EQUAL parts, so
+    a segment lasts duration / S whatever the duration is.
+
+    ``segment_seconds`` > 0: consecutive windows of that many seconds (w =
+    round(fps x seconds) frames), S = duration / seconds. A tail shorter than
+    half a window joins the last segment instead of standing alone — its tube
+    would be a sliver of footage padded by repetition — and a clip shorter
+    than one window is one segment. 64 s at 8 s gives 8 segments under both
+    rules."""
+    n = int(n)
+    if segment_seconds and segment_seconds > 0:
+        w = segment_window_frames(fps, segment_seconds)
+        full, tail = divmod(n, w)
+        if full == 0:
+            return [0, n]
+        own_tail = tail * 2 >= w
+        return ([s * w for s in range(full + (1 if own_tail else 0))] + [n])
+    S = max(1, min(int(segments_per_video), n))
+    return [round(s * n / S) for s in range(S + 1)]
+
+
+def _prefix_for(glob, segment_seconds, segments_per_video):
+    """The selection prefix with its partition sentence resolved (``{S}``
+    filled, or the seconds wording swapped in); K/top/n stay as fields."""
+    prefix = SEGMENT_SELECT_GLOBAL_PREFIX if glob else SEGMENT_SELECT_PREFIX
+    phrase = (_PARTITION_SECONDS_PHRASE.format(sec=segment_seconds)
+              if segment_seconds > 0
+              else _PARTITION_COUNT_PHRASE.format(S=segments_per_video))
+    return prefix.replace(_PARTITION_COUNT_PHRASE, phrase)
+
+
+# checked at import: an edit to either prompt that loses the phrase must fail
+# the job at start, not turn every record into a prepare-error row
+for _p in (SEGMENT_SELECT_PREFIX, SEGMENT_SELECT_GLOBAL_PREFIX):
+    if _p.count(_PARTITION_COUNT_PHRASE) != 1:
+        raise AssertionError(
+            f"segment_select prompt must contain {_PARTITION_COUNT_PHRASE!r} "
+            "exactly once (_prefix_for swaps it under --segment-seconds)")
+
 
 _CLIP_REF_RE = re.compile(
     r"^\s*(?:(?:video|view|clip|camera)\s*\d+|[ivx]+(?:\s*(?:->|→|,|then)\s*[ivx]+)+"
@@ -191,6 +280,109 @@ def _options_are_clip_refs(texts):
     permutation of numerals ("Video 2", "II -> I -> III", "1, 3, 2") — a
     content-free query the scorer cannot ground."""
     return bool(texts) and all(_CLIP_REF_RE.match(t or "") for t in texts)
+
+
+# ---------------------------------------------------------------------------
+# _auto query rule (2026-09-17). One query set per record, shared by every
+# scorer, so the scorer is the only difference between two _auto arms:
+#   1. an event-ordering question with >= 2 enumerated statements ("I." /
+#      "(I)" / "(A)", clip_select.statement_texts)
+#      -> Q = the statements (the options are only orderings of their labels);
+#   2. otherwise Q = the answer options minus the uninformative ones:
+#      bare clip references / numeral orderings ("Video 3", "II -> I"), LISTS of
+#      clip references ("Video 6, Video 4, Video 2", "Video 1 and Video 5" —
+#      12% of MVU-Eval) and orderings of event letters ("C -> B -> A"),
+#      pure numbers ("3.2"), non-visual single words ("left", "yes", "black"),
+#      and GENERIC options — the same text on at least half of the questions
+#      of this task type in the pool (MEVA spatial's four distance phrases,
+#      MEVA temporal's "They occurred simultaneously" / "Cannot be determined");
+#   3. fewer than 2 informative options left -> Q = the question.
+# The segment score is then s(c, j) = max_{q in Q} sim(c, j, q), exactly as in
+# the _opt / _stmt modes. The generic test needs the whole pool (never a shard:
+# thresholds must not move between shards), which run_bench hands to the
+# method as ``pool_records``; without it the generic test is off and rows say so.
+_NUMERIC_OPTION_RE = re.compile(r"^[\s\d.,:%/+-]+$")
+# Two content-free shapes _CLIP_REF_RE does not cover. Kept OUT of it on
+# purpose: analysis/make_ladder_figs.py and split_ladder_by_query.py split the
+# shipped legs with _options_are_clip_refs, and widening that regex would move
+# their published splits. These two bind only inside the _auto rule.
+_CLIP_REF_LIST_RE = re.compile(
+    r"^\s*(?:video|view|clip|camera)\s*\d+"
+    r"(?:\s*(?:->|→|,|;|&|and|then)\s*(?:and\s+)?(?:video|view|clip|camera)\s*\d+)+"
+    r"\s*\.?\s*$", re.I)
+# case-SENSITIVE: event labels are capitals ("C -> B -> A"); under re.I the
+# class would also match ordinary lower-case words joined by a comma
+_LETTER_ORDER_RE = re.compile(r"^\s*[A-J](?:\s*(?:->|→|,)\s*[A-J])+\s*\.?\s*$")
+_NONVISUAL_WORDS = frozenset({
+    "yes", "no", "maybe", "sometimes", "true", "false", "same", "different",
+    "unchanged", "changes", "none", "all",
+    "left", "right", "front", "rear", "back", "behind", "ahead", "forward",
+    "backward", "sides", "side", "above", "below", "up", "down", "north",
+    "south", "east", "west", "inside", "outside", "near", "far",
+    "black", "white", "red", "blue", "green", "yellow", "brown", "orange",
+    "purple", "pink", "gray", "grey", "silver", "gold", "beige",
+})
+AUTO_GENERIC_SHARE = 0.5      # an option on >= half the questions of its type is generic
+AUTO_GENERIC_MIN_N = 20       # ... judged only for task types with at least this many questions
+
+
+def _norm_option(text):
+    return re.sub(r"\s+", " ", str(text or "").strip().lower())
+
+
+def generic_option_table(records, share=AUTO_GENERIC_SHARE, min_n=AUTO_GENERIC_MIN_N):
+    """{(task_type, normalized option text)} of options that appear on at least
+    ``share`` of the questions of their task type (types with >= min_n records)."""
+    from collections import Counter, defaultdict
+    by_type = defaultdict(list)
+    for r in records:
+        by_type[r.get("task_type")].append(r)
+    out = set()
+    for task, recs in by_type.items():
+        if len(recs) < min_n:
+            continue
+        counts = Counter()
+        for r in recs:
+            counts.update({_norm_option(o) for o in option_texts(r) if o})
+        out |= {(task, o) for o, n in counts.items() if n >= share * len(recs)}
+    return frozenset(out)
+
+
+def uninformative_option(text, task_type, generic):
+    """Why an option cannot serve as a visual query, or None if it can."""
+    t = str(text or "").strip()
+    if not t:
+        return "empty"
+    if _CLIP_REF_RE.match(t):
+        return "clip_ref"
+    if _CLIP_REF_LIST_RE.match(t):
+        return "clip_ref_list"
+    if _LETTER_ORDER_RE.match(t):
+        return "letter_order"
+    if _NUMERIC_OPTION_RE.match(t):
+        return "number"
+    if generic and (task_type, _norm_option(t)) in generic:
+        return "generic"
+    if _norm_option(t).strip(" .") in _NONVISUAL_WORDS:
+        return "nonvisual_word"
+    return None
+
+
+def auto_query(rec, generic):
+    """(query, mode_used, dropped_counts) under the _auto rule above."""
+    stmts = statement_texts(rec)
+    if stmts:
+        return stmts, "statements", {}
+    kept, dropped = [], {}
+    for o in option_texts(rec):
+        why = uninformative_option(o, rec.get("task_type"), generic)
+        if why:
+            dropped[why] = dropped.get(why, 0) + 1
+        else:
+            kept.append(o)
+    if len(kept) >= 2:
+        return kept, "options", dropped
+    return rec.get("question", ""), "question", dropped
 
 
 def _dedup_keep_best(indices, scores, embs, tau):
@@ -285,8 +477,19 @@ class SegmentSelectMethod(FrameSelectMethod):
     def __init__(self, backend, segments_per_video=8, segments_keep=4,
                  frames_per_segment=8, dedup_tau=0.95, seg_scorer=None,
                  seg_pool=128, seg_reduce="max", seg_select="per_clip",
-                 seg_floor=1, **kw):
+                 seg_floor=1, segment_seconds=0.0, **kw):
         super().__init__(backend, **kw)
+        # > 0: cut every clip into consecutive windows of this many seconds
+        # (segment_bounds) instead of segments_per_video equal parts
+        self.segment_seconds = float(segment_seconds or 0.0)
+        if self.segment_seconds < 0:
+            raise ValueError(
+                f"{self.name}: segment_seconds must be >= 0 (0 = the "
+                f"segments_per_video count partition), got {segment_seconds}")
+        # _auto mode: the full subset (set by run_bench before sharding matters)
+        # from which generic options are found; None disables that test
+        self.pool_records = None
+        self._generic_options = None
         self.segments_per_video = int(segments_per_video)
         # 0 = AUTO: K per clip derived from seg_pool and the record's stream
         # count at _prepare time (clamped to [1, SEG_KEEP_MAX])
@@ -306,10 +509,15 @@ class SegmentSelectMethod(FrameSelectMethod):
         # reserved per clip first. See select_segments().
         self.seg_select = str(seg_select)
         self.seg_floor = int(seg_floor)
-        if self.seg_reduce not in ("max", "coverage"):
+        # "coverage_all" (2026-09-17): the coverage claim over EVERY multi-query
+        # mode — statements, the temporal anchors (+ EgoExo options) and plain
+        # options — so each candidate event/option gets its own segment before
+        # the max-reduce fills the rest. "coverage" keeps its historic meaning
+        # (statements only; options fall back to max).
+        if self.seg_reduce not in ("max", "coverage", "coverage_all"):
             raise ValueError(
-                f"{self.name}: seg_reduce must be 'max' or 'coverage', got "
-                f"{self.seg_reduce!r}")
+                f"{self.name}: seg_reduce must be 'max', 'coverage' or "
+                f"'coverage_all', got {self.seg_reduce!r}")
         if self.seg_select not in ("per_clip", "global"):
             raise ValueError(
                 f"{self.name}: seg_select must be 'per_clip' or 'global', got "
@@ -317,7 +525,7 @@ class SegmentSelectMethod(FrameSelectMethod):
         if self.seg_floor < 0:
             raise ValueError(
                 f"{self.name}: seg_floor must be >= 0, got {self.seg_floor}")
-        if self.seg_select == "global" and self.seg_reduce == "coverage":
+        if self.seg_select == "global" and self.seg_reduce in ("coverage", "coverage_all"):
             # coverage lets statement qi claim its own argmax segment WITHIN a
             # clip — a per-clip slot budget it spends. There is no per-clip
             # slot budget to spend under a global ranking, so the two rules
@@ -352,6 +560,16 @@ class SegmentSelectMethod(FrameSelectMethod):
                 f"{self.name}: dedup_tau must be in (0, 1], got "
                 f"{self.dedup_tau} (1.0 disables dedup; 0 is NOT 'off' — it "
                 "would drop every frame after the first)")
+        if self.segment_seconds > 0 and self._needs_image_tower():
+            # the image tower scores (or dedups on) full-resolution frames, so
+            # this path cannot select on thumbnails: EVERY candidate frame of
+            # the record is held at native size until selection ends
+            print(f"WARNING {self.name}: --segment-seconds "
+                  f"{self.segment_seconds:g} with the image tower on holds "
+                  "every candidate frame at full resolution (a 4-camera 300 s "
+                  "1080p MEVA record is ~1,200 frames, ~7.5 GB); only the "
+                  "viclip/random scorers with --dedup-tau 1 select on 224-px "
+                  "copies. Give the job the memory or use those.", flush=True)
         self.img_token_parity = _check_token_parity(backend, self.name)
         if getattr(backend, "patch_size", None):
             # true-parity path: kept frames go as per-clip VIDEO items so
@@ -371,12 +589,26 @@ class SegmentSelectMethod(FrameSelectMethod):
                     "attach real frame times before running a Qwen segment "
                     "leg (or set SEGMENT_SELECT_QWEN_UNSAFE=1 knowingly).")
 
-    def _decode_segments(self, vp):
-        """[(segment_id, time_s, PIL)] in playback order, plus decode meta.
+    def _needs_image_tower(self):
+        """Whether the CLIP/SigLIP image tower has a consumer: it ranks the
+        segments unless ViCLIP / the random control does, and its per-frame
+        embeddings feed dedup whenever dedup is on."""
+        return (self.seg_scorer not in ("viclip", "random")
+                or self.dedup_tau < 1.0)
+
+    def _decode_segments(self, vp, thumb=False):
+        """[(segment_id, time_s, PIL, frame_index)] in playback order, plus
+        decode meta.
+
+        ``thumb``: keep each frame as the 224-px square copy ViCLIP scores
+        (pixel-identical to what viclip_scorer._tube would make of the full
+        frame — resizing a 224-px image to 224 px is a no-op) instead of at
+        native size; ``_load_full_frames`` re-decodes the kept ones.
 
         Same fail-loud recovery policy as ``_candidates``: decord flakiness
         costs only the failed indices, a fully unreadable clip raises."""
         from PIL import Image
+        from .viclip_scorer import VICLIP_SIDE
         try:
             vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
             n = len(vr)
@@ -387,8 +619,12 @@ class SegmentSelectMethod(FrameSelectMethod):
                 f"unreadable clip {vp} ({kind}) — check --video-root") from e
         if n <= 0:
             raise FileNotFoundError(f"unreadable clip {vp} (0 frames)")
-        S = max(1, min(self.segments_per_video, n))
-        bounds = [round(s * n / S) for s in range(S + 1)]
+        try:
+            bounds = segment_bounds(n, fps, self.segments_per_video,
+                                    self.segment_seconds)
+        except ValueError as e:
+            raise FileNotFoundError(f"unusable clip {vp}: {e}") from e
+        S = len(bounds) - 1
         out = []
         for sid in range(S):
             a, b = bounds[sid], bounds[sid + 1]
@@ -402,13 +638,61 @@ class SegmentSelectMethod(FrameSelectMethod):
                     fr = vr[fi].asnumpy()
                 except Exception:
                     continue
-                out.append((sid, (fi / fps) if fps > 0 else None,
-                            Image.fromarray(fr).convert("RGB")))
+                im = Image.fromarray(fr).convert("RGB")
+                if thumb:
+                    im = im.resize((VICLIP_SIDE, VICLIP_SIDE))
+                out.append((sid, (fi / fps) if fps > 0 else None, im, fi))
         if not out:
             raise FileNotFoundError(f"unreadable clip {vp} (no decodable frames)")
-        return out, {"n_total": n,
-                     "fps": round(fps, 2) if fps > 0 else None,
-                     "n_segments": S}
+        meta = {"n_total": n,
+                "fps": round(fps, 2) if fps > 0 else None,
+                "n_segments": S}
+        if self.segment_seconds > 0:
+            # frames per window w, so a reader rebuilds the partition exactly:
+            # bounds = [s * w for s in range(n_segments)] + [n_total] (the last
+            # segment is w/2 .. 3w/2 frames: a short tail joins it, a long one
+            # stands alone). The count formula does NOT describe these rows.
+            meta["segment_frames"] = segment_window_frames(
+                fps, self.segment_seconds)
+        return out, meta
+
+    def _load_full_frames(self, paths, pool, pool_fi, kept):
+        """Thumbnail mode: swap the KEPT frames' 224-px copies in ``pool`` for
+        full-resolution decodes of the same frame INDICES. Same index is not
+        always the same picture: on the remuxed MEVA mp4s decord's index ->
+        frame mapping depends on the reader's access history (a reader's first
+        two reads are exact, later ones land 2 source frames = 67 ms early), so
+        up to two kept frames per clip can differ by 2 source frames from the
+        copy that was scored (measured 2026-09-20; EgoExo: none). Returns
+        ``kept`` minus any frame that fails this second decode (same policy as
+        the first: flakiness costs the failed index only, an unopenable clip
+        raises), so every later count is of frames that exist; a loss is
+        printed and stamped (``full_decode_dropped``)."""
+        from PIL import Image
+        by_video = {}
+        for j in kept:
+            by_video.setdefault(pool[j][0], []).append(j)
+        ok = set()
+        for v, js in by_video.items():
+            vp = paths[v - 1]
+            try:
+                vr = VideoReader(vp, ctx=cpu(0), num_threads=1)
+            except Exception as e:
+                raise FileNotFoundError(
+                    f"unreadable clip {vp} on the full-resolution pass "
+                    f"({type(e).__name__})") from e
+            for j in js:
+                try:
+                    fr = vr[pool_fi[j]].asnumpy()
+                except Exception:
+                    continue
+                pool[j] = pool[j][:3] + (Image.fromarray(fr).convert("RGB"),)
+                ok.add(j)
+        if len(ok) < len(kept):
+            print(f"WARNING {self.name}: {len(kept) - len(ok)} of {len(kept)} "
+                  "kept frame(s) failed the full-resolution decode and are "
+                  "not shown (frame_alloc.full_decode_dropped)", flush=True)
+        return [j for j in kept if j in ok]
 
     def _viclip_segment_scores(self, pool, queries):
         """{video: {seg_id: np.ndarray [n_queries]}} — each segment's decoded
@@ -453,14 +737,23 @@ class SegmentSelectMethod(FrameSelectMethod):
                 f"budget {budget_eff} < {K} views: cannot keep one frame per "
                 "clip — raise --budget (or use 0 = matched nframes x K)")
 
+        # --segment-seconds with no image-tower consumer: select on 224-px
+        # copies and decode only the kept segments at full size afterwards
+        # (_load_full_frames). Never on a count-partition leg: its decode and
+        # selection path is exactly what it was.
+        need_img = self._needs_image_tower()
+        thumbs = self.segment_seconds > 0 and not need_img
+
         # 1+2. decode per-segment frames; pool is canonical order by
         # construction (clip 1..K, ascending frame index within each clip)
         pool, decode_meta = [], []            # (video 1-based, seg_id, t, im)
+        pool_fi = []                          # pool[j]'s frame index in its clip
         for i, vp in enumerate(paths, 1):
-            entries, meta = self._decode_segments(vp)
+            entries, meta = self._decode_segments(vp, thumb=thumbs)
             decode_meta.append(meta)
-            for sid, t, im in entries:
+            for sid, t, im, fi in entries:
                 pool.append((i, sid, t, im))
+                pool_fi.append(fi)
         if not pool:
             raise FileNotFoundError("no candidate frames from any clip")
 
@@ -471,10 +764,14 @@ class SegmentSelectMethod(FrameSelectMethod):
         # 3.3 GB of resident weights for embeddings _dedup_keep_best never
         # read (2026-08-27 audit). Scorer failures raise (inherited policy —
         # no silent uniform fallback).
-        query, qmode = query_for(rec, self.query)
+        auto_dropped = None
+        if self.query == "auto":
+            if self._generic_options is None and self.pool_records is not None:
+                self._generic_options = generic_option_table(self.pool_records)
+            query, qmode, auto_dropped = auto_query(rec, self._generic_options)
+        else:
+            query, qmode = query_for(rec, self.query)
         queries = query if isinstance(query, list) else [query]
-        need_img = (self.seg_scorer not in ("viclip", "random")
-                    or self.dedup_tau < 1.0)
         if need_img:
             scores, embs = clip_scores(self._ensure_clip(), query,
                                        [p[3] for p in pool], return_image_embs=True)
@@ -537,11 +834,16 @@ class SegmentSelectMethod(FrameSelectMethod):
             # the identical seg_select/budget, to separate the two.
             keep_top = max(1, budget_eff // self.frames_per_segment)
         else:
+            # a clip cannot give more segments than it was cut into: the
+            # configured count, or under --segment-seconds the longest clip's
+            seg_cap = (max(m["n_segments"] for m in decode_meta)
+                       if self.segment_seconds > 0 else self.segments_per_video)
             keep_top = self.segments_keep or max(1, min(
-                SEG_KEEP_MAX, self.segments_per_video,
+                SEG_KEEP_MAX, seg_cap,
                 self.seg_pool // (self.frames_per_segment * K)))
-        cover = (self.seg_reduce == "coverage" and qmode == "statements"
-                 and len(queries) > 1)
+        cover = ((self.seg_reduce == "coverage" and qmode == "statements")
+                 or (self.seg_reduce == "coverage_all"
+                     and qmode in ("statements", "temporal", "options"))) and len(queries) > 1
         if cover:
             # coverage reduce: statement qi claims its own argmax segment
             # (claim order = statement order; a tie keeps the earlier
@@ -573,6 +875,11 @@ class SegmentSelectMethod(FrameSelectMethod):
                          if glob and K else None)
         kept = [j for j, (v, sid, t, im) in enumerate(pool)
                 if sid in kept_segs[v]]
+        full_decode_dropped = None
+        if thumbs:
+            n_kept_thumbs = len(kept)
+            kept = self._load_full_frames(paths, pool, pool_fi, kept)
+            full_decode_dropped = n_kept_thumbs - len(kept)
 
         # 3. near-duplicate removal; each cluster keeps its BEST-scoring frame
         unique, dropped = _dedup_keep_best(kept, scores, embs, self.dedup_tau)
@@ -605,10 +912,9 @@ class SegmentSelectMethod(FrameSelectMethod):
 
         qwen_video_list = self.img_token_parity == "qwen_video_list"
         qwen_pad = {}
-        prefix = SEGMENT_SELECT_GLOBAL_PREFIX if glob else SEGMENT_SELECT_PREFIX
+        prefix = _prefix_for(glob, self.segment_seconds, self.segments_per_video)
         content = [{"type": "text", "text": prefix.format(
-            K=K, S=self.segments_per_video, top=keep_top,
-            n=n_selected)}]
+            K=K, top=keep_top, n=n_selected)}]
         for v in vids:
             if not selected[v]:
                 continue
@@ -636,7 +942,17 @@ class SegmentSelectMethod(FrameSelectMethod):
             "budget_matched": self.budget <= 0,
             "img_token_parity": self.img_token_parity,
             "K": K,
-            "segments_per_video": self.segments_per_video,
+            # the COUNT partition's S; None under --segment-seconds, where S is
+            # per clip (per_video_decode[i].n_segments) and this never binds
+            "segments_per_video": (self.segments_per_video
+                                   if self.segment_seconds <= 0 else None),
+            # the TIME partition's window (None = count partition), whether
+            # selection ran on 224-px copies, and the kept frames lost on the
+            # full-resolution re-decode (None outside thumbnail mode)
+            "segment_seconds": (self.segment_seconds
+                                if self.segment_seconds > 0 else None),
+            "selection_on_thumbnails": thumbs,
+            "full_decode_dropped": full_decode_dropped,
             # "per_clip" = top-K WITHIN each clip; "global" = one ranking over
             # every (clip, segment) pair (select_segments)
             "segment_select_mode": self.seg_select,
@@ -674,7 +990,7 @@ class SegmentSelectMethod(FrameSelectMethod):
             # the reduce that ACTUALLY picked this record's segments —
             # "coverage" only where statement queries were scored; fallback
             # and non-statement records stamp "max" whatever was configured
-            "segment_reduce": "coverage" if cover else "max",
+            "segment_reduce": (self.seg_reduce if cover else "max"),
             # True when every option is a bare clip reference ("Video 3",
             # "II -> I -> III"): the scorer then ranks segments by similarity
             # to that token, not to any content — 35% of MVU-Eval records.
@@ -713,10 +1029,26 @@ class SegmentSelectMethod(FrameSelectMethod):
             # PIL-list items carry fabricated timestamps
             "qwen_timing_unsafe": True if qwen_video_list else None,
             "query_mode": qmode,
+            # _auto rows: the configured rule, what it dropped, and whether the
+            # pool-level generic-option test was active (None on other modes)
+            "query_rule": self.query,
+            "query_dropped_options": auto_dropped,
+            "query_generic_test": ((self._generic_options is not None)
+                                   if self.query == "auto" else None),
             "n_query_texts": len(query) if isinstance(query, list) else 1,
+            # the texts themselves, in the column order of
+            # segment_option_scores — under _auto the dropped options shift the
+            # columns, so the matrix cannot be read back without them. On a
+            # random-control row this is just the question (the control takes
+            # no query suffix) and it is never scored: its one score column is
+            # the hash draw
+            "query_texts": list(queries),
             # query texts the ViCLIP text tower truncated (None under the
             # image tower); EgoExo statements ~0, MEVA statements ~5% (their
-            # verb sits past token 32), whole questions ~100%
+            # verb sits past token 32), nuScenes statements ~2/3, and the
+            # _auto QUESTION fallback nearly always (96% of MEVA spatial, where
+            # the first ~30 tokens still hold the two people's descriptions;
+            # MVU-Eval ordering stems keep only "Given the clips: 1. Video 1 ...")
             "n_query_texts_truncated": n_trunc,
             "selection_fallback": None,
             "selection_latency_s": round(time.perf_counter() - t_sel, 3),

@@ -287,6 +287,70 @@ LEGS = [
     dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
          glob="bench_crossview_meva1033_subset_internvl_mp4sv8_shard*.jsonl",
          budget="8 frames/view, single view"),
+    # Matched-protocol blind floors (2026-09-17, jobs 99417/99418): the ladder
+    # protocol (REASONING=0, T=0.1, 4 passes) so the blind arm pairs with the
+    # fs/sg/sgva legs; _mp4bd above is the same pool at the reasoning-on T=0.7
+    # protocol and stays registered under its own budget label.
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_bdd_shard*.jsonl", budget="no images"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4bdd_shard*.jsonl", budget="no images, direct answer"),
+    # _mp4sv8d (2026-09-17): the single-view oracle sweep rerun at the ladder
+    # protocol (REASONING=0, T=0.1) so the oracle-vs-sequential row in the bounds
+    # doc is like-for-like; _mp4sv8 above is the reasoning-on T=0.7 original.
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sv8d_shard*.jsonl",
+         budget="8 frames/view, single view, direct answer"),
+    # Harsh's rule (2026-09-17): segment_select_{siglip,viclip}_auto with
+    # SEG_SELECT=global SEG_FLOOR=0 BUDGET=96 SEG_REDUCE=max DEDUP_TAU=1 —
+    # s(c,j) = max over the _auto query set (statements for event ordering, else
+    # the informative options, else the question), the 12 best (camera, segment)
+    # pairs over all cameras kept. TWO partitions, never pooled: his text says
+    # "8 second clips" (SEGMENT_SECONDS=8, tags *auto96s8: ~38 segments per
+    # 300 s MEVA camera); the first implementation cut every clip into 8 EQUAL
+    # segments instead (SEGMENT_SECONDS=0, tags *auto96: 37.5 s each on MEVA),
+    # the same thing only for a 64 s clip. segment_select_random at the same
+    # levers (tags *sgrauto96*) is the relevance-free control for both.
+    # The per-camera coverage_all arrays (tags *cov96) were cancelled on
+    # 2026-09-17 11:37 and their partial shards moved to
+    # scratchpad/cancelled_cov96_2026-09-17/. This exporter counts errored ids
+    # as run, so check each leg has zero error rows before exporting it.
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgauto96_shard*.jsonl", budget="96 frames total, global top-12, auto query"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgvauto96_shard*.jsonl", budget="96 frames total, global top-12, auto query"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgauto96_shard*.jsonl", budget="96 frames total, global top-12, auto query"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgvauto96_shard*.jsonl", budget="96 frames total, global top-12, auto query"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgauto96_shard*.jsonl", budget="96 frames total, global top-12, auto query"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgvauto96_shard*.jsonl", budget="96 frames total, global top-12, auto query"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, auto query"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgvauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, auto query"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgrauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, no query (random control)"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, auto query"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgvauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, auto query"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgrauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, no query (random control)"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, auto query"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgvauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, auto query"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgrauto96s8_shard*.jsonl", budget="96 frames total, global top-12 of 8 s segments, no query (random control)"),
+    dict(dataset="MVU-Eval", backend="InternVL3-8B", subset="mvueval_qa.json",
+         glob="bench_mvueval_qa_internvl_sgrauto96_shard*.jsonl", budget="96 frames total, global top-12, no query (random control)"),
+    dict(dataset="CrossView-EgoExo", backend="InternVL3-8B", subset="crossview_egoexo500.json",
+         glob="bench_crossview_egoexo500_internvl_sgrauto96_shard*.jsonl", budget="96 frames total, global top-12, no query (random control)"),
+    dict(dataset="CrossView-MEVA", backend="InternVL3-8B", subset="crossview_meva1033_subset.json",
+         glob="bench_crossview_meva1033_subset_internvl_mp4sgrauto96_shard*.jsonl", budget="96 frames total, global top-12, no query (random control)"),
     # _nsbd = the nuScenes text-prior floor (job 98513): blind-ONLY, because no
     # nuScenes media is on disk — there is no sighted leg on this pool to pair it
     # with, and its floor lives in analysis/records/letter_floors_nuscenes.json.

@@ -43,7 +43,7 @@ DATASET = "toy_subset"                       # = basename of the subset written 
 def _args(**kw):
     """The runner's segment-selection defaults, overridden per test."""
     a = dict(seg_select="per_clip", seg_floor=1, budget=None, nframes=8,
-             frames_per_segment=8)
+             frames_per_segment=8, segment_seconds=0.0)
     a.update(kw)
     return argparse.Namespace(**a)
 

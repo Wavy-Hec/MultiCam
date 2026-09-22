@@ -143,25 +143,48 @@ def option_texts(rec):
 _STATEMENT_RE = re.compile(
     r"(?:^|\\n|(?<=[\s:.]))\s*(I{1,3}|IV|V|VI{1,3}|IX|X)\.\s+(?=\S)")
 _ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+# nuScenes labels its events in PARENTHESES, one per line: "(I) ... (II) ..."
+# on 71 of its 250 event-ordering records and "(A) ... (B) ..." on 90 (whose
+# options are then "C -> B -> A"). Tried only when the dotted form above finds
+# fewer than two statements, so every MEVA / EgoExo / dotted-nuScenes parse is
+# unchanged — and only at the START OF A LINE: an inline "(A)" is a label
+# inside a sentence ("nearer to camera (A) than to camera (B)"), not an event.
+_STATEMENT_PAREN_RE = re.compile(
+    r"(?:^|\r?\n|\\n)[ \t]*\((I{1,3}|IV|V|VI{1,3}|IX|X|[A-J])\)\s+(?=\S)")
+_LETTERS = list("ABCDEFGHIJ")
 # the closing question MEVA appends after the last statement
 _STATEMENT_TAIL_RE = re.compile(r"\s+(?:What|Which)\b[^.?!]*\?\s*$")
 
 
-def statement_texts(rec):
-    """The Roman-numbered statements of an event-ordering question, in the
-    question's order, numeral and delimiter stripped; [] when the question
-    holds fewer than two (then it is not an event-ordering question and the
-    caller falls back).
+def _statement_cuts(q, pattern, labels):
+    """(start, end) of each enumerator of ``pattern`` in ``q``, accepted only
+    in the order of ``labels``."""
+    cuts, expect = [], 0
+    for m in pattern.finditer(q):
+        if expect < len(labels) and m.group(1) == labels[expect]:
+            cuts.append((m.start(), m.end()))
+            expect += 1
+    return cuts
 
-    Numerals are accepted only in sequence (I, II, III, ...), so a stray
+
+def statement_texts(rec):
+    """The enumerated statements of an event-ordering question, in the
+    question's order, enumerator and delimiter stripped; [] when the question
+    holds fewer than two (then it is not an event-ordering question and the
+    caller falls back). Enumerators: "I." (MEVA, EgoExo, nuScenes), else
+    "(I)" or "(A)" (nuScenes).
+
+    Enumerators are accepted only in sequence (I, II, III, ...), so a stray
     "the man X." inside a statement cannot open a new one (EgoExo id 87).
     """
     q = str(rec.get("question") or "")
-    cuts, expect = [], 0
-    for m in _STATEMENT_RE.finditer(q):
-        if expect < len(_ROMAN) and m.group(1) == _ROMAN[expect]:
-            cuts.append((m.start(), m.end()))
-            expect += 1
+    cuts = _statement_cuts(q, _STATEMENT_RE, _ROMAN)
+    if len(cuts) < 2:
+        # Roman first, letters only without it: a stem that lists "(I) (II)"
+        # events AND lettered choices must return the events, never the choices
+        cuts = _statement_cuts(q, _STATEMENT_PAREN_RE, _ROMAN)
+        if len(cuts) < 2:
+            cuts = _statement_cuts(q, _STATEMENT_PAREN_RE, _LETTERS)
     if len(cuts) < 2:
         return []
     texts = []
@@ -173,6 +196,53 @@ def statement_texts(rec):
     texts[-1] = _STATEMENT_TAIL_RE.sub("", texts[-1]).strip()
     texts = [t for t in texts if t]
     return texts if len(texts) >= 2 else []
+
+
+# Temporal questions carry their events in the STEM, not the options. EgoExo
+# asks "What happened before/after/between <event(s)>?" with four candidate
+# events as options; MEVA asks "which happened first: <X>, or <Y>?" with
+# boilerplate C/D. Under the statements query mode these become the queries
+# (anchors first, then EgoExo's candidate options), so a coverage reduce can
+# give each event its own segment; a stem that matches neither shape falls
+# through to the options exactly as before.
+_EGO_TEMPORAL_RE = re.compile(
+    r"^\s*What happened (before|after|between)\s+(.+?)\?\s*$", re.I | re.S)
+# "What did the camera-wearer do after removing the swab ...?" -> anchor =
+# "the camera-wearer removing the swab ..."
+_EGO_TEMPORAL_DID_RE = re.compile(
+    r"^\s*What did (the camera-wearer|the person|\w+) do (before|after|between)\s+(.+?)\?\s*$", re.I | re.S)
+_MEVA_TEMPORAL_RE = re.compile(
+    r"(?:which|what)(?: one)? happened (?:first|earlier|later|last)(?: in the footage)?\s*:\s*"
+    r"(?:\(1\)\s*)?(.+?)\s*(?:,|—|–|-)?\s*\bor\s+(?:\(2\)\s*)?(.+?)\?\s*$",
+    re.I | re.S)
+# "Between these two events—X and Y—which one happened first?"
+_MEVA_TEMPORAL_DASH_RE = re.compile(
+    r"Between these two (?:events|moments|actions)\s*[—–-]\s*(.+?)\s+and\s+(.+?)\s*[—–-]\s*which", re.I | re.S)
+
+
+def temporal_statements(rec):
+    """Anchor event(s) from a temporal question's stem, plus EgoExo's candidate
+    options; [] when the stem has neither shape."""
+    q = re.sub(r"\s+", " ", str(rec.get("question") or "")).strip()
+    m = _EGO_TEMPORAL_RE.match(q)
+    rel, body, subj = (m.group(1), m.group(2), None) if m else (None, None, None)
+    if not m:
+        m = _EGO_TEMPORAL_DID_RE.match(q)
+        if m:
+            subj, rel, body = m.group(1), m.group(2), m.group(3)
+    if rel:
+        body = body.strip()
+        anchors = ([t.strip() for t in re.split(r"\s+and\s+(?=the camera-wearer|the person)", body)]
+                   if rel.lower() == "between" else [body])
+        anchors = [(f"{subj} {a}" if subj else a) for a in anchors if a]
+        opts = [o for o in option_texts(rec) if o]
+        return anchors + opts if anchors else []
+    m = _MEVA_TEMPORAL_RE.search(q) or _MEVA_TEMPORAL_DASH_RE.search(q)
+    if m:
+        x, y = m.group(1).strip(" ,—–-"), m.group(2).strip(" ,—–-")
+        if x and y:
+            return [x, y]
+    return []
 
 
 def query_for(rec, mode):
@@ -189,6 +259,9 @@ def query_for(rec, mode):
         stmts = statement_texts(rec)
         if stmts:
             return stmts, "statements"
+        stmts = temporal_statements(rec)
+        if stmts:
+            return stmts, "temporal"
         mode = "options"
     if mode == "options":
         opts = [o for o in option_texts(rec) if o]

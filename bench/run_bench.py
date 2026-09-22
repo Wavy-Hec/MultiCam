@@ -97,9 +97,12 @@ QUERY_SEARCH_RE = re.compile(r"^query_search(?:_(?P<tag>[a-z0-9]+))?$")
 # each Roman-numbered statement of an event-ordering question (falls back to
 # the options on records without statements; clip_select.query_for).
 SEGMENT_SELECT_RE = re.compile(
-    r"^segment_select(?:_(?P<tag>(?!(?:opt|stmt)(?:_|$))[a-z0-9]+))?"
-    r"(?P<qmode>_opt|_stmt)?$")
-SEGMENT_QUERY_MODES = {None: "question", "_opt": "options", "_stmt": "statements"}
+    r"^segment_select(?:_(?P<tag>(?!(?:opt|stmt|auto)(?:_|$))[a-z0-9]+))?"
+    r"(?P<qmode>_opt|_stmt|_auto)?$")
+# _auto = statements for event ordering, else the informative options, else the
+# question (segment_select.auto_query); needs the full pool, see main()
+SEGMENT_QUERY_MODES = {None: "question", "_opt": "options", "_stmt": "statements",
+                       "_auto": "auto"}
 
 # alias -> HF id (cached locally; runs under the `internvl` conda env, NOT cvbench,
 # because cvbench's transformers breaks the InternVL3 remote code).
@@ -247,6 +250,7 @@ def make_method(mname, backend, args):
             seg_reduce=args.seg_reduce,
             seg_select=args.seg_select,
             seg_floor=args.seg_floor,
+            segment_seconds=args.segment_seconds,
             seg_pool=args.seg_pool,
             clip_model=(SCORER_ALIASES[tag] if tag in SCORER_ALIASES
                         else args.clip_model),
@@ -315,9 +319,17 @@ def seg_identity(args):
     segment per clip. Keying identity on that capped value made a leg refuse to
     resume ITSELF on the K-spread pools, and let two different configured
     floors pool in one file wherever both capped to the same number.
+
+    A --segment-seconds leg appends its window as a THIRD element: the
+    partition decides which segments exist at all, it is a flag like the mode,
+    and the two partitions must never pool under one TAG. A count-partition
+    leg keeps the historic pair, so every file written before the flag existed
+    stays resumable.
     """
-    return (args.seg_select,
-            args.seg_floor if args.seg_select == "global" else None)
+    ident = (args.seg_select,
+             args.seg_floor if args.seg_select == "global" else None)
+    secs = float(getattr(args, "segment_seconds", 0) or 0)
+    return ident + ((secs,) if secs > 0 else ())
 
 
 def stamp_seg_identity(row, method_name, args):
@@ -330,7 +342,10 @@ def stamp_seg_identity(row, method_name, args):
     otherwise read back as per_clip and block every later resume of a global leg.
     """
     if SEGMENT_SELECT_RE.match(method_name or ""):
-        row["seg_select"], row["seg_floor"] = seg_identity(args)
+        ident = seg_identity(args)
+        row["seg_select"], row["seg_floor"] = ident[:2]
+        if len(ident) > 2:
+            row["segment_seconds"] = ident[2]
     return row
 
 
@@ -417,6 +432,20 @@ def check_global_regimes(methods, data, args):
               "with no frame at all. Raise --budget to at least "
               "frames_per_segment x (K x seg_floor + 1) to put the floor back "
               "in force, or set SEG_FLOOR=0 to mean it.", flush=True)
+    # Under --segment-seconds a record's segment count depends on its clips'
+    # durations, which this scan never reads (no decode at submit). A record
+    # whose clips total fewer than N segments keeps ALL of them: the ranking is
+    # inert there, every arm — the random control included — sends the same
+    # frames, and they fall short of the budget (20 of 500 EgoExo records at
+    # 8 s / 96 frames: 5 or 10 clips -> 40 or 80 frames; none on MEVA).
+    secs = float(getattr(args, "segment_seconds", 0) or 0)
+    if regimes and secs > 0:
+        print(f"NOTE {label}: --segment-seconds {secs:g} — a record whose clips "
+              "total fewer segments than the segment budget (budget // "
+              f"{fps}) keeps every segment and shows fewer frames than the "
+              "budget; such rows stamp frame_alloc.selection_noop = true and "
+              "segments_kept_total < segments_keep. Stratify on it when "
+              "comparing against the random control.", flush=True)
     return regimes
 
 
@@ -425,9 +454,11 @@ def existing_identity(path):
     output file we would append to. media_remaps holds the sighted rows'
     `media_remap` stamps, with "unstamped" for rows written before the stamp
     existed (i.e. before the MEVA remux — those decoded the wrong frames).
-    seg_modes holds (seg_select, seg_floor) for segment_select rows: the mode
-    is a FLAG, not part of the method name, so per_clip and global rows are
-    otherwise indistinguishable in a file and in `done`.
+    seg_modes holds (seg_select, seg_floor) for segment_select rows — plus the
+    --segment-seconds window as a third element on a time-partition leg: the
+    mode and the partition are FLAGS, not part of the method name, so per_clip
+    and global rows (or 8-equal-parts and 8-second rows) are otherwise
+    indistinguishable in a file and in `done`.
 
     Both segment keys are read TOP-LEVEL, where stamp_seg_identity writes the
     configured pair; frame_alloc.seg_floor is deliberately not read (it is the
@@ -452,8 +483,12 @@ def existing_identity(path):
                 if r.get("method") != "blind":
                     remaps.add(r["media_remap"] if "media_remap" in r else "unstamped")
                 if SEGMENT_SELECT_RE.match(r.get("method") or ""):
-                    seg_modes.add((r.get("seg_select", "per_clip"),
-                                   r.get("seg_floor")))
+                    ident = (r.get("seg_select", "per_clip"), r.get("seg_floor"))
+                    # the time partition's window, stamped only by such legs
+                    # (seg_identity) — absent means the count partition
+                    if r.get("segment_seconds"):
+                        ident += (float(r["segment_seconds"]),)
+                    seg_modes.add(ident)
     return backends, datasets, remaps, seg_modes
 
 
@@ -534,12 +569,21 @@ def main():
     ap.add_argument("--segments-per-video", type=int, default=8,
                     help="segment_select: contiguous equal-time segments each clip "
                          "is split into (fewer when the clip is shorter)")
+    ap.add_argument("--segment-seconds", type=float, default=0.0,
+                    help="segment_select: partition each clip by TIME — "
+                         "consecutive segments of this many seconds, S = "
+                         "duration / seconds per clip (8 = the PI's '8 second "
+                         "clips': an 8-frame tube at 1 fps). 0 (default) = the "
+                         "COUNT partition, --segments-per-video equal parts "
+                         "(37.5 s each on a 300 s MEVA camera), which then does "
+                         "not bind. Part of the resume identity: use a new TAG")
     ap.add_argument("--segments-keep", type=int, default=4,
                     help="segment_select: most-relevant segments kept PER clip "
                          "(straight top-K over the per-option score matrix). "
                          "0 = AUTO: K = --seg-pool // (frames_per_segment x "
                          "n_streams), clamped to [1, min(16, "
-                         "segments_per_video)]")
+                         "segments_per_video)] (under --segment-seconds: the "
+                         "record's longest clip's segment count instead)")
     ap.add_argument("--seg-pool", type=int, default=128,
                     help="segment_select with --segments-keep 0: pooled-frame "
                          "target the auto top-K fills with whole segments, "
@@ -559,7 +603,7 @@ def main():
                          "question-wide scope; static-camera footage (MEVA) "
                          "collapses at the 0.95 default — calibrate or use 1.0 "
                          "there")
-    ap.add_argument("--seg-reduce", choices=("max", "coverage"), default="max",
+    ap.add_argument("--seg-reduce", choices=("max", "coverage", "coverage_all"), default="max",
                     help="segment_select _stmt legs: how the per-statement score "
                          "matrix picks the kept segments. 'max' (default) = each "
                          "segment keeps its best single-statement score, straight "
@@ -618,13 +662,16 @@ def main():
     ap.add_argument("--allow-mixed", action="store_true",
                     help="permit appending to a file that already holds a different "
                          "backend, dataset, media_remap stamp or segment-selection "
-                         "mode (seg_select/seg_floor) — it waives ALL FOUR file-identity "
+                         "identity (seg_select/seg_floor, and the --segment-seconds "
+                         "partition: 8-equal-parts and 8-second rows would pool) — it "
+                         "waives ALL FOUR file-identity "
                          "refusals, not just the backend one (default: refuse — "
                          "filenames key on the conda env, not the model, so two "
                          "backends sharing an env would silently land in one file)")
     args = ap.parse_args()
 
     data = json.load(open(args.subset))
+    full_pool = list(data)     # before sharding: the _auto generic-option test reads the whole pool
     if args.chunk and args.chunk > 1:
         data = data[args.offset::args.chunk]
     if args.limit:
@@ -641,7 +688,7 @@ def main():
             raise SystemExit(f"unknown method '{m}'. Known: {list(METHODS)} "
                              f"or clip_select[_<scorer>]_top<m> or frame_select[_<scorer>] "
                              f"or frame_select[_<scorer>]_optu or clip_select[_<scorer>|_viclip]_optu "
-                             f"or query_search[_<scorer>] or segment_select[_<scorer>][_opt|_stmt] "
+                             f"or query_search[_<scorer>] or segment_select[_<scorer>][_opt|_stmt|_auto] "
                              f"or single_view<i>")
         # explicit --budget 0 is a matched-budget request only the new arms
         # implement; the legacy selection arms would select 0 frames and run
@@ -695,7 +742,7 @@ def main():
         # producing selections byte-identical to the max-reduce leg while the
         # sbatch log echoes seg_reduce=coverage. Same fail-at-submit rule as
         # the tag typos above.
-        if sgm and args.seg_reduce == "coverage" and sgm.group("qmode") != "_stmt":
+        if sgm and args.seg_reduce in ("coverage", "coverage_all") and sgm.group("qmode") != "_stmt":
             raise SystemExit(
                 f"{m}: --seg-reduce coverage applies only to _stmt methods "
                 "(statement queries); on this method it would silently no-op "
@@ -706,7 +753,7 @@ def main():
         # per-clip budget under a global ranking, so the pair is refused here
         # too rather than after the model load (SegmentSelectMethod.__init__
         # raises the same rule).
-        if sgm and args.seg_select == "global" and args.seg_reduce == "coverage":
+        if sgm and args.seg_select == "global" and args.seg_reduce in ("coverage", "coverage_all"):
             raise SystemExit(
                 f"{m}: --seg-select global and --seg-reduce coverage are "
                 "exclusive — coverage spends a PER-CLIP slot budget that the "
@@ -742,7 +789,20 @@ def main():
                 f"levers (got seg_select={args.seg_select}, "
                 f"seg_floor={args.seg_floor}); on '{m}' they would silently "
                 "no-op. Drop SEG_SELECT/SEG_FLOOR or run a "
-                "segment_select[_<scorer>][_opt|_stmt] method.")
+                "segment_select[_<scorer>][_opt|_stmt|_auto] method.")
+        # --segment-seconds is the same kind of lever: only SegmentSelectMethod
+        # reads it, and a negative window is a typo, not "off" (0 is off)
+        if args.segment_seconds < 0:
+            raise SystemExit(
+                f"--segment-seconds {args.segment_seconds} is negative; it is "
+                "the length in seconds of each segment (0 = off: "
+                "--segments-per-video equal parts). Set SEGMENT_SECONDS >= 0.")
+        if not sgm and args.segment_seconds:
+            raise SystemExit(
+                f"{m}: --segment-seconds is a segment_select-only lever (got "
+                f"{args.segment_seconds}); on '{m}' it would silently no-op. "
+                "Drop SEGMENT_SECONDS or run a "
+                "segment_select[_<scorer>][_opt|_stmt|_auto] method.")
         budget_zero_ok = (OPTION_UNION_FRAME_RE.match(m)
                           or OPTION_UNION_CLIP_RE.match(m)
                           or QUERY_SEARCH_RE.match(m)
@@ -829,8 +889,8 @@ def main():
             raise SystemExit(
                 f"refusing to append to {out}\n"
                 f"  it already holds segment_select rows selected "
-                f"{sorted(map(str, stray_s))} (seg_select, seg_floor); this run "
-                f"is {sorted(map(str, this_seg))}\n"
+                f"{sorted(map(str, stray_s))} (seg_select, seg_floor[, "
+                f"segment_seconds]); this run is {sorted(map(str, this_seg))}\n"
                 "  The mode is a flag, not part of the method name, so resume "
                 "would treat those rows as done and append nothing.\n"
                 "  Use a NEW TAG (run_bench.sbatch) or --out.\n"
@@ -842,7 +902,8 @@ def main():
     # Echo the seg_identity() pair, not the raw args: that is what the rows
     # stamp and what a later resume compares, and under per_clip the inert
     # --seg-floor default would otherwise read as a floor in force.
-    seg_echo = (" seg_select={} seg_floor={}".format(*seg_identity(args))
+    seg_echo = (" seg_select={} seg_floor={}".format(*seg_identity(args)[:2])
+                + f" segment_seconds={args.segment_seconds or 'off'}"
                 if any(SEGMENT_SELECT_RE.match(m) for m in methods) else "")
     print(f"subset={args.subset} n={len(data)} methods={methods} backends={backends} "
           f"passes={args.passes} seeds={seeds} temp={args.temperature} "
@@ -873,6 +934,8 @@ def main():
                                    internvl_max_tiles=args.internvl_max_tiles)  # loads the model once
             for mname in methods:
                 method = make_method(mname, backend, args)
+                if getattr(method, "query", None) == "auto":
+                    method.pool_records = full_pool
                 # process all passes of a record consecutively so the centralized
                 # montage cache (and fixed frames) are reused across passes.
                 # Resume must key on method.name (what rows record), not mname:

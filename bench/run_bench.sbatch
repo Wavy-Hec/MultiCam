@@ -56,6 +56,11 @@ SEL_TAU=${SEL_TAU:-0}                  # _optu arms: absolute per-option similar
 SEL_TAU_Q=${SEL_TAU_Q:-0.85}           # _optu arms: per-option quantile when SEL_TAU=0
 N_QUERIES=${N_QUERIES:-4}              # query_search: generated search phrases per question
 SEGMENTS_PER_VIDEO=${SEGMENTS_PER_VIDEO:-8}   # segment_select: segments each clip is split into
+SEGMENT_SECONDS=${SEGMENT_SECONDS:-0}         # segment_select: partition each clip by TIME into segments of this
+                                              # many seconds (8 = the PI's '8 second clips'; S = duration/8 per
+                                              # clip, SEGMENTS_PER_VIDEO then does not bind). 0 = off: the COUNT
+                                              # partition above (37.5 s segments on a 300 s MEVA camera). Part of
+                                              # the resume identity -- never reuse a count-partition TAG for it.
 SEGMENTS_KEEP=${SEGMENTS_KEEP:-4}             # segment_select: top-K segments kept per clip; 0 = AUTO
                                               # (K = SEG_POOL/(frames x streams), clamped to
                                               # [1, min(16, SEGMENTS_PER_VIDEO)]; on 1-2 streams
@@ -153,6 +158,7 @@ SEGSEL_ARG=()              # --seg-select/--seg-floor only matter in global mode
                            # run still passes neither.
 if [ "$SEG_SELECT" != "per_clip" ]; then SEGSEL_ARG+=(--seg-select "$SEG_SELECT"); fi
 if [ "$SEG_FLOOR" != "1" ]; then SEGSEL_ARG+=(--seg-floor "$SEG_FLOOR"); fi
+if [ "$SEGMENT_SECONDS" != "0" ]; then SEGSEL_ARG+=(--segment-seconds "$SEGMENT_SECONDS"); fi
 
 # Slurm exposes no GPU model here (Gres is just gpu:N and node features are unset),
 # so record it per job — placement across sxmq/gpul40q/gpua30q differs in VRAM and
@@ -161,7 +167,7 @@ echo "GPU  @ $(hostname) $(nvidia-smi --query-gpu=name,memory.total --format=csv
 echo "RUN @ $(date '+%F %T') env=$ENV subset=$SUBSET methods=$METHODS backends=$BACKENDS"
 echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=${BUDGET:-auto} weighting=$WEIGHTING chunk=$CHUNK offset=$OFFSET out=$OUT video_root=${VIDEO_ROOT:-<default>}"
 echo "     sel_tau=$SEL_TAU sel_tau_q=$SEL_TAU_Q n_queries=$N_QUERIES query_max_new_tokens=$QUERY_MAX_NEW_TOKENS viclip_dir=$VICLIP_DIR"
-echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU seg_reduce=$SEG_REDUCE seg_select=$SEG_SELECT seg_floor=$SEG_FLOOR"
+echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU seg_reduce=$SEG_REDUCE seg_select=$SEG_SELECT seg_floor=$SEG_FLOOR segment_seconds=$SEGMENT_SECONDS"
 echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT allow_avi=$CVBENCH_ALLOW_AVI qwen_unsafe=$SEGMENT_SELECT_QWEN_UNSAFE"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
