@@ -3,7 +3,7 @@
  "pool": "crossview_meva1033_subset",
  "orig_id": "2018-03-13.17-05.school#226",
  "task_type": "CrossView-MEVA-Temporal",
- "protocol": "InternVL3-8B · direct answer, T = 0.1 · 4 passes",
+ "protocol": "InternVL3-8B \u00b7 direct answer, T = 0.1 \u00b7 4 passes",
  "question": "Between these two moments, which happened first: a person with navy hair in a dark indigo top and dark indigo pants with navy shoes interacting with someone, or a person with indigo hair wearing a dark indigo top, black pants, navy shoes, and a hat, carrying a bag, talking to someone?",
  "options": [
   "A. The person with navy hair, wearing a dark indigo top and dark indigo pants, navy shoes, interacting with a person occurred first",
