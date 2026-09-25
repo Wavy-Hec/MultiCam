@@ -4,473 +4,608 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Multi-camera question answering demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ------------------------------------------------------------------ *
- * tokens: one ground, one surface, one accent, one orange, ok/bad     *
+ * PRESENTATION variant: video first, minimal chrome, one accent.       *
+ * Deep neutral ground; the accent marks the active step, the selected  *
+ * entry and the gold answer. Green / red are kept for right / wrong    *
+ * only, because they carry meaning.                                    *
  * ------------------------------------------------------------------ */
 :root{
-  /* colour */
-  --bg:#0b0d10;             /* near-black ground                        */
-  --surface:#15181d;        /* the single surface tone                  */
-  --line:#232830;           /* hairline                                 */
-  --line-2:#343b46;         /* hairline, hover                          */
-  --fg:#e7eaef;
-  --fg-2:#a1a9b5;
-  --fg-3:#8a919c;
-  --accent:#4a7fb5;         /* active state only                        */
-  --accent-ink:#0a0c0f;     /* text on a filled accent                  */
-  --accent-soft:rgba(74,127,181,.14);
-  --accent-line:rgba(74,127,181,.55);
-  --amber:#d79a3f;          /* evidence / gold, and the fallback lines  */
-  --amber-soft:rgba(215,154,63,.10);
-  --ok:#5aa972;             /* correct only                             */
-  --bad:#d4756f;            /* wrong only                               */
+  --bg:#0e1013;
+  --surface:#15181c;
+  --raise:#1b1f25;
+  --line:#262b33;
+  --line-2:#3a414c;
+  --fg:#f1f3f6;
+  --fg-2:#b8bec8;
+  --fg-3:#8b929d;
+  --accent:#e2b458;              /* the one accent */
+  --accent-ink:#17130a;
+  --accent-soft:rgba(226,180,88,.13);
+  --accent-line:rgba(226,180,88,.55);
+  --ok:#6fbf8a;
+  --bad:#e0847d;
 
-  /* type */
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono",monospace;
-  --fs-head:18px;           /* the one heading size                     */
-  --fs-stage:18px;          /* everything on the stage                  */
-  --fs-rail:15px;           /* rail floor                               */
-  --fs-meta:13px;           /* paths, hints                             */
-  --fs-label:11.5px;        /* uppercase eyebrows and tags              */
 
-  /* metrics */
-  --r:3px;
-  --gap:16px;
+  --fs-body:17px;
+  --fs-small:15px;
+  --fs-label:13px;
+  --fs-stage:19px;
+  --fs-head:22px;
+
+  --rail:188px;
+  --side:360px;
+  --side-wide:420px;             /* the case and pipeline side cards carry more text */
+  --gap:20px;
+  --r:8px;
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
   margin:0;background:var(--bg);color:var(--fg);overflow:hidden;
-  font:var(--fs-rail)/1.45 var(--sans);
-  -webkit-font-smoothing:antialiased;
+  font:var(--fs-body)/1.45 var(--sans);-webkit-font-smoothing:antialiased;
 }
 button{font:inherit;color:inherit}
 .app{display:flex;flex-direction:column;height:100vh;min-height:0}
-
 .label{
-  font-size:var(--fs-label);letter-spacing:.09em;text-transform:uppercase;
+  font-size:var(--fs-label);letter-spacing:.1em;text-transform:uppercase;
   color:var(--fg-3);font-weight:600;
 }
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* ------------------------------------------------------------------ *
- * 1. top bar                                                          *
+ * 1. the slim top line                                                *
  * ------------------------------------------------------------------ */
-.top{
-  flex:0 0 auto;display:flex;align-items:center;gap:28px;height:52px;
-  padding:0 var(--gap);border-bottom:1px solid var(--line);background:var(--surface);
-}
-.brand{display:flex;align-items:baseline;gap:10px;flex:0 0 auto;white-space:nowrap}
-.brand h1{margin:0;font-size:var(--fs-head);font-weight:650;letter-spacing:.01em}
-.brand .sub{font-size:var(--fs-meta);color:var(--fg-3)}
-
-.scorer{display:flex;align-items:center;gap:12px;flex:0 0 auto;white-space:nowrap}
-.seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.seg button{
-  padding:5px 15px;background:transparent;border:0;cursor:pointer;color:var(--fg-2);
-  font-size:var(--fs-rail);font-weight:600;line-height:1.5;
-}
-.seg button + button{border-left:1px solid var(--line)}
-.seg button:hover:not(:disabled):not(.on){color:var(--fg)}
-.seg button.on{background:var(--accent);color:var(--accent-ink)}
-.seg button:disabled{color:var(--fg-3);cursor:not-allowed}
-.scorer .now{font-size:var(--fs-rail);color:var(--fg-2)}
-.scorer .now b{color:var(--fg);font-weight:600}
-.scorer .now .q{color:var(--fg-3)}
-
-.banner{
-  margin-left:auto;flex:0 1 auto;font-size:var(--fs-meta);color:var(--fg-3);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;
-}
-.banner b{color:var(--fg-2);font-weight:600}
-
-/* ------------------------------------------------------------------ *
- * 2. main split                                                       *
- * ------------------------------------------------------------------ */
-.main{flex:1 1 auto;display:flex;min-height:0}
-
-/* ---- left rail ---- */
-.rail{
-  width:400px;flex:0 0 auto;display:flex;flex-direction:column;min-height:0;
-  border-right:1px solid var(--line);background:var(--surface);
-}
-.rail-sec{display:flex;flex-direction:column;min-height:0}
-.rail-sec > h2{
-  margin:0;padding:11px var(--gap) 9px;font-size:var(--fs-label);letter-spacing:.09em;
-  text-transform:uppercase;color:var(--fg-3);font-weight:600;
+.lede{
+  flex:0 0 auto;position:relative;display:flex;align-items:center;gap:20px;
+  padding:12px var(--gap) 12px calc(var(--rail) + var(--gap));
   border-bottom:1px solid var(--line);
 }
+.lede .brand{
+  position:absolute;left:0;top:0;bottom:0;width:var(--rail);display:flex;align-items:center;gap:10px;
+  padding-left:22px;font-weight:700;font-size:17px;letter-spacing:-.01em;color:var(--fg);
+  border-right:1px solid var(--line);background:var(--surface);
+}
+.lede .txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lede .one{font-size:17px;line-height:1.35;color:var(--fg);font-weight:500}
+.lede .sub{font-size:var(--fs-small);color:var(--fg-2);display:flex;flex-wrap:wrap;gap:4px 18px}
+.lede .htag::before{
+  content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--accent);margin-right:8px;vertical-align:1px;
+}
+.lede .credit{color:var(--fg-3)}
+.about{flex:0 0 auto}
+.about > summary{
+  cursor:pointer;color:var(--fg);font-weight:600;white-space:nowrap;font-size:15px;
+  padding:7px 16px;border:1px solid var(--line-2);border-radius:999px;list-style:none;
+}
+.about > summary::-webkit-details-marker{display:none}
+.about > summary:hover{border-color:var(--fg-3)}
+.about[open] > summary{border-color:var(--accent);color:var(--accent)}
+.about .panel{
+  position:absolute;top:100%;right:var(--gap);z-index:40;
+  width:min(620px, calc(100vw - 2 * var(--gap)));max-height:calc(100vh - 110px);overflow:auto;
+  margin-top:8px;padding:20px 24px 20px;background:var(--raise);
+  border:1px solid var(--line-2);border-radius:var(--r);box-shadow:0 18px 48px rgba(0,0,0,.55);
+  font-size:16px;color:var(--fg-2);line-height:1.55;
+}
+.about .panel p{margin:0 0 12px}
+.about .panel .bench{color:var(--fg);border-left:3px solid var(--accent);padding:2px 0 2px 14px;margin:14px 0}
+.about .panel .gloss{font-size:var(--fs-small);color:var(--fg-3)}
+.about .panel .tech{
+  margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);
+  font-size:var(--fs-small);color:var(--fg-3);display:flex;flex-direction:column;gap:4px;
+}
+.about .panel .tech b{color:var(--fg-2);font-weight:600}
+.about .panel .attr{
+  margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line);
+  font-size:var(--fs-small);color:var(--fg-3);
+}
+.about .panel .attr p{margin:0 0 4px}
+.about .panel a{color:var(--fg-2)}
 
-.qlist{flex:0 0 auto;display:flex;flex-direction:column}
+/* ------------------------------------------------------------------ *
+ * 2. main: rail strip | stage column | side card                      *
+ * ------------------------------------------------------------------ */
+.main{flex:1 1 auto;display:flex;min-height:0;position:relative}
+
+/* the rail: an always-open list of readable entries, one accent for the selection */
+.rail{
+  flex:0 0 var(--rail);width:var(--rail);overflow:hidden auto;
+  background:var(--surface);border-right:1px solid var(--line);padding:10px 0 16px;
+}
+.rail-in{display:flex;flex-direction:column}
+.qlist{display:flex;flex-direction:column}
+.qlist .rail-grp{
+  padding:18px 18px 6px 22px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-3);font-weight:600;line-height:1.3;
+}
+.qlist .rail-grp:first-child{padding-top:8px}
 .qbtn{
-  display:block;width:100%;text-align:left;background:transparent;border:0;
-  border-left:2px solid transparent;border-bottom:1px solid var(--line);
-  padding:9px var(--gap) 10px;cursor:pointer;line-height:1.3;
+  display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;background:transparent;border:0;
+  padding:9px 18px 9px 22px;cursor:pointer;position:relative;
 }
-.qbtn:hover{background:rgba(255,255,255,.025)}
-.qbtn.on{background:var(--accent-soft);border-left-color:var(--accent)}
-.qbtn .h{display:flex;gap:10px;align-items:baseline;font-size:var(--fs-rail)}
-.qbtn .id{font-weight:650;color:var(--fg-2);font-variant-numeric:tabular-nums}
-.qbtn.on .id{color:var(--fg)}
-.qbtn .ty{color:var(--fg-3)}
-.qbtn .t{
-  display:block;color:var(--fg-3);font-size:var(--fs-rail);margin-top:2px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.qbtn.on .t{color:var(--fg-2)}
-/* the case-study entry: same row, its id in amber so it reads as a different kind of item */
-.qbtn.case .id{color:var(--amber)}
-.qbtn.case.on .id{color:var(--amber)}
+.qbtn .k{font-weight:600;font-size:16px;line-height:1.3;color:var(--fg-2)}
+.qbtn .ty{font-size:14px;line-height:1.3;color:var(--fg-3)}
+.qbtn:hover{background:rgba(255,255,255,.03)}
+.qbtn:hover .k{color:var(--fg)}
+.qbtn:focus:not(:focus-visible), .step:focus:not(:focus-visible), .next:focus:not(:focus-visible){outline:none}
+.qbtn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.qbtn.on:focus-visible{outline:none}
+.qbtn.on{background:var(--accent-soft)}
+.qbtn.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.qbtn.on .k{color:var(--accent)}
+.qbtn.on .ty{color:var(--fg-2)}
 
-.qdetail{padding:14px var(--gap) 16px;overflow:auto;flex:1 1 auto;min-height:0}
-.qdetail .qtext.full{color:var(--fg-3);font-size:var(--fs-meta);line-height:1.45;margin-top:-6px}
-.qdetail .amber{margin:14px 0 0}
-.qdetail .qtext{font-size:var(--fs-rail);line-height:1.5;margin:0 0 14px;color:var(--fg)}
-.qdetail ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
-.qdetail li{
-  display:flex;gap:10px;align-items:flex-start;font-size:var(--fs-rail);line-height:1.4;
-  color:var(--fg-2);padding:7px 0;border-top:1px solid var(--line);
-}
-.qdetail li .ol{flex:0 0 auto;width:16px;color:var(--fg-3);font-weight:650}
-.qdetail li .ot{flex:1 1 auto;min-width:0}
-.qdetail li.gold{color:var(--fg)}
-.qdetail li.gold .ol{color:var(--amber)}
-.tag{
-  display:inline-block;margin-left:8px;padding:1px 6px;border:1px solid var(--amber);
-  color:var(--amber);font-size:var(--fs-label);letter-spacing:.09em;text-transform:uppercase;
-  font-weight:600;border-radius:var(--r);vertical-align:1px;white-space:nowrap;
-}
-.meta{
-  margin-top:16px;padding-top:12px;border-top:1px solid var(--line);
-  font-size:var(--fs-rail);color:var(--fg-3);line-height:1.6;
-}
-.meta .ev{color:var(--amber)}
-.meta .row{display:block}
+/* stage column */
+.work{flex:1 1 auto;display:flex;min-width:0;min-height:0;gap:var(--gap);padding:16px var(--gap) 0}
+.col{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0}
 
-/* ---- right work area ---- */
-.work{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0;padding:var(--gap)}
+/* the question as a large caption above the video */
+.cap{flex:0 0 auto;padding:0 0 14px}
+/* the side card is off stage: keep the caption the width it has beside it, so the
+   headline and the scorer toggle do not reflow from one step to the next */
+.work.noside .cap{padding-right:calc(var(--side) + var(--gap))}
+.work.noside.wideside .cap{padding-right:calc(var(--side-wide) + var(--gap))}
+.cap .eyebrow{display:flex;align-items:center;gap:16px;min-height:30px;margin-bottom:6px}
+.cap .eyebrow .label{color:var(--accent)}
+.scorer{margin-left:auto;display:flex;align-items:center;gap:12px;white-space:nowrap}
+.scorer[hidden]{display:none !important}
+.scorer .now{font-size:var(--fs-small);color:var(--fg-3)}
+.scorer .now b{color:var(--fg-2);font-weight:600}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:999px;overflow:hidden}
+.seg button{
+  padding:4px 14px;background:transparent;border:0;cursor:pointer;color:var(--fg-2);
+  font-size:var(--fs-small);font-weight:600;line-height:1.5;
+}
+.seg button + button{border-left:1px solid var(--line-2)}
+.seg button:hover:not(:disabled):not(.on){color:var(--fg)}
+.seg button.on{background:var(--fg);color:var(--bg)}
+.seg button:disabled{color:var(--fg-3);cursor:not-allowed}
+.seg button.on:disabled{background:transparent;color:var(--fg-3)}
+.seg:has(button:disabled){opacity:.55}
 
-/* caption strip: what is on the stage, and where it came from */
-.caption{
-  flex:0 0 auto;display:flex;align-items:center;gap:10px;height:30px;
-  font-size:var(--fs-rail);color:var(--fg-2);
-  border-bottom:1px solid var(--line);padding:0 2px;
-  white-space:nowrap;overflow:hidden;
+.qcap{margin:0;color:var(--fg);font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.qcap.s1{font-size:30px;line-height:1.25}
+.qcap.s2{font-size:25px;line-height:1.3}
+.qcap.s3{font-size:22px;line-height:1.35}
+.qcap .stem{display:block}
+.capnote{margin:8px 0 0;font-size:16px;line-height:1.45;color:var(--fg-2);max-width:95ch}
+.capnote[hidden]{display:none !important}
+.capnote.ce{display:none;margin-top:6px;padding-left:12px;border-left:3px solid var(--accent)}
+.qcap .evs{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 28px;margin:8px 0 0;padding:0;list-style:none;
+  font-size:17px;font-weight:400;line-height:1.35;color:var(--fg-2);letter-spacing:0;
 }
-.caption .dot{
-  width:7px;height:7px;border-radius:50%;background:var(--fg-3);flex:0 0 auto;
-}
-.caption.live .dot{background:var(--ok)}
-.caption #statusText{overflow:hidden;text-overflow:ellipsis;min-width:0}
-.caption .src{color:var(--fg-3);font-family:var(--mono);font-size:var(--fs-meta)}
+.qcap .evs li{display:flex;gap:10px}
+.qcap .evs .rn{flex:0 0 30px;color:var(--accent);font-weight:600}
+.qcap .tail{display:block;margin-top:6px;font-size:17px;font-weight:500;color:var(--fg-2)}
 
 /* stage */
 .stage{
-  flex:1 1 auto;min-height:0;position:relative;background:var(--surface);
-  border:1px solid var(--line);border-top:0;overflow:hidden;
-  display:flex;align-items:stretch;justify-content:stretch;padding:14px;
-  font-size:var(--fs-stage);
+  flex:1 1 auto;min-height:0;position:relative;overflow:hidden;
+  display:flex;align-items:stretch;justify-content:stretch;
+  background:var(--bg);border-radius:var(--r);font-size:var(--fs-stage);
 }
+.stage.paper{background:var(--surface)}
 .view{width:100%;height:100%;display:flex;flex-direction:column;min-height:0}
 .view[hidden]{display:none !important}
 
-/* empty stage: the wall's still, dimmed, exactly where the clip will play, with
-   the hint over it. Without a still the hint stands alone on the surface. */
 .empty{position:relative;align-items:center;justify-content:center;text-align:center;color:var(--fg-3)}
-.empty .snap{
-  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
-  opacity:.4;pointer-events:none;
-}
+.empty .snap{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.35;pointer-events:none}
 .empty .snap[hidden]{display:none !important}
 .empty .etxt{position:relative;display:flex;flex-direction:column;gap:8px;align-items:center}
-.empty .big{font-size:var(--fs-stage);color:var(--fg-2)}
-.empty #emptySub{font-size:var(--fs-rail)}
+.empty .big{font-size:24px;color:var(--fg);font-weight:500}
+.empty #emptySub{font-size:var(--fs-body);color:var(--fg-2)}
 .empty #emptySub[hidden]{display:none !important}
-.empty.snapped .etxt{
-  padding:12px 24px;background:rgba(11,13,16,.78);border:1px solid var(--line);
-}
-.empty.snapped .big{color:var(--fg)}
+.empty.snapped .etxt{padding:16px 30px;background:rgba(14,16,19,.82);border-radius:var(--r);border:1px solid var(--line-2)}
 
-/* the one amber line: a fallback or a missing asset, never hidden away */
+/* a fallback or a missing asset: a plain note with the accent rule */
 .amber{
-  flex:0 0 auto;font-size:var(--fs-rail);color:var(--amber);background:var(--amber-soft);
-  border-left:2px solid var(--amber);padding:7px 12px;margin-bottom:12px;line-height:1.4;
+  flex:0 0 auto;font-size:15px;color:var(--fg);background:var(--accent-soft);
+  border-left:3px solid var(--accent);padding:8px 14px;line-height:1.45;border-radius:0 4px 4px 0;
 }
-
+.view > .amber{margin:12px 12px 0}
 .errbox{
   margin:auto;max-width:70ch;text-align:left;font-size:var(--fs-stage);color:var(--fg);
-  border-left:2px solid var(--bad);background:rgba(196,99,95,.08);padding:14px 18px;line-height:1.5;
+  border-left:3px solid var(--bad);background:rgba(224,132,125,.08);padding:16px 20px;line-height:1.5;
 }
 .errbox .t{color:var(--bad);font-weight:600}
-.errbox code{font-size:var(--fs-meta);font-family:var(--mono);color:var(--fg-2);word-break:break-all}
+.errbox code{font-size:var(--fs-small);font-family:var(--mono);color:var(--fg-2);word-break:break-all}
 
-/* ---- video ---- */
 .vwrap{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
-.vwrap video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.vwrap video{width:100%;height:100%;object-fit:contain;background:transparent;display:block}
 .vwrap video[hidden]{display:none !important}
-
-/* ---- case strip: the recorded answers under a case wall clip ----
-   One row per camera (step 1) or per run (step 2): name, what it saw, the four
-   letters, the count. Every value is read from case_q<ID>.json. */
-.casebar{flex:0 0 auto;display:flex;flex-direction:column;margin-top:12px;font-size:var(--fs-rail)}
-.casebar[hidden]{display:none !important}
-.casebar .crow{
-  display:grid;grid-template-columns:minmax(140px,max-content) minmax(0,1fr) max-content max-content;
-  gap:0 20px;align-items:baseline;padding:6px 0;border-top:1px solid var(--line);
+/* The question walls carry a baked-in header (question id + the question again,
+   119 of 1080 px) and footer (selection note, 56 px): the caption above says
+   both, so the element takes the aspect of the camera grid alone and cover
+   crops the two bands (object-position = 119 / (119 + 56) of the overflow). */
+.vwrap{container-type:size}
+.vwrap video.qwall{
+  width:min(100cqw, calc(100cqh * 1920 / 905));height:auto;aspect-ratio:1920 / 905;
+  object-fit:cover;object-position:50% 68%;
 }
-.casebar .crow.lead{color:var(--fg)}
-.casebar .crow.lead .cn{color:var(--fg)}
-.casebar .cn{font-weight:650;color:var(--fg-2);white-space:nowrap}
-.casebar .cr{color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.casebar .cl{font-family:var(--mono);font-weight:650;letter-spacing:.2em;white-space:nowrap}
-.casebar .cv{font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums}
-.casebar .ok{color:var(--ok)} .casebar .bad{color:var(--bad)}
-.casebar .foot{margin-top:8px}
-.casebar .amber{margin:10px 0 0}
 
-/* ---- selection figure ---- */
-.zoom{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.zoom img{max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in}
+.zoom{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0}
+.zoom img{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in;border-radius:4px}
 .zoom.on{overflow:auto;align-items:flex-start;justify-content:flex-start}
 .zoom.on img{max-width:none;max-height:none;width:auto;height:auto;cursor:zoom-out}
-.hint{flex:0 0 auto;font-size:var(--fs-meta);color:var(--fg-3);text-align:center;padding-top:8px}
+.hint{flex:0 0 auto;font-size:12px;color:var(--fg-3);text-align:center;padding:2px 0 4px}
 
-/* ---- answer card ----
-   Two columns on a wide screen: the verdict (title, letter, mark, gold) on the
-   left, the arms table on the right, the pair centred as one block. The auto
-   margins collapse to zero when the card is taller than the stage, so it scrolls
-   from the top instead of clipping. Narrow screens stack it (see the media rule). */
+/* ---- answer card ---- */
 .ans{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:auto}
-.card{
-  margin:auto;width:100%;max-width:1560px;
-  display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);
-  column-gap:56px;row-gap:24px;align-items:center;padding:12px 24px;
-}
-.card .lead{display:flex;flex-direction:column;gap:28px;min-width:0}
-.card .body{display:flex;flex-direction:column;gap:14px;min-width:0}
-.ans .h1{font-size:var(--fs-head);font-weight:650;color:var(--fg);line-height:1.3}
-.ans .h2{font-size:var(--fs-rail);color:var(--fg-3);margin-top:6px;line-height:1.5}
-.ans .h2 .bit{display:block}
-.verdict{display:flex;align-items:center;gap:24px}
-.letter{
-  font-size:120px;line-height:.9;font-weight:650;letter-spacing:.01em;
-  font-variant-numeric:tabular-nums;
-}
+.card{margin:0 auto;width:100%;max-width:1200px;display:flex;flex-direction:column;gap:20px;padding:24px 28px}
+.card .lead{display:flex;align-items:center;justify-content:space-between;gap:36px}
+.card .lead .ttl{flex:1 1 auto;min-width:0}
+.card .body{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ans .h1{font-size:var(--fs-head);font-weight:600;color:var(--fg);line-height:1.3}
+.ans .h2{font-size:16px;color:var(--fg-2);margin-top:6px;line-height:1.5}
+.ans .h2:empty{display:none}
+.ans .h2 .bit + .bit{margin-left:.55em}
+.ans .h2 .bit + .bit::before{content:"\00b7";margin-right:.55em}
+.verdict{display:flex;align-items:center;gap:22px}
+.letter{font-size:104px;line-height:.9;font-weight:700;font-variant-numeric:tabular-nums}
 .letter.ok{color:var(--ok)} .letter.bad{color:var(--bad)}
-.letter.none{color:var(--fg-3);font-size:32px;font-weight:600;line-height:1.2}
+.letter.none{color:var(--fg-3);font-size:28px;font-weight:600;line-height:1.2}
 .verdict .vr{display:flex;flex-direction:column;gap:6px}
-.mark{font-size:var(--fs-stage);font-weight:650}
+.mark{font-size:22px;font-weight:600}
 .mark.ok{color:var(--ok)} .mark.bad{color:var(--bad)}
 .gold{font-size:var(--fs-stage);color:var(--fg-3)}
-.gold b{color:var(--fg);font-weight:650}
-
-table.arms{
-  width:100%;border-collapse:collapse;
-  font-size:var(--fs-stage);font-variant-numeric:tabular-nums;
-}
+.gold b{color:var(--accent);font-weight:700}
+table.arms{width:100%;border-collapse:collapse;font-size:17px;font-variant-numeric:tabular-nums}
 table.arms th{
-  text-align:left;font-weight:600;color:var(--fg-3);
-  font-size:var(--fs-label);letter-spacing:.09em;text-transform:uppercase;
-  padding:0 12px 8px;border-bottom:1px solid var(--line);white-space:nowrap;
+  text-align:left;font-weight:600;color:var(--fg-3);font-size:var(--fs-label);letter-spacing:.06em;
+  text-transform:uppercase;padding:0 10px 8px;border-bottom:1px solid var(--line);white-space:nowrap;
+  vertical-align:bottom;line-height:1.35;
 }
 table.arms th.num{text-align:right}
-table.arms tbody tr{height:52px}
-table.arms td{
-  padding:5px 12px;border-bottom:1px solid var(--line);color:var(--fg-2);
-  vertical-align:middle;
-}
-table.arms td.arm{color:var(--fg-2)}
+table.arms tbody tr{height:50px}
+table.arms td{padding:5px 10px;border-bottom:1px solid var(--line);color:var(--fg-2);vertical-align:middle}
 table.arms td.arm .nm{display:block;line-height:1.25;white-space:nowrap}
-table.arms td.arm .ds{
-  display:block;font-size:var(--fs-meta);color:var(--fg-3);line-height:1.3;
-  margin-top:3px;white-space:nowrap;
-}
+table.arms td.arm .ds{display:block;font-size:14px;color:var(--fg-3);line-height:1.3;margin-top:3px}
 table.arms tr.sel td{background:var(--accent-soft);color:var(--fg)}
-table.arms tr.sel td.arm{box-shadow:inset 2px 0 0 var(--accent)}
+table.arms tr.sel td.arm{box-shadow:inset 3px 0 0 var(--accent)}
 table.arms tr.sel td.arm .nm{font-weight:600}
-table.arms td.l{font-weight:650;color:var(--fg)}
+table.arms td.l{font-weight:700;color:var(--fg);width:1%;white-space:nowrap}
 table.arms td.m{width:1%;white-space:nowrap}
-table.arms td.m.ok{color:var(--ok)}
-table.arms td.m.bad{color:var(--bad)}
+table.arms td.m.ok{color:var(--ok)} table.arms td.m.bad{color:var(--bad)}
 table.arms td.num{text-align:right;white-space:nowrap}
-table.arms td .dag{color:var(--fg-3);font-size:var(--fs-meta);vertical-align:2px;margin-left:2px}
-.cmp{
-  display:inline-block;margin-left:10px;padding:1px 6px;border:1px solid var(--line-2);
-  color:var(--fg-3);font-size:var(--fs-label);letter-spacing:.09em;text-transform:uppercase;
-  font-weight:600;border-radius:var(--r);vertical-align:2px;white-space:nowrap;
+table.arms td .dag{color:var(--fg-3);font-size:14px;vertical-align:2px;margin-left:2px;cursor:help}
+table.arms th .inf, .foot .inf{
+  display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-left:6px;
+  border:1px solid var(--line-2);border-radius:50%;font-size:11px;font-weight:700;letter-spacing:0;
+  text-transform:none;color:var(--fg-3);cursor:help;vertical-align:1px;font-style:normal;
 }
-.foot{font-size:var(--fs-rail);color:var(--fg-3);line-height:1.5;max-width:110ch}
-.foot + .foot{margin-top:-6px}
-.foot code{font-family:var(--mono);font-size:var(--fs-meta);color:var(--fg-2)}
+.cmp{
+  display:inline-block;margin-left:10px;padding:1px 7px;border:1px solid var(--line-2);
+  color:var(--fg-3);font-size:12px;letter-spacing:.09em;text-transform:uppercase;
+  font-weight:600;border-radius:999px;vertical-align:2px;white-space:nowrap;
+}
+.foot{font-size:15px;color:var(--fg-3);line-height:1.5;max-width:110ch}
+.foot code{font-family:var(--mono);font-size:13px;color:var(--fg-2)}
 
 /* ---- reasoning ---- */
+.stage #viewReason{padding:18px 20px}
 .rhead{flex:0 0 auto;margin-bottom:12px}
 .rhead .l1{font-size:var(--fs-head);line-height:1.4;color:var(--fg-2)}
-.rhead .l1 b{color:var(--fg);font-weight:650}
-.rhead .l1 .ok{color:var(--ok);font-weight:650}
-.rhead .l1 .bad{color:var(--bad);font-weight:650}
-.rhead .l1 .cap{color:var(--amber);font-weight:650}
-.rhead .l2{font-size:var(--fs-rail);color:var(--fg-3);margin-top:6px;line-height:1.5}
+.rhead .l1 b{color:var(--fg);font-weight:600}
+.rhead .l1 .ok{color:var(--ok);font-weight:600}
+.rhead .l1 .bad{color:var(--bad);font-weight:600}
+.rhead .l1 .cap{color:var(--accent);font-weight:600}
+.rhead .l2{font-size:15px;color:var(--fg-3);margin-top:6px;line-height:1.5}
+.rhead .amber{margin-top:10px}
 pre.trace{
-  flex:1 1 auto;min-height:0;overflow:auto;margin:0;padding:14px 16px;
-  background:var(--bg);border:1px solid var(--line);
-  font:var(--fs-rail)/1.6 var(--mono);
-  color:var(--fg-2);white-space:pre-wrap;word-break:break-word;
+  flex:1 1 auto;min-height:0;overflow:auto;margin:0;padding:16px 18px;
+  background:var(--bg);border:1px solid var(--line);border-radius:6px;
+  font:16px/1.65 var(--mono);color:var(--fg-2);white-space:pre-wrap;word-break:break-word;
 }
 
+/* ---- side card: options, and the recorded answers at the steps that have them ---- */
+.side{
+  flex:0 0 var(--side);width:var(--side);min-height:0;overflow:auto;
+  display:flex;flex-direction:column;gap:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;margin-bottom:0;
+  align-self:flex-start;max-height:100%;
+}
+.side[hidden]{display:none !important}
+.side.wide{flex-basis:var(--side-wide);width:var(--side-wide)}
+.side h3{margin:0 0 8px}
+.casebar{display:flex;flex-direction:column;font-size:16px}
+.casebar[hidden]{display:none !important}
+.casebar .crow{
+  display:grid;grid-template-columns:minmax(0,1fr) max-content;grid-template-areas:"cn cv" "cr cl";
+  gap:0 12px;align-items:baseline;padding:6px 0;border-top:1px solid var(--line);
+}
+.casebar .cn{grid-area:cn;font-size:15px;font-weight:600;color:var(--fg);min-width:0;line-height:1.3;overflow-wrap:anywhere}
+.casebar .cr{grid-area:cr;font-size:14px;color:var(--fg-3);line-height:1.3;min-width:0}
+.casebar .cl{grid-area:cl;font-family:var(--mono);font-weight:600;letter-spacing:.08em;white-space:nowrap;font-size:15px;text-align:right}
+.casebar .cv{grid-area:cv;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+.casebar .crow.lead{background:var(--accent-soft);margin:0 -10px;padding:8px 10px;border-radius:4px;border-top-color:transparent}
+.casebar .ok{color:var(--ok)} .casebar .bad{color:var(--bad)}
+.casebar .foot{margin-top:8px;font-size:14px}
+.casebar .foot .inf{
+  display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-left:6px;
+  border:1px solid var(--line-2);border-radius:50%;font-size:11px;font-weight:700;color:var(--fg-3);
+  cursor:help;vertical-align:1px;font-style:normal;
+}
+.casebar .amber{margin:10px 0 0;font-size:14px;padding:6px 12px}
+
+.qdetail ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
+.qdetail li{
+  display:flex;gap:12px;align-items:flex-start;font-size:17px;line-height:1.35;
+  color:var(--fg-2);padding:9px 0;border-top:1px solid var(--line);
+}
+.qdetail li:first-child{border-top:0}
+.qdetail li .ol{flex:0 0 auto;width:20px;color:var(--fg-3);font-weight:700}
+.qdetail li .ot{flex:1 1 auto;min-width:0}
+.tag{
+  display:none;margin-left:8px;padding:1px 8px;background:var(--accent);color:var(--accent-ink);
+  font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;border-radius:999px;
+  vertical-align:2px;white-space:nowrap;
+}
+.side.reveal .qdetail li.gold{color:var(--fg)}
+.side.reveal .qdetail li.gold .ol{color:var(--accent)}
+.side.reveal .tag{display:inline-block}
+.qdetail li.pred .ot::after{
+  content:attr(data-pm);margin-left:8px;font-size:12px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;white-space:nowrap;
+}
+.qdetail li.pred.ok .ot::after{color:var(--ok)}
+.qdetail li.pred.bad .ot::after{color:var(--bad)}
+.qdetail li.pred .ol{color:var(--fg)}
+.qdetail .qtext.full{color:var(--fg-3);font-size:14px;line-height:1.45;margin:12px 0 0}
+.qdetail details.full{margin:10px 0 0;font-size:14px;color:var(--fg-3)}
+.qdetail details.full > summary{cursor:pointer;color:var(--fg-2);font-weight:600}
+.qdetail details.full p{margin:6px 0 0;line-height:1.45}
+.qdetail ol.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px}
+.qdetail ol.grid li{border-top:0;padding:5px 0}
+.qdetail ol.how li{font-size:15px;line-height:1.4;padding:7px 0}
+.qdetail ol.how li b{color:var(--fg);font-weight:600}
+.qdetail .qtext{font-size:16px;line-height:1.5;margin:0 0 12px;color:var(--fg-2)}
+.qdetail .amber{margin:14px 0 0;font-size:14px}
+.meta{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;color:var(--fg-3);line-height:1.6}
+.meta .ev{color:var(--fg-2);font-weight:600}
+.meta .row{display:block}
+
 /* ------------------------------------------------------------------ *
- * 3. stepper                                                          *
+ * 3. the step control                                                 *
  * ------------------------------------------------------------------ */
 .steps{
-  flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-top:var(--gap);
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:14px var(--gap) 16px calc(var(--rail) + var(--gap));
 }
+.stepset{display:flex;align-items:stretch;gap:0;flex:1 1 auto;min-width:0}
 .step{
-  display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;
-  background:transparent;border:1px solid var(--line);border-radius:var(--r);
-  color:var(--fg-2);font-size:var(--fs-rail);line-height:1.4;white-space:nowrap;
+  display:flex;align-items:center;gap:12px;padding:10px 18px 10px 12px;cursor:pointer;
+  background:transparent;border:0;border-radius:999px;
+  color:var(--fg-2);font-size:17px;line-height:1.3;white-space:nowrap;min-width:0;
 }
-.step:hover:not(:disabled):not(.on){border-color:var(--line-2);color:var(--fg)}
 .step .n{
-  font-variant-numeric:tabular-nums;font-weight:650;color:var(--fg-3);
-  min-width:9px;text-align:center;
+  flex:0 0 32px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  border:1.5px solid var(--line-2);font-weight:700;color:var(--fg-3);font-variant-numeric:tabular-nums;font-size:16px;
 }
-.step.done{border-color:var(--accent-line);color:var(--fg)}
-.step.done .n{color:var(--accent)}
-.step.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
-.step.on .n{color:var(--accent-ink)}
-.step:disabled{color:var(--fg-3);border-color:var(--line);cursor:not-allowed}
-.step:disabled .n{color:var(--fg-3)}
-.step[hidden]{display:none !important}    /* case mode uses three of the five */
-.steps .khint{margin-left:auto;font-size:var(--fs-meta);color:var(--fg-3);white-space:nowrap}
+.step .lab{overflow:hidden;text-overflow:ellipsis}
+.step:hover:not(:disabled):not(.on){color:var(--fg);background:rgba(255,255,255,.04)}
+.step:hover:not(:disabled):not(.on) .n{border-color:var(--fg-3);color:var(--fg)}
+.step.done .n{border-color:var(--accent-line);color:var(--accent)}
+.step.on{background:var(--accent-soft);color:var(--fg);font-weight:600}
+.step.on .n{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.step:disabled{color:var(--fg-3);cursor:not-allowed;opacity:.6}
+.step[hidden]{display:none !important}
+.stepset .step + .step:not(.reset)::before{
+  content:"";flex:0 0 18px;height:1px;background:var(--line-2);margin:0 4px 0 -8px;
+}
+.step.reset{margin-left:auto;padding:8px 16px 8px 10px;font-size:15px;color:var(--fg-3)}
+.step.reset .n{flex-basis:26px;width:26px;height:26px;font-size:13px}
+.next{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;cursor:pointer;
+  background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;
+  padding:12px 26px;font-size:18px;font-weight:700;white-space:nowrap;
+}
+.next:hover:not(:disabled){filter:brightness(1.08)}
+.next:disabled{opacity:.4;cursor:not-allowed}
+.next .arr{font-size:20px;line-height:1}
+.next .tgt{white-space:nowrap}
 
 /* ------------------------------------------------------------------ *
- * 4. narrower screens (1440 and below)                                *
+ * 4. smaller screens                                                  *
  * ------------------------------------------------------------------ */
-@media (max-width:1600px){
-  /* the claim never collapses: below this width the banner wraps onto a second
-     line inside the 52px bar instead of losing its tail */
-  .banner{white-space:normal;line-height:1.3;text-overflow:clip}
-  .banner .b2{white-space:nowrap}   /* the claim moves to line two whole, never split */
-
-  /* the answer card stacks: verdict row above, table below */
-  .card{grid-template-columns:minmax(0,1fr);max-width:1180px;row-gap:20px;padding:8px 16px}
-  .card .lead{flex-direction:row;align-items:center;justify-content:space-between;gap:40px}
-  .card .lead .ttl{flex:1 1 auto;min-width:0}
-  .ans .h2 .bit{display:inline}
-  .ans .h2 .bit + .bit{margin-left:.55em}
-  .ans .h2 .bit + .bit::before{content:"\00b7";margin-right:.55em}
-  .letter{font-size:96px}
-}
 @media (max-width:1500px){
-  :root{--gap:12px}
-  .rail{width:340px;--fs-rail:14px}    /* the rail only; the stage keeps its size */
-  .qbtn{padding:7px var(--gap) 8px}
-  .qdetail{padding:12px var(--gap) 14px}
-  .qdetail li{padding:6px 0}
-  .meta{margin-top:12px;padding-top:10px;line-height:1.5}
-  .top{gap:18px}
-  .step{padding:8px 11px;gap:8px}
+  :root{--side:320px;--side-wide:390px;--gap:16px;--rail:176px}
+  .step{font-size:16px;padding:9px 14px 9px 10px;gap:10px}
+  .step .n{flex-basis:30px;width:30px;height:30px;font-size:15px}
+  .next .tgt{display:none}   /* plain "Next" here, the target is in the tooltip: the step labels keep their room */
+  .qcap.s1{font-size:28px}
+  .qcap.s2{font-size:24px}
+  .qcap.s3{font-size:22px}
+  .qcap .evs{font-size:16px}
+  .qdetail li{font-size:16px;padding:8px 0}
+  table.arms{font-size:16px}
+  table.arms th{white-space:normal}
+  .letter{font-size:88px}
+  .lede .one{font-size:16px}
 }
-@media (max-width:1280px){
-  .letter{font-size:76px}
-  table.arms{font-size:var(--fs-rail)}
-  .scorer .now .q{display:none}
+@media (max-width:1320px){
+  :root{--side:290px;--side-wide:360px}
+  .step{font-size:15px;padding:8px 10px 8px 8px}
+  .stepset .step + .step:not(.reset)::before{flex-basis:10px;margin:0 2px 0 -6px}
+  .next{padding:11px 20px;font-size:17px}
+  table.arms{font-size:15px}
+  table.arms td, table.arms th{padding-left:7px;padding-right:7px}
+  table.arms tbody tr{height:44px}
+  .card{gap:14px}
+  .scorer .now{display:none}
+  .card{padding:14px 18px}
+  .qcap.s1{font-size:26px}
+  .qcap.s2{font-size:22px}
+  .qcap.s3{font-size:20px}
+  .qcap .evs{font-size:15px;margin-top:6px}
+  .letter{font-size:64px}
+  .capnote.ce{display:block}
+  .casebar .amber{display:none}
+  .side{padding:14px 16px;gap:10px}
+  .casebar .crow{padding:4px 0}
+  .qdetail ol.how li{padding:4px 0;font-size:14px;line-height:1.35}
+  table.arms tbody tr{height:40px}
+  table.arms td{padding-top:4px;padding-bottom:4px}
+  .card{gap:10px;padding-top:12px;padding-bottom:10px}
+  .cap{padding-bottom:10px}
+  .qcap .evs{line-height:1.3}
+  .lede{padding-top:8px;padding-bottom:8px}
+}
+@media (min-width:1800px){
+  :root{--side:400px;--side-wide:440px;--fs-stage:21px}
+  .qcap.s1{font-size:34px}
+  .qcap.s2{font-size:28px}
+  .qcap.s3{font-size:25px}
+  .qcap .evs{font-size:18px}
+  .lede .one{font-size:19px}
+  .qdetail li{font-size:18px}
+  .step{font-size:18px}
 }
 </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- ---------------- top bar ---------------- -->
-  <div class="top">
-    <div class="brand">
-      <h1>MultiCam</h1>
-      <span class="sub">four-camera question answering</span>
+  <!-- ---------------- the slim top line ----------------
+       Scorer-neutral on purpose ("a scorer"): selfCheck() never scans static
+       DOM, so this strip must not name a scorer. Only the panel names both. -->
+  <div class="lede" id="lede">
+    <span class="brand">MultiCam</span>
+    <div class="txt">
+      <span class="one">Ask a question about a place filmed by four cameras: a scorer picks the few seconds of video that matter, and an AI model answers from only those.</span>
+      <span class="sub">
+        <span class="htag">5 hand-picked questions &middot; picking clips costs time, it does not save it</span>
+        <span class="credit">Video: MEVA, CC-BY-4.0</span>
+      </span>
     </div>
-
-    <div class="scorer">
-      <span class="label">Scorer</span>
-      <div class="seg">
-        <button id="swSiglip" class="on" type="button">SigLIP</button>
-        <button id="swViclip" type="button" disabled title="not rendered yet">ViCLIP</button>
+    <details class="about" id="about">
+      <summary>What is this?</summary>
+      <div class="panel">
+        <p>Four fixed security cameras film the same place for five minutes each, about 20 minutes
+          of video, and the model can look at only a limited number of frames, so which frames it
+          gets matters. For each question, a small matching model (SigLIP, or ViCLIP) scores short
+          clips from every camera against the question or its answer options, and a vision-language model (InternVL3-8B)
+          answers the multiple-choice question from only the clips it kept.</p>
+        <p>This page replays recorded runs and computes nothing live. The five questions were
+          hand-picked to show how it works, not drawn at random. Picking clips costs time rather
+          than saving it: choosing the clips takes about 50 seconds per question with SigLIP
+          (about 42 with ViCLIP), and the answer call itself about 3 seconds.</p>
+        <p class="bench">On all 1,033 MEVA questions at the same 96-frame budget, picking clips
+          with SigLIP raises accuracy from 43.85% (every camera) to 49.10% (ViCLIP: 48.31%). No setup that watches the video yet
+          beats 54.70%, the score you get from answer-letter patterns alone.</p>
+        <p class="gloss">SigLIP / ViCLIP: models that match pictures or clips to text.
+          InternVL3-8B: the model that watches and answers.</p>
+        <div class="tech" id="banner">
+          <span><b id="bannerLead">Replay of a recorded run</b>
+            <span id="bannerB1">&middot; 2026-09-16 &middot; InternVL3-8B &middot; direct answers</span>
+            <span class="b2">&middot; nothing is computed live</span></span>
+          <span><span id="khint">keys 1&ndash;5, arrows switch question</span></span>
+        </div>
+        <div class="attr">
+          <p>Contains frames from the MEVA dataset (Multiview Extended Video with Activities),
+            <a href="https://mevadata.org" target="_blank" rel="noopener">https://mevadata.org</a>, licensed CC-BY-4.0.</p>
+          <p>Questions and answers: CrossView release (please cite CrossView when reusing them).</p>
+        </div>
       </div>
-      <span class="now" id="scorerNow"></span>
-    </div>
-
-    <div class="banner" id="banner">
-      <b id="bannerLead">Replay of a recorded run</b>
-      <span class="b1" id="bannerB1">&middot; 2026-09-16 &middot; InternVL3-8B &middot; direct answers</span>
-      <span class="b2">&middot; nothing is computed live</span>
-    </div>
+    </details>
   </div>
 
   <!-- ---------------- main ---------------- -->
   <div class="main">
 
-    <!-- left rail -->
-    <div class="rail">
-      <div class="rail-sec" style="flex:0 0 auto">
-        <h2>Questions</h2>
+    <!-- rail: always open, one readable entry per stop of the walkthrough -->
+    <nav class="rail" id="rail" aria-label="Walkthrough">
+      <div class="rail-in">
         <div class="qlist" id="qlist"></div>
       </div>
-      <div class="rail-sec" style="flex:1 1 auto">
-        <h2 id="qdetailHead">Selected question</h2>
-        <div class="qdetail" id="qdetail"></div>
-      </div>
-    </div>
+    </nav>
 
-    <!-- stage -->
-    <div class="work">
-
-      <div class="caption" id="status">
-        <span class="dot"></span><span id="statusText">Loading&hellip;</span>
-      </div>
-
-      <div class="stage" id="stage">
-
-        <div class="view empty" id="viewEmpty">
-          <img class="snap" id="emptySnap" alt="" fetchpriority="high" hidden>
-          <div class="etxt">
-            <div class="big" id="emptyBig">Loading the recorded run&hellip;</div>
-            <div id="emptySub">manifest, walls and reasoning rows are read from disk</div>
+    <div class="work" id="work">
+      <div class="col">
+        <!-- the question, large, above the video -->
+        <div class="cap">
+          <div class="eyebrow">
+            <span class="label" id="qdetailHead">Selected question</span>
+            <div class="scorer" id="scorer">
+              <span class="now" id="scorerNow"></span>
+              <div class="seg" role="group" aria-label="Scorer">
+                <button id="swSiglip" class="on" type="button">SigLIP</button>
+                <button id="swViclip" type="button" disabled title="not rendered yet">ViCLIP</button>
+              </div>
+            </div>
           </div>
+          <h2 class="qcap s2" id="qcap"></h2>
+          <p class="capnote" id="capNote" hidden></p>
+          <p class="capnote ce" id="capCe" hidden></p>
         </div>
 
-        <div class="view" id="viewVideo" hidden>
-          <div class="amber" id="videoNote" hidden></div>
-          <div class="vwrap" id="vwrap"></div>
-          <div class="casebar" id="caseBar" hidden></div>
+        <!-- what is on stage, in words; paths go to the tooltip -->
+        <div class="sr" id="status" role="status" aria-live="polite">
+          <span class="dot"></span><span id="statusText">Loading&hellip;</span>
         </div>
 
-        <div class="view" id="viewSel" hidden>
-          <div class="amber" id="selNote" hidden></div>
-          <div class="zoom" id="zoomBox"><img id="selImg" alt="what the selector kept"></div>
-          <div class="hint">click the image to zoom 1:1, click again to fit</div>
+        <div class="stage" id="stage">
+          <div class="view empty" id="viewEmpty">
+            <img class="snap" id="emptySnap" alt="" fetchpriority="high" hidden>
+            <div class="etxt">
+              <div class="big" id="emptyBig">Loading the recorded run&hellip;</div>
+              <div id="emptySub">Loading the recorded questions, camera clips and answers — nothing is computed live.</div>
+            </div>
+          </div>
+
+          <div class="view" id="viewVideo" hidden>
+            <div class="amber" id="videoNote" hidden></div>
+            <div class="vwrap" id="vwrap"></div>
+          </div>
+
+          <div class="view" id="viewSel" hidden>
+            <div class="amber" id="selNote" hidden></div>
+            <div class="zoom" id="zoomBox"><img id="selImg" alt="what the selector kept"></div>
+            <div class="hint">click the image to zoom 1:1, click again to fit</div>
+          </div>
+
+          <div class="view" id="viewAns" hidden></div>
+
+          <div class="view" id="viewReason" hidden>
+            <div class="rhead" id="rhead"></div>
+            <pre class="trace" id="rtrace"></pre>
+          </div>
+
+          <div class="view" id="viewErr" hidden><div class="errbox" id="errBox"></div></div>
         </div>
-
-        <div class="view" id="viewAns" hidden></div>
-
-        <div class="view" id="viewReason" hidden>
-          <div class="rhead" id="rhead"></div>
-          <pre class="trace" id="rtrace"></pre>
-        </div>
-
-        <div class="view" id="viewErr" hidden><div class="errbox" id="errBox"></div></div>
       </div>
 
-      <div class="steps" id="bar">
-        <button class="step" id="act1" type="button"><span class="n">1</span><span class="lab">Play streams</span></button>
-        <button class="step" id="act2" type="button"><span class="n">2</span><span class="lab">Kept segments</span></button>
-        <button class="step" id="act3" type="button"><span class="n">3</span><span class="lab">Answer</span></button>
-        <button class="step" id="act4" type="button"><span class="n">4</span><span class="lab">Reasoning</span></button>
-        <button class="step" id="act5" type="button"><span class="n">5</span><span class="lab">Reset</span></button>
-        <span class="khint" id="khint">keys 1&ndash;5, arrows switch question</span>
-      </div>
-
+      <!-- side card: the recorded answers (case clips), then the options -->
+      <aside class="side" id="side" hidden>
+        <div class="casebar" id="caseBar" hidden></div>
+        <div>
+          <h3 class="label" id="sideHead">Options</h3>
+          <div class="qdetail" id="qdetail"></div>
+        </div>
+      </aside>
     </div>
+  </div>
 
+  <!-- ---------------- the step control ---------------- -->
+  <div class="steps" id="bar">
+    <div class="stepset">
+      <button class="step" id="act1" type="button"><span class="n">1</span><span class="lab">Play streams</span></button>
+      <button class="step" id="act2" type="button"><span class="n">2</span><span class="lab">Kept segments</span></button>
+      <button class="step" id="act3" type="button"><span class="n">3</span><span class="lab">Answer</span></button>
+      <button class="step" id="act4" type="button"><span class="n">4</span><span class="lab">Reasoning</span></button>
+      <button class="step" id="act5" type="button"><span class="n">5</span><span class="lab">Reset</span></button>
+    </div>
+    <button class="next" id="actNext" type="button"><span class="nl" id="nextLab">Next</span><span class="arr">&rarr;</span></button>
   </div>
 </div>
 
@@ -509,16 +644,35 @@ pre.trace{
 
   /* The case study: one question from the whole MEVA pool, not from the demo
      subset, replayed as "each camera alone" then "all four together". Its
-     assets come from case_q<ID>.json (written by scripts/render_case_contrast.py)
+     assets come from case_q<ID>.json (written by render_case_contrast.py, which lives in
+     the multicam-harness demo/scripts/, not in this repo)
      and never from the scorer roots above: the case is scorer-independent. */
   var ROOT_CASE = "figs_case/";
   var CASE_IDS = [954];
   /* the pipeline figure from the deck, shown from the "How it works" rail entry */
   var HOW_FIG = "how_it_works.png";
   var STEP_LABELS_Q = ["Play streams", "Kept segments", "Answer", "Reasoning", "Reset"];
-  var STEP_LABELS_CASE = ["Each camera alone", "How it works · one camera",
-                          "All four together", "How it works · four cameras", "Reset"];
+  var STEP_LABELS_CASE = ["Each camera alone", "One-camera setup",
+                          "All four together", "Four-camera setup", "Reset"];
   var STEP_LABELS_HOW = ["Pipeline", "Reset"];
+  /* hover text for the same five buttons, one set per mode: what each one
+     shows, never what it will turn out to say. Scorer-neutral, like the lede. */
+  var STEP_TIPS_Q = [
+    "Play the four camera streams of this question side by side",
+    "Show the segments of each camera the scorer kept, and the frames sent to the model",
+    "Show the recorded answer next to the runs it is compared with",
+    "Show a reasoning trace from a separate run; the scored answer came from the direct-answer run",
+    "Clear the stage"
+  ];
+  var STEP_TIPS_CASE = [
+    "Play the wall clip with the recorded answers of each camera used on its own",
+    "Show the figure of how a one-camera run was set up",
+    "Play the wall clip with the recorded answers of all four cameras used together",
+    "Show the figure of how the four-camera run picked its clips",
+    "Clear the stage"
+  ];
+  var STEP_TIPS_HOW = ["Show the pipeline figure", "Clear the stage"];
+  var LOADING_SUB = "Loading the recorded questions, camera clips and answers — nothing is computed live.";
   var KHINT_Q = "keys 1–5, arrows switch question";
   var KHINT_CASE = "keys 1–5, arrows switch";
   var KHINT_HOW = "keys 1–2, arrows switch";
@@ -647,8 +801,8 @@ pre.trace{
      scores them against the four answer options. Read off the method name. */
   function scorerQuery(raw) {
     return String(raw == null ? "" : raw).toLowerCase().indexOf("_opt") >= 0
-      ? "segments scored against the four answer options"
-      : "segments scored against the question text";
+      ? "clips matched to the four answer options"
+      : "clips matched to the question text";
   }
   /* the selection_leg of a manifest (they are identical across its questions) */
   function manLeg(m) {
@@ -845,6 +999,38 @@ pre.trace{
       t.appendChild(el("span", "src", src));
     }
     $("status").classList.toggle("live", !!live);
+    /* the words and the source path live in the stage's tooltip, off the screen */
+    $("stage").title = what + (src ? "  ·  " + src : "");
+  }
+
+  /* ------------------------------------------------------------------ *
+   * the question caption above the stage                                *
+   * ------------------------------------------------------------------ */
+  /* An ordering question carries its events inline ("I. ... II. ..."): they
+     are set as a two-column list under the stem instead of one long line. */
+  function setCaption(text) {
+    var c = $("qcap"), s = String(text || "").replace(/\s+/g, " ").trim();
+    c.textContent = "";
+    var parts = s.split(/\s(?=(?:IV|V|I{1,3})\.\s)/);
+    if (parts.length >= 3) {
+      var stem = parts.shift(), last = parts[parts.length - 1], tail = "";
+      var m = last.match(/^(.*?[.!]?)\s+((?:Which|What|In which)[^?]*\?)$/);
+      if (m) { parts[parts.length - 1] = m[1]; tail = m[2]; }
+      c.className = "qcap s3";
+      c.appendChild(el("span", "stem", stem));
+      var ul = el("ol", "evs");
+      parts.forEach(function (p) {
+        var mm = p.match(/^([IVX]+)\.\s*(.*)$/), li = el("li");
+        li.appendChild(el("span", "rn", mm ? mm[1] : ""));
+        li.appendChild(el("span", null, mm ? mm[2] : p));
+        ul.appendChild(li);
+      });
+      c.appendChild(ul);
+      if (tail) c.appendChild(el("span", "tail", tail));
+      return;
+    }
+    c.className = "qcap " + (s.length <= 130 ? "s1" : (s.length <= 230 ? "s2" : "s3"));
+    c.textContent = s;
   }
 
   /* ------------------------------------------------------------------ *
@@ -867,10 +1053,12 @@ pre.trace{
       : (S.man.viclip ? manScorerWord(S.man.viclip, "ViCLIP") + " scorer assets" : "not rendered yet");
     sw.title = off ? offTitle : "";
 
+    /* a toggle that does nothing here reads as broken: off stage in the case and the pipeline */
+    $("scorer").hidden = off;
     var n = $("scorerNow"), leg = manLeg(man());
     n.textContent = "";
     if (off) {
-      n.appendChild(el("span", "q", c ? "case study · scorer-independent" : "both scorers"));
+      /* nothing to say beside a disabled toggle: its tooltip says why */
     } else {
       n.appendChild(el("b", null, manScorerWord(man(), scorerWord(S.scorer))));
       n.appendChild(el("span", "q", " · " + scorerQuery(leg && leg.method)));
@@ -891,36 +1079,38 @@ pre.trace{
   function buildQuestionList() {
     var list = $("qlist"), qs = questions();
     list.textContent = "";
-    S.cases.forEach(function (c, i) {
-      var b = el("button", "qbtn case");
+    /* group labels are plain divs, not .qbtn: paintRail() indexes .qbtn nodes */
+    if (S.cases.length || S.how) list.appendChild(el("div", "rail-grp", "Start here"));
+    /* a readable title and one plain subtitle; the full question is the tooltip */
+    function entry(cls, key, ty, t) {
+      var b = el("button", cls);
       b.type = "button";
-      var h = el("div", "h");
-      h.appendChild(el("span", "id", "Case"));
-      h.appendChild(el("span", "ty", "one camera vs. four · q" + c.id));
-      b.appendChild(h);
-      b.appendChild(el("span", "t", trunc((c.short && c.short.question) || c.question, 52)));
+      b.title = t;
+      b.appendChild(el("span", "k", key));
+      b.appendChild(el("span", "ty", ty));
+      return b;
+    }
+    function typeWords(t) {
+      t = String(t || "").replace(/_/g, " ").trim();
+      return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+    }
+    S.cases.forEach(function (c, i) {
+      var b = entry("qbtn case", "Case study", "One camera vs. four",
+        (c.short && c.short.question) || c.question);
       b.addEventListener("click", function () { selectCase(i); });
       list.appendChild(b);
     });
     if (S.how) {
-      var hb = el("button", "qbtn case");
-      hb.type = "button";
-      var hh = el("div", "h");
-      hh.appendChild(el("span", "id", "How it works"));
-      hh.appendChild(el("span", "ty", "the pipeline"));
-      hb.appendChild(hh);
-      hb.appendChild(el("span", "t", "Question-guided segment selection, then one answer call"));
+      var hb = entry("qbtn case", "How it works", "The pipeline",
+        "Question-guided segment selection, then one answer call");
       hb.addEventListener("click", selectHow);
       list.appendChild(hb);
     }
+    if (qs.length) list.appendChild(el("div", "rail-grp",
+      qs.length === 5 ? "Five hand-picked questions" : "Hand-picked questions"));
     qs.forEach(function (q, i) {
-      var b = el("button", "qbtn");
-      b.type = "button";
-      var h = el("div", "h");
-      h.appendChild(el("span", "id", "q" + q.id));
-      h.appendChild(el("span", "ty", String(q.question_type || "").replace(/_/g, " ")));
-      b.appendChild(h);
-      b.appendChild(el("span", "t", trunc(q.question, 52)));
+      var b = entry("qbtn", "Question " + q.id, typeWords(q.question_type),
+        trunc(q.question, 240));
       b.addEventListener("click", function () { selectQuestion(i); });
       list.appendChild(b);
     });
@@ -944,28 +1134,32 @@ pre.trace{
     var d = $("qdetail"), leg = manLeg(man()) || {}, q = questions()[0] || {};
     var cams = q.cameras || [], nseg = cams.length ? cams[0].n_segments : null;
     d.textContent = "";
-    $("qdetailHead").textContent = "How it works · the harness";
-    d.appendChild(el("p", "qtext",
-      "Nothing here is a new model. A frozen vision-language model answers once, after a " +
-      "retrieval step decides which frames of which cameras it gets to see."));
+    $("qdetailHead").textContent = "How it works · the pipeline";
+    txt($("sideHead"), "The pipeline");
+    setCaption("Nothing here is a new model. A frozen vision-language model answers once, after a " +
+      "retrieval step decides which frames of which cameras it gets to see.");
     var steps = [
       "Synchronised camera streams. Every camera of the scene, on a shared clock.",
       "Temporal segmentation. Each camera is cut into " + (nseg || "equal") + " equal-time segments" +
         (leg.frames_per_segment ? ", " + leg.frames_per_segment + " frames sampled per segment." : "."),
       "Query builder. The question text (" + manScorerWord(S.man.siglip, "SigLIP") + ") or the four " +
         "answer options (" + manScorerWord(S.man.viclip, "ViCLIP") + ") become the retrieval queries.",
-      "Relevance scoring. Every segment is scored against every query with the image-text or " +
-        "video-text scorer; a segment's score is its best match.",
-      "Top-K selection. " + (leg.segments_keep && nseg ? "The best " + leg.segments_keep + " of " + nseg +
+      "Relevance scoring. A matching model scores every segment against every query; " +
+        "a segment's score is its best match.",
+      "Keep the best clips. " + (leg.segments_keep && nseg ? "The best " + leg.segments_keep + " of " + nseg +
         " segments per camera are kept" : "The best segments per camera are kept") +
         (leg.budget ? ", thinned to " + leg.budget + " frames in time order with camera labels." : "."),
-      "Frozen VLM. One InternVL3-8B call on those frames only. The letter it returns is the answer."
+      "The model answers. One InternVL3-8B call on those frames only. The letter it returns is the answer."
     ];
-    var ol = el("ol");
+    var ol = el("ol", "how");
     steps.forEach(function (s, i) {
-      var li = el("li");
+      var li = el("li"), ot = el("span", "ot"), cut = s.indexOf(". ");
       li.appendChild(el("span", "ol", String(i + 1)));
-      li.appendChild(el("span", "ot", s));
+      if (cut > 0) {
+        ot.appendChild(el("b", null, s.slice(0, cut + 1)));
+        ot.appendChild(document.createTextNode(" " + s.slice(cut + 2)));
+      } else ot.textContent = s;
+      li.appendChild(ot);
       ol.appendChild(li);
     });
     d.appendChild(ol);
@@ -974,9 +1168,11 @@ pre.trace{
       (leg.budget || "") + "-frame budget with no selection, and blind (no video)."));
     meta.appendChild(el("span", "row", "Case study: each camera alone with 8 frames, then all four with selection."));
     d.appendChild(meta);
-    d.appendChild(el("div", "amber",
-      "The dashed roadmap on the figure (per-event coverage, VLM-proposed queries, scene graphs) is " +
-      "future work, not part of any number shown here."));
+    /* the roadmap caveat sits under the caption, next to the figure it is about */
+    var cn = $("capNote");
+    txt(cn, "The dashed roadmap on the figure (per-event coverage, VLM-proposed queries, scene graphs) is " +
+      "future work, not part of any number shown here.");
+    cn.hidden = false;
   }
 
   /* letters of a run's four passes, one character each ("D. Cannot be
@@ -993,15 +1189,16 @@ pre.trace{
     $("qdetailHead").textContent = "Case study · question " + c.id + " · " +
       String(c.task_type || "").split("-").pop().toLowerCase();
     var sh = c.short || {};
-    d.appendChild(el("p", "qtext", sh.question || c.question));
-    if (sh.question && sh.abbreviated) d.appendChild(el("p", "qtext full", "Verbatim: " + c.question));
+    txt($("sideHead"), "Options");
+    setCaption(sh.question || c.question);
 
     /* the four options, abbreviated as on the deck; the gold one tagged */
-    var ol = el("ol"), opts = sh.options || {};
+    var ol = el("ol"), opts = sh.options || {}, longest = 0;
     (c.options || []).forEach(function (o) {
       var s = String(o), m = s.match(/^\s*([A-Za-z])[.)]\s*/);
       var letter = m ? m[1] : s.trim().charAt(0);
       var body = opts[letter] || (m ? s.slice(m[0].length) : s);
+      longest = Math.max(longest, String(body).length);
       var li = el("li", letter === c.gold ? "gold" : "");
       li.appendChild(el("span", "ol", letter + "."));
       var t = el("span", "ot", body);
@@ -1012,32 +1209,43 @@ pre.trace{
       li.appendChild(t);
       ol.appendChild(li);
     });
+    if (longest && longest <= 24) ol.className = "grid";    /* short options: two columns */
     d.appendChild(ol);
+    if (sh.question && sh.abbreviated) {
+      var fw = el("details", "full");
+      fw.appendChild(el("summary", null, "Full question wording"));
+      fw.appendChild(el("p", null, c.question));
+      d.appendChild(fw);
+    }
 
-    /* the disclosure travels with the case wherever it is shown, above the
-       fold of the rail rather than under it */
-    if (c.disclosure) d.appendChild(el("div", "amber", c.disclosure));
+    /* the disclosure travels with the case wherever it is shown: under the
+       question, so it is on screen at every case step, idle included */
+    var cn = $("capNote");
+    txt(cn, c.disclosure || "");
+    cn.hidden = !c.disclosure;
 
     var cams = (c.cameras || []).map(function (k) { return k.camera; }).join(", ");
     var meta = el("div", "meta");
-    meta.appendChild(el("span", "row", "Cameras " + cams));
+    meta.title = "Cameras " + cams;
     var r2 = el("span", "row");
     r2.appendChild(document.createTextNode("Evidence in "));
     r2.appendChild(el("span", "ev", (c.requires_cameras || []).join(", ")));
     r2.appendChild(document.createTextNode(" · gold "));
     r2.appendChild(el("span", "ev", c.gold));
     meta.appendChild(r2);
-    if (c.protocol) meta.appendChild(el("span", "row", c.protocol));
+    if (c.protocol) meta.title += "\nRun: " + c.protocol;
     d.appendChild(meta);
   }
 
   function renderQuestionDetail() {
     var q = Q(), d = $("qdetail");
+    $("capNote").hidden = true;
     d.textContent = "";
     if (!q) { d.appendChild(el("div", "meta", "No question loaded.")); return; }
     $("qdetailHead").textContent = "Question " + q.id + " · " +
       String(q.question_type || "").replace(/_/g, " ");
-    d.appendChild(el("p", "qtext", q.question));
+    txt($("sideHead"), "Options");
+    setCaption(q.question);
 
     var ol = el("ol");
     (q.options || []).forEach(function (o) {
@@ -1045,6 +1253,7 @@ pre.trace{
       var letter = m ? m[1] : s.trim().charAt(0);
       var body = m ? s.slice(m[0].length) : s;
       var li = el("li", letter === q.gold ? "gold" : "");
+      li.setAttribute("data-letter", letter);
       li.appendChild(el("span", "ol", letter + "."));
       var t = el("span", "ot", body);
       if (letter === q.gold) {
@@ -1077,11 +1286,43 @@ pre.trace{
   var STEP_OF = { video: 1, sel: 2, ans: 3, reason: 4 };
 
   function paintSteps(active) {
+    S.active = active || 0;
     [1, 2, 3, 4, 5].forEach(function (n) {
       var b = $("act" + n);
       b.classList.toggle("on", n === active);
       b.classList.toggle("done", n !== active && !!S.done[n]);
     });
+    paintNext();
+  }
+  /* content steps of the mode: every visible label but the trailing Reset */
+  function nContent() {
+    return (inCase() ? STEP_LABELS_CASE : (inHow() ? STEP_LABELS_HOW : STEP_LABELS_Q)).length - 1;
+  }
+  /* Next walks the steps, then the rail: past the last step it opens the next entry */
+  function nextTarget() {
+    var btns = $("qlist").querySelectorAll(".qbtn"), n = S.cases.length, h = nHow();
+    var total = btns.length, cur = inCase() ? S.ci : (inHow() ? n : n + h + S.qi);
+    var b = total ? btns[(cur + 1) % total] : null;
+    return b ? b.querySelector(".k").textContent : "";
+  }
+  function paintNext() {
+    var lab = $("nextLab");
+    if (!lab) return;
+    if ((S.active || 0) < nContent()) {
+      var l = (inCase() ? STEP_LABELS_CASE : (inHow() ? STEP_LABELS_HOW : STEP_LABELS_Q))[S.active || 0];
+      txt(lab, "Next");
+      $("actNext").title = "Step " + ((S.active || 0) + 1) + ": " + l;
+    } else {
+      var t = nextTarget();
+      lab.textContent = "Next";
+      if (t) lab.appendChild(el("span", "tgt", ": " + t));
+      $("actNext").title = t ? "Open the next entry: " + t : "Open the next entry of the list";
+    }
+  }
+  function nextStep() {
+    if (!S.ready) return;
+    if ((S.active || 0) < nContent()) step((S.active || 0) + 1);
+    else moveSelection(1);
   }
 
   /* step: which stepper button this view stands for. The manifest flow reads it
@@ -1095,19 +1336,63 @@ pre.trace{
     if (step) S.done[step] = true;
     paintSteps(step);
     if (name !== "video") pauseAllVideos();
-    if (name !== "video" || !inCase()) $("caseBar").hidden = true;
+    if (name !== "video" || !inCase()) { $("caseBar").hidden = true; $("capCe").hidden = true; }
+    paintSide();
+  }
+
+  /* The side card: the options (and, on a case clip, the recorded answers)
+     beside the steps that are about them; the gold is revealed only once an
+     answer is on stage. The idle still, the figures and the trace get the
+     full width. */
+  function paintSide() {
+    var v = S.view, side = $("side");
+    side.hidden = !(inHow() || v === "video" || v === "ans");
+    $("work").classList.toggle("noside", side.hidden);
+    $("work").classList.toggle("wideside", inCase() || inHow());
+    side.classList.toggle("reveal", inCase() || v === "ans");
+    side.classList.toggle("wide", inCase() || inHow());
+    $("stage").classList.toggle("paper", v !== "video" && v !== "empty");
+    if (v !== "ans") {
+      var ps = $("qdetail").querySelectorAll("li.pred"), i;
+      for (i = 0; i < ps.length; i++) ps[i].classList.remove("pred", "ok", "bad");
+    }
+  }
+  /* how many of the annotated moments the kept frames landed in, in words */
+  function keyMoments(r, n) {
+    if (n === 2 && r === 2) return "saw both key moments";
+    if (r === n) return "saw all " + n + " key moments";
+    if (r === 0) return "saw none of the " + n + " key moments";
+    return "saw " + r + " of " + n + " key moments";
+  }
+  /* the recorded letter, marked on its option in the side card */
+  function markPred(letter, correct) {
+    var li = $("qdetail").querySelectorAll("li[data-letter]"), i;
+    for (i = 0; i < li.length; i++) {
+      var on = li[i].getAttribute("data-letter") === letter;
+      li[i].classList.toggle("pred", on);
+      li[i].classList.toggle("ok", on && !!correct);
+      li[i].classList.toggle("bad", on && !correct);
+      li[i].querySelector(".ot").setAttribute("data-pm", on ? (correct ? "model · correct" : "model · wrong") : "");
+    }
   }
 
   /* the stepper's words and the top bar follow the rail selection */
   function paintMode() {
     var labels = inCase() ? STEP_LABELS_CASE : (inHow() ? STEP_LABELS_HOW : STEP_LABELS_Q);
+    var tips = inCase() ? STEP_TIPS_CASE : (inHow() ? STEP_TIPS_HOW : STEP_TIPS_Q);
+    var noReason = S.ready && !S.reason.length && !S.global.length;
     [1, 2, 3, 4, 5].forEach(function (n) {
       var b = $("act" + n), lab = labels[n - 1];
       b.hidden = !lab;
+      b.classList.toggle("reset", lab === "Reset");
       if (lab) txt(b.querySelector(".lab"), lab);
+      /* boot()'s missing-rows note outranks the tip on the Reasoning button */
+      b.title = (n === 4 && noReason && tips === STEP_TIPS_Q)
+        ? "reasoning rows did not load" : (tips[n - 1] || "");
     });
     txt($("khint"), inCase() ? KHINT_CASE : (inHow() ? KHINT_HOW : KHINT_Q));
     renderTopBar();
+    paintNext();
   }
   function hintPlay() {
     if (inCase()) return "press 1 to see each camera answer on its own";
@@ -1138,7 +1423,7 @@ pre.trace{
     $("emptySnap").hidden = true;
     $("emptySub").hidden = false;
     $("emptyBig").textContent = S.ready ? "Stage is empty" : "Loading the recorded run…";
-    $("emptySub").textContent = S.ready ? hintPlay() : "manifest, walls and reasoning rows are read from disk";
+    $("emptySub").textContent = S.ready ? hintPlay() : LOADING_SUB;
     setStatus(S.ready ? "Nothing on stage" : "Loading…", "", false);
     showSnapshot();
   }
@@ -1269,6 +1554,7 @@ pre.trace{
       v.playsInline = true;
       v.setAttribute("playsinline", "");
       v.hidden = true;
+      if (root !== ROOT_CASE) v.className = "qwall";
       rec.el = v;
       S.vids[key] = rec;
       $("vwrap").appendChild(v);
@@ -1438,15 +1724,22 @@ pre.trace{
   function renderCaseBar(c, step) {
     var bar = $("caseBar"), nf = nFramesSingle(c);
     bar.textContent = "";
+    $("capCe").hidden = true;
     if (step === 1) {
       (c.cameras || []).forEach(function (k) {
         var s = k.single || {};
         bar.appendChild(caseRow(k.camera, s.reading_short, s.predictions, s.n_right, false));
       });
       if (c.blind) bar.appendChild(caseRow("no video", "", c.blind.answers, c.blind.n_right, false));
-      bar.appendChild(el("div", "foot",
-        "One camera = the " + (nf || "") + " evenly spaced frames the single-camera run received. " +
-        (c.protocol || "")));
+      /* the run protocol (model, temperature, passes) sits in the (i) tooltip */
+      var cf = el("div", "foot",
+        "One camera = the " + (nf || "") + " evenly spaced frames the single-camera run received.");
+      if (c.protocol) {
+        var ci = el("i", "inf", "i");
+        ci.title = "Run: " + c.protocol;
+        cf.appendChild(ci);
+      }
+      bar.appendChild(cf);
     } else {
       var arms = c.arms || {}, order = [], k;
       if (c.case2_arm && arms[c.case2_arm]) order.push(c.case2_arm);
@@ -1456,11 +1749,14 @@ pre.trace{
         var reading = isBudgetMatched(c, a)
           ? "the same " + nf + " frames per camera as step 1, all four at once"
           : (a.windows_reached != null && a.frames_in_window
-              ? "frames inside " + a.windows_reached + " of " + Object.keys(a.frames_in_window).length + " event windows"
+              ? keyMoments(a.windows_reached, Object.keys(a.frames_in_window).length)
               : "");
         bar.appendChild(caseRow(a.label || key, reading, a.predictions, a.n_right, i === 0));
       });
       if (c.counter_evidence) bar.appendChild(el("div", "amber", c.counter_evidence));
+      /* the same note, shown under the question instead on short screens (CSS picks one) */
+      txt($("capCe"), c.counter_evidence || "");
+      $("capCe").hidden = !c.counter_evidence;
     }
     bar.hidden = false;
   }
@@ -1524,21 +1820,27 @@ pre.trace{
   /* ------------------------------------------------------------------ *
    * 3. the answer card                                                  *
    * ------------------------------------------------------------------ */
+  /* the subtitle says what the model saw, in words; the run details
+     (protocol, temperature, run tag) go to the title's tooltip */
   function ansSubtitle(q, a) {
     var leg = q && q.selection_leg, bits = [];
-    bits.push((a.protocol || "direct") + " answer, T=" +
-      (typeof a.temperature === "number" ? a.temperature : 0.1));
     if (isSelectorArm(a) && leg && leg.method === a.method && leg.budget) {
-      bits.push(leg.budget + " frames, " + leg.frames_per_segment +
-        " per segment, " + leg.segments_keep + " segments kept");
+      bits.push(leg.budget + " frames sent: " + leg.segments_keep + " segments kept per camera, " +
+        leg.frames_per_segment + " frames each");
     }
-    bits.push("tag " + (a.tag || "—"));
     return bits;
+  }
+  function ansRunDetails(a) {
+    return "Run: " + (a.protocol || "direct") + " answer, temperature " +
+      (typeof a.temperature === "number" ? a.temperature : 0.1) + ", run tag " + (a.tag || "—");
   }
   var LATENCY_NOTE =
     "Answer call is the model's generation only, the same call for every arm. " +
     "Selection is the segment scoring timed separately in the same row, mostly frame " +
     "decoding; the all-cameras arm's frame decode is not timed. Selection buys accuracy, not speed.";
+
+  var DAG_NOTE = "† this manifest carries no selection time for the arm; the value is the " +
+    "reasoning run's row for the same arm, the same scoring timed in another process.";
 
   function actAnswer() {
     var q = Q(), v = $("viewAns");
@@ -1556,6 +1858,7 @@ pre.trace{
     /* title: the active scorer's arm, in words */
     var head = el("div", "ttl");
     head.appendChild(el("div", "h1", armWords(q, a)));
+    head.title = ansRunDetails(a);
     var h2 = el("div", "h2");
     ansSubtitle(q, a).forEach(function (b) { h2.appendChild(el("span", "bit", b)); });
     head.appendChild(h2);
@@ -1578,9 +1881,16 @@ pre.trace{
     /* every arm in the manifest */
     var t = el("table", "arms"), thead = el("thead"), tbody = el("tbody");
     var hr = el("tr"), fromRow = false;
-    [["Arm", ""], ["Letter", ""], ["", ""], ["Answer call", "num"], ["Selection", "num"],
-     ["Input tokens", "num"], ["Video tokens", "num"]].forEach(function (h) {
-      hr.appendChild(el("th", h[1], h[0]));
+    [["Setup", ""], ["Letter", ""], ["", ""], ["Answer call", "num"], ["Selection", "num"],
+     ["Video tokens", "num"]].forEach(function (h) {
+      var th = el("th", h[1], h[0]);
+      if (h[0] === "Video tokens") th.title = "Tokens the model read for the video; the cell tooltip has the full prompt size";
+      if (h[0] === "Answer call" || h[0] === "Selection") {
+        var i = el("i", "inf", "i");
+        i.title = LATENCY_NOTE;
+        th.appendChild(i);
+      }
+      hr.appendChild(th);
     });
     thead.appendChild(hr);
     t.appendChild(thead);
@@ -1599,27 +1909,35 @@ pre.trace{
       tr.appendChild(el("td", "num", num(arm.latency_s, 1) + " s"));
       var sl = selLatency(q, arm), sc = el("td", "num");
       sc.appendChild(document.createTextNode(typeof sl.v === "number" ? num(sl.v, 1) + " s" : "—"));
-      if (sl.src === "row") { fromRow = true; sc.appendChild(el("span", "dag", "†")); }
+      if (sl.src === "row") {
+        fromRow = true;
+        var dg = el("span", "dag", "†");
+        dg.title = DAG_NOTE;
+        sc.appendChild(dg);
+      }
       tr.appendChild(sc);
-      tr.appendChild(el("td", "num", thou(arm.input_tokens)));
-      tr.appendChild(el("td", "num", thou(arm.video_tokens)));
+      var vt = el("td", "num", thou(arm.video_tokens));
+      vt.title = "whole prompt: " + thou(arm.input_tokens) + " tokens";
+      tr.appendChild(vt);
       tbody.appendChild(tr);
     });
     t.appendChild(tbody);
     body.appendChild(t);
 
-    body.appendChild(el("div", "foot", LATENCY_NOTE));
-    if (fromRow) {
-      body.appendChild(el("div", "foot",
-        "† this manifest carries no selection time for the arm; the value is the " +
-        "reasoning run's row for the same arm, the same scoring timed in another process."));
-    }
+    /* one short line; the full timing notes sit in the (i) and † tooltips */
+    var ft = el("div", "foot", "Selection buys accuracy, not speed.");
+    var fi = el("i", "inf", "i");
+    fi.title = LATENCY_NOTE + (fromRow ? "\n\n" + DAG_NOTE : "");
+    ft.appendChild(fi);
+    if (fromRow) ft.appendChild(document.createTextNode("   † timed in the reasoning run"));
+    body.appendChild(ft);
 
     card.appendChild(lead);
     card.appendChild(body);
     wrap.appendChild(card);
     v.appendChild(wrap);
     showView("ans");
+    markPred(letter, a.correct);
     setStatus("Answer card, " + armWords(q, a),
       S.root + "manifest.json" + (a.file ? "  ·  " + a.file : ""), false);
   }
@@ -1891,6 +2209,7 @@ pre.trace{
     [1, 2, 3, 4, 5].forEach(function (n) {
       $("act" + n).addEventListener("click", function () { step(n); });
     });
+    $("actNext").addEventListener("click", nextStep);
     $("swSiglip").addEventListener("click", function () { setScorer("siglip"); });
     $("swViclip").addEventListener("click", function () { setScorer("viclip"); });
 
@@ -1903,6 +2222,7 @@ pre.trace{
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       var tag = (e.target && e.target.tagName) || "";
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "Escape" && $("about").open) { $("about").open = false; return; }
       if (/^[1-5]$/.test(e.key)) {
         if (!S.ready) return;
         e.preventDefault();
@@ -1917,6 +2237,7 @@ pre.trace{
 
   function setButtonsEnabled(on) {
     [1, 2, 3, 4, 5].forEach(function (n) { $("act" + n).disabled = !on; });
+    $("actNext").disabled = !on;
   }
 
   /* ------------------------------------------------------------------ *
@@ -1977,8 +2298,8 @@ pre.trace{
           ROOT_SIGLIP + "manifest.json");
         $("qdetail").textContent = "";
         $("qdetail").appendChild(el("div", "meta",
-          "manifest.json did not load. Serve the page from the demo folder: " +
-          "cd demo && python3 -m http.server 8765 --bind 127.0.0.1"));
+          "manifest.json did not load. Serve the page from the repo root: " +
+          "python3 -m http.server 8765 --bind 127.0.0.1, then open /analysis/demo_ui.html"));
         return;
       }
 
