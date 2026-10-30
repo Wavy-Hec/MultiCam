@@ -13,7 +13,7 @@ Intended for questions whose text does not name a specific video (naming a view
 already does the picking); build that subset with
 ``analysis/build_singleview_subset.py``.
 """
-from .base import Method, Result, result_fields
+from .base import Method, Result, result_fields, think_of
 from ..reuse import (build_messages, extract_think, gt_choice, letters_of,
                      num_images, num_videos, parse_choice)
 
@@ -45,7 +45,7 @@ class SingleViewMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
+            pred = parse_choice(g.answer_span, yn, letters=letters, options=rec.get('options'))
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,
@@ -55,7 +55,7 @@ class SingleViewMethod(Method):
                 latency_s=g.latency_s,
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
-                response_text=g.text, think=extract_think(g.text),
+                response_text=g.text, think=think_of(g), parsed_from=g.parsed_from,
                 frame_alloc=alloc,
             )
         except Exception as e:

@@ -32,7 +32,7 @@ from .methods.clip_select import (SummarySelectMethod, ClipScoreSelectMethod,
 from .methods.option_union import (OptionUnionFrameSelect, OptionUnionClipSelect,
                                    QuerySearchMethod)
 from .methods.segment_select import SegmentSelectMethod
-from .backends.qwen import QwenBackend, QWEN_ALIASES
+from .backends.qwen import QwenBackend, QWEN_ALIASES, decode_identity
 from . import metrics
 
 METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
@@ -123,6 +123,19 @@ def make_backend(alias, nframes=8, internvl_max_tiles=1):
         return QwenBackend(alias)
     raise SystemExit(
         f"unknown backend '{alias}'. Known: {list(QWEN_ALIASES) + list(INTERNVL_ALIASES)}.")
+
+
+def backend_decode(alias):
+    """The `decode` stamp make_backend(alias) will put on its rows, resolved
+    without loading anything: the Qwen sampling/template settings, None for
+    InternVL (which has no such knobs)."""
+    if alias in QWEN_ALIASES:
+        return decode_identity(QWEN_ALIASES[alias])
+    if alias in INTERNVL_ALIASES or "internvl" in alias.lower():
+        return None
+    if "/" in alias:
+        return decode_identity(alias)
+    return None
 
 
 def make_method(mname, backend, args):
@@ -450,8 +463,8 @@ def check_global_regimes(methods, data, args):
 
 
 def existing_identity(path):
-    """(backends, datasets, media_remaps, seg_modes) already present in an
-    output file we would append to. media_remaps holds the sighted rows'
+    """(backends, datasets, media_remaps, seg_modes, decodes) already present in
+    an output file we would append to. media_remaps holds the sighted rows'
     `media_remap` stamps, with "unstamped" for rows written before the stamp
     existed (i.e. before the MEVA remux — those decoded the wrong frames).
     seg_modes holds (seg_select, seg_floor) for segment_select rows — plus the
@@ -467,8 +480,13 @@ def existing_identity(path):
     is exactly what the ("per_clip", None) default says, so the September
     per_clip files stay resumable and a prepare-error row (no frame_alloc at
     all) still reports its own leg's mode.
+
+    decodes holds the rows' `decode` stamps (the Qwen sampling / chat-template
+    settings, JSON-serialized). Rows written before the stamp existed carry
+    none and add nothing: they ran top_p 0.9 at the template default, which is
+    what a knob-free run on those checkpoints stamps today.
     """
-    backends, datasets, remaps, seg_modes = set(), set(), set(), set()
+    backends, datasets, remaps, seg_modes, decodes = set(), set(), set(), set(), set()
     if os.path.exists(path):
         with open(path) as fh:
             for line in fh:
@@ -489,7 +507,9 @@ def existing_identity(path):
                     if r.get("segment_seconds"):
                         ident += (float(r["segment_seconds"]),)
                     seg_modes.add(ident)
-    return backends, datasets, remaps, seg_modes
+                if "decode" in r:
+                    decodes.add(json.dumps(r["decode"], sort_keys=True))
+    return backends, datasets, remaps, seg_modes, decodes
 
 
 def run_identity(subset):
@@ -518,10 +538,22 @@ def main():
     ap.add_argument("--seeds", default="1,2,3,4", help="comma seeds; len must cover --passes")
     ap.add_argument("--temperature", type=float, default=0.7)
     ap.add_argument("--no-reasoning", action="store_true",
-                    help="direct-answer prompt: no <think> trace requested. There is no "
-                         "model-side switch — the visible reasoning is produced BY the "
-                         "prompt, so turning it off means asking for the answer directly. "
-                         "Pair with a low --temperature.")
+                    help="direct-answer prompt: no <think> trace requested. InternVL3 and "
+                         "the Qwen-VL checkpoints have no model-side switch — the visible "
+                         "reasoning is produced BY the prompt, so turning it off means asking "
+                         "for the answer directly. Pair with a low --temperature. Qwen3.8 "
+                         "thinks natively regardless of the prompt: a no-thinking control "
+                         "there also needs QWEN_ENABLE_THINKING=0 (bench/backends/qwen.py).")
+    ap.add_argument("--batch-passes", action="store_true",
+                    help="sample a question's pending passes in ONE batched call "
+                         "(methods with answer_n on backends with generate_n: blind on "
+                         "Qwen). Same decode settings; the passes share one RNG stream "
+                         "seeded with the first pending pass's seed, and rows stamp "
+                         "batch_n (latency_s is the batched call's wall clock)")
+    ap.add_argument("--batch-questions", type=int, default=1,
+                    help="with --batch-passes: up to N questions' pending passes in ONE "
+                         "call (answer_many/generate_many: blind on Qwen, text-only, "
+                         "left-padded). batch_n then counts every sequence in the call")
     ap.add_argument("--budget", type=int, default=None,
                     help="selection arms: TOTAL frames per question, split across clips. "
                          "Omitted: the legacy selection arms keep their historic 64 and "
@@ -837,7 +869,7 @@ def main():
     # 'cvbench' — would append into ONE file and silently pollute every
     # glob-based leg in export_handoff.py. Rows stay distinguishable via
     # `backend`, but the file does not. Refuse rather than mix.
-    prior_backends, prior_datasets, prior_remaps, prior_seg = existing_identity(out)
+    prior_backends, prior_datasets, prior_remaps, prior_seg, prior_dec = existing_identity(out)
     # backend.name is the HF id basename, so resolve aliases the same way
     want_backends = {
         (QWEN_ALIASES.get(b) or INTERNVL_ALIASES.get(b) or b).rstrip("/").split("/")[-1]
@@ -873,6 +905,19 @@ def main():
             f"this run would stamp {sorted(map(str, this_remap)) or [None]}\n"
             "  (rows without the stamp predate the MEVA remux and decoded the "
             "wrong frames). Use a new TAG.\n"
+            "  Pass --allow-mixed only if you genuinely intend one mixed file.")
+    # decoding provenance: QWEN_ENABLE_THINKING / QWEN_REASONING_EFFORT live
+    # only in the submit-time env, and a thinking-off resume of a thinking-on
+    # file would key as already-done/compatible on (id, method, backend, pass)
+    this_dec = {json.dumps(backend_decode(b), sort_keys=True) for b in backends}
+    stray_dec = prior_dec - this_dec
+    if stray_dec and not args.allow_mixed:
+        raise SystemExit(
+            f"refusing to append to {out}\n"
+            f"  it holds rows decoded with {sorted(stray_dec)}; this run decodes "
+            f"with {sorted(this_dec)}\n"
+            "  (QWEN_ENABLE_THINKING / QWEN_REASONING_EFFORT or a sampling preset "
+            "changed). Use a NEW TAG.\n"
             "  Pass --allow-mixed only if you genuinely intend one mixed file.")
 
     # The selection mode is a FLAG, not part of the method name, so both modes
@@ -910,6 +955,8 @@ def main():
           f"strict_prompt={int(STRICT_ANSWER_PROMPT)} allow_avi={int(ALLOW_AVI)}"
           f"{seg_echo}")
     print(f"dataset={dataset} run_id={run_id} node={node}")
+    print("decode=" + "; ".join(f"{b}: {json.dumps(backend_decode(b), sort_keys=True)}"
+                                for b in backends))
     print(f"video_root={args.video_root}\nout={out} (already done: {len(done)})", flush=True)
 
     # resolve every record's media BEFORE the model loads: a missing .mp4
@@ -944,28 +991,65 @@ def main():
                 jobs = [(rec, pi, sd) for rec in data
                         for pi, sd in enumerate(seeds, 1)
                         if (rec["id"], method.name, backend.name, pi) not in done]
-                for rec, pass_idx, seed in tqdm(jobs, desc=f"{mname}/{backend.name}"):
-                    res = method.answer(rec, args.video_root, seed=seed)
-                    if res is None:  # single_view<i> on a record with < i views
-                        continue
-                    res.pass_idx = pass_idx
-                    res.dataset, res.run_id, res.node = dataset, run_id, node
-                    row = res.to_dict()
-                    # the strict prompt is a generation change visible only in
-                    # the submit-time env; stamp rows so v1/v2 never pool silently
-                    row["strict_prompt"] = STRICT_ANSWER_PROMPT
-                    # .avi records decode from their remuxed .mp4 sibling
-                    # (eval_thinking.resolve_media); stamp it so rows from
-                    # before the remux (wrapped frames) never pool with these
-                    row["media_remap"] = (None if method.name == "blind"
-                                          else media_remap(rec))
-                    # the segment-selection MODE is a flag, not part of the
-                    # method name, so it is stamped here (error rows included —
-                    # they carry no frame_alloc) and read back by
-                    # existing_identity on resume
-                    stamp_seg_identity(row, method.name, args)
-                    fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-                    fh.flush()
+                # --batch-passes: a record's pending passes go to ONE batched
+                # call (answer_n -> generate_n); otherwise one unit per pass,
+                # in the same order as always
+                batched = (args.batch_passes and hasattr(method, "answer_n")
+                           and hasattr(backend, "generate_n"))
+                if args.batch_passes and not batched:
+                    print(f"NOTE --batch-passes: {method.name} on {backend.name} has no "
+                          "batched path; running one call per pass", flush=True)
+                units = collections.OrderedDict()
+                for k, (rec, pi, sd) in enumerate(jobs):
+                    units.setdefault(id(rec) if batched else k, (rec, []))[1].append((pi, sd))
+                # --batch-questions Q: up to Q consecutive records whose pending
+                # pass slots are identical share ONE call (answer_many ->
+                # generate_many); a resumed record with a partial set of passes
+                # starts a group of its own
+                many = (batched and args.batch_questions > 1 and hasattr(method, "answer_many")
+                        and hasattr(backend, "generate_many"))
+                groups = []
+                for u in units.values():
+                    if (many and groups and len(groups[-1]) < args.batch_questions
+                            and groups[-1][0][1] == u[1]):
+                        groups[-1].append(u)
+                    else:
+                        groups.append([u])
+                for group in tqdm(groups, desc=f"{mname}/{backend.name}"):
+                    if len(group) > 1:
+                        per_rec = method.answer_many([rec for rec, _ in group], args.video_root,
+                                                     seeds=[sd for _, sd in group[0][1]])
+                    elif batched:
+                        per_rec = [method.answer_n(group[0][0], args.video_root,
+                                                   seeds=[sd for _, sd in group[0][1]])]
+                    else:
+                        per_rec = [[method.answer(group[0][0], args.video_root,
+                                                  seed=group[0][1][0][1])]]
+                    for (rec, slots), results in zip(group, per_rec):
+                        for (pass_idx, seed), res in zip(slots, results):
+                            if res is None:  # single_view<i> on a record with < i views
+                                continue
+                            res.pass_idx = pass_idx
+                            res.dataset, res.run_id, res.node = dataset, run_id, node
+                            row = res.to_dict()
+                            # the strict prompt is a generation change visible only in
+                            # the submit-time env; stamp rows so v1/v2 never pool silently
+                            row["strict_prompt"] = STRICT_ANSWER_PROMPT
+                            # sampling / chat-template settings, which also live only
+                            # in the submit-time env; existing_identity reads it back
+                            row["decode"] = getattr(backend, "decode", None)
+                            # .avi records decode from their remuxed .mp4 sibling
+                            # (eval_thinking.resolve_media); stamp it so rows from
+                            # before the remux (wrapped frames) never pool with these
+                            row["media_remap"] = (None if method.name == "blind"
+                                                  else media_remap(rec))
+                            # the segment-selection MODE is a flag, not part of the
+                            # method name, so it is stamped here (error rows included —
+                            # they carry no frame_alloc) and read back by
+                            # existing_identity on resume
+                            stamp_seg_identity(row, method.name, args)
+                            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+                            fh.flush()
 
     # a SIGKILL mid-write (Slurm timeout) can leave one torn trailing line;
     # load_done skips it on resume, so the summary must skip it too or the

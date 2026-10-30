@@ -5,7 +5,7 @@ Latency is reported two ways: ``perception_latency_serial_s`` (sum of the
 per-stream calls, as actually run here) and ``perception_latency_par_s``
 (``max`` over them, the estimate under a truly parallel distributed system).
 """
-from .base import Method, Result, result_fields
+from .base import Method, Result, result_fields, think_of
 from ..reuse import (build_messages, extract_think, gt_choice, image_paths,
                      letters_of, num_images, parse_choice, video_paths)
 
@@ -91,7 +91,7 @@ class PerStreamMethod(Method):
                 ]}]
                 g = self.backend.generate(msg, max_new_tokens=self.perception_max_new_tokens,
                                           seed=seed, temperature=self.temperature)
-                descs.append(f"{label} {k}:\n{g.text.strip()}")
+                descs.append(f"{label} {k}:\n{g.answer_span.strip()}")
                 lat_per.append(g.latency_s)
                 in_tok += g.input_tokens; vid_tok += g.video_tokens; out_tok += g.output_tokens
                 calls += 1
@@ -104,7 +104,7 @@ class PerStreamMethod(Method):
                                       seed=seed, temperature=self.temperature)
             calls += 1
             in_tok += g.input_tokens; out_tok += g.output_tokens
-            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
+            pred = parse_choice(g.answer_span, yn, letters=letters, options=rec.get('options'))
 
             serial = sum(lat_per) + g.latency_s
             return Result(
@@ -121,7 +121,7 @@ class PerStreamMethod(Method):
                 num_model_calls=calls,
                 # aggregator trace + the per-view descriptions it reasoned over,
                 # so blind-perception vs bad-aggregation failures are separable
-                response_text=g.text, think=extract_think(g.text),
+                response_text=g.text, think=think_of(g), parsed_from=g.parsed_from,
                 frame_alloc=({"perception_texts": descs} if per_view is None else
                              {"perception_texts": descs, "total_frames": self.total_frames,
                               "per_view": per_view}),

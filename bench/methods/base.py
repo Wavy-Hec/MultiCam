@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict, field
 from typing import Optional
 
-from ..reuse import num_images, num_videos
+from ..reuse import extract_think, num_images, num_videos
 
 
 @dataclass
@@ -21,6 +21,35 @@ class GenOut:
     video_tokens: int
     output_tokens: int
     latency_s: float
+    # the span the answer is parsed from; None = the whole text, which is what
+    # every backend gave before 2026-10-29. A backend whose template pre-opens
+    # a native thinking block sets the reply after </think> (only when the
+    # generation ended), because that block can quote the very
+    # "<answer> and </answer>" tags the parser looks for; think_text is then
+    # the reasoning before that </think>
+    answer_text: Optional[str] = None
+    think_text: Optional[str] = None
+    # >1 when this output came from one batched call that sampled several
+    # sequences (passes, or passes of several prompts); latency_s is then that
+    # call's wall clock
+    batch_n: Optional[int] = None
+
+    @property
+    def answer_span(self):
+        return self.text if self.answer_text is None else self.answer_text
+
+    @property
+    def parsed_from(self):
+        """'after_think' when the answer was parsed from the post-</think>
+        reply, None for the whole text; rows stamp it so a rescore reproduces
+        the harness's parse (analysis/rescore_answers.py)."""
+        return None if self.answer_text is None else "after_think"
+
+
+def think_of(g):
+    """The reasoning trace a row stores: the backend's own split when it made
+    one, else the first <think>...</think> block (extract_think)."""
+    return g.think_text if g.think_text is not None else extract_think(g.text)
 
 
 @dataclass
@@ -54,6 +83,13 @@ class Result:
     video_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     num_model_calls: int = 1
+    # >1: this pass was sampled inside one batched call with batch_n - 1 sibling
+    # passes of the same prompt (GenOut.batch_n); latency_s is that call's wall
+    # clock, so its GPU time per row is latency_s / batch_n. None = its own call
+    batch_n: Optional[int] = None
+    # 'after_think' when the prediction was parsed from the reply after the
+    # native thinking block (GenOut.parsed_from); None = whole response_text
+    parsed_from: Optional[str] = None
     # reasoning/audit (set by every method on success; None on legacy rows/errors)
     response_text: Optional[str] = None    # raw g.text (full <think>...<answer> trace)
     think: Optional[str] = None            # extract_think(g.text)

@@ -68,8 +68,13 @@ def rescore_row(r, qrec):
     options = qrec.get("options") or []
     yn = is_yesno(options)
     letters = letters_of(qrec)
-    pred = parse_choice(r.get("response_text") or "", yn, letters=letters,
-                        options=options)
+    text = r.get("response_text") or ""
+    # the harness parsed only the reply after the native thinking block on
+    # these rows (bench/backends/qwen.py answer_after_think): that block quotes
+    # "<answer> and </answer>", so a whole-text parse would undo the fix
+    if r.get("parsed_from") == "after_think" and "</think>" in text:
+        text = text.rsplit("</think>", 1)[1]
+    pred = parse_choice(text, yn, letters=letters, options=options)
     gold = gt_choice(qrec["answer"], yn, letters=letters)
     return pred, bool(pred) and pred == gold, pred == ""
 

@@ -6,7 +6,7 @@ script runs from the repo root as `python3 analysis/<name>.py`.
 
 ## 1. Scripts by kind
 
-40 files total (`ls analysis/*.py analysis/*.sh analysis/*.sbatch analysis/demo_ui.html`). "Writes" is the
+43 files total (`ls analysis/*.py analysis/*.sh analysis/*.sbatch analysis/demo_ui.html`). "Writes" is the
 generator's own default output path (or `--out`/`OUT` constant); many also print a
 report to stdout regardless.
 
@@ -15,6 +15,7 @@ report to stdout regardless.
 | Script | Purpose | Writes |
 |---|---|---|
 | `convert_allangles.py` | Converts All-Angles-Bench multi-view still-image QA into the harness record schema | `allangles_qa.json`, `allangles_dev_subset.json` |
+| `convert_cvbench.py` | Converts CVBench (cross-video QA, HF `Dongyh35/CVBench`, pinned revision) into the harness record schema; byte-identical to the `cvbench-final` era's subset, so new legs join the archived ones by id; `--order O2` writes the reversed-option twin | `cvbench_full_runnable_subset.json`, `cvbench_full_runnable_subset_o2.json` |
 | `convert_crossview.py` | Converts UT Austin CrossView (Multi-Camera VQA) annotations into the harness record schema | `crossview_qa.json` (untracked), `crossview_subset.json`, `crossview_subset_fetch.json`, `crossview_subset_videos.txt` |
 | `convert_mvueval.py` | Converts MVU-Eval (multi-video QA, NeurIPS 2025 D&B) into the harness record schema | `mvueval_qa.json`, `mvueval_dev_subset.json`, `mvueval_dev_videos.txt`, `mvueval_dev_fetch.json` |
 
@@ -37,6 +38,7 @@ report to stdout regardless.
 
 | Script | Purpose | Writes |
 |---|---|---|
+| `make_cvbench_text_figs.py` | The CVBench text-only figures: no-video accuracy vs baselines, per-task accuracy, text-answerable shares and their luck/bias nulls, passes-right histogram, with-video accuracy by text label, thinking-minus-no-thinking with 95% intervals, answer habits (letters and Yes/No), the full-1000 history and stitch sweep, trace length, O1-vs-O2 consistency; reads two `cvbench_text_answerability.py --blind-o2` JSONs, the legs' rows and the Era-1 archive rows (`--archive`) | `figs_deck/fig_cvbench_*.png` and `fig_cvbench_data.json` (every plotted number), or `--out` |
 | `make_deck_html.py` | Assembles the results deck HTML from `figs_deck/*.png`, base64-embedded | a required positional `<out.html>` path (no default under `analysis/`) |
 | `make_deck_pptx.py` | Assembles the results deck as PowerPoint, "Part 2" of the July-28 slides | `deck_part2.pptx` |
 | `make_frame_sweep_fig.py` | Accuracy vs frame budget, small multiples across the three datasets | `figs_deck/fig_frame_sweep*.png` |
@@ -59,6 +61,7 @@ report to stdout regardless.
 | `allangles_consistency.py` | All-Angles-Bench paired-question consistency report (the paper's CC/WW/IC split) | stdout only |
 | `counting_failures.py` | Counting-failure analysis: dedup failure vs perception miss vs guess | optional `--out-md`/`--out-json` (no default; stdout otherwise) |
 | `crossview_question_types.py` | Question-type analysis of the UT Austin CrossView annotations | `crossview_question_types.md` |
+| `cvbench_text_answerability.py` | Is a question answerable from text alone? Scores a blind leg per question (k of n passes, error rows apart) against chance, per-(task, answer space) modal-gold floors (in-sample and leave-one-out), the longest-option rule and the leg's own answer-bias null (within-stratum permutation of pass-sets); luck-subtracts the text-answerable count; with `--blind-o2` adds the reversed-option twin and a both-orders label with two nulls (orders shuffled independently, and paired so habits that hold across orders stay in the null), overall, per task and by format; reports unclosed traces and batched GPU time; crosses the labels with optional `--sighted` legs and `--slice` id lists | stdout; optional `--json` (e.g. `records/cvbench_text_answerability_<tag>.json`) |
 | `evidence_class_accuracy.py` | Per-evidence-class accuracy for every valid MEVA leg, at zero new GPU hours | `docs/evidence_class_splits_<date>.md` (gitignored) |
 | `letter_floors.py` | Answer-letter bias for any CrossView-style pool: gold-letter skew, chance, in-sample and leave-one-out task-conditioned modal-letter floors, option-text/fixed-distractor and identity-ordering diagnostics; `--group-by` regroups the LOO hits, `--converter-check` compares each harness record to its release item | stdout; optional `--json` (e.g. `records/letter_floors_<pool>.json`) |
 | `mvueval_slide_stats.py` | Canonical statistics for the July-30 results deck, into one self-describing JSON | `slide_stats.json` |
@@ -102,7 +105,7 @@ report to stdout regardless.
 
 ## 2. Tracked non-script inputs
 
-19 files (`git ls-files analysis | grep -E "\.(json|txt)$"`). Counts measured
+25 files once the CVBench subsets are tracked (`git ls-files analysis | grep -E "\.(json|txt)$"`). Counts measured
 2026-09-03:
 
 - **result files keyed on it**: `ls bench/results/ | grep -c "^bench_<stem>_"`,
@@ -126,6 +129,9 @@ report to stdout regardless.
 | `crossview_subset.json` | eval subset | 0 | 0 | generator default (`convert_crossview.py --out-subset`, `fetch_meva_videos.py --subset`); superseded by `crossview_meva1033_subset.json` / `crossview_meva_cap13.json` for live runs |
 | `crossview_subset_fetch.json` | fetch manifest | 0 | 0 | generator default (`convert_crossview.py --out-fetch`); consumed by `hosting/fetch_videos.py` |
 | `crossview_subset_videos.txt` | video list | 0 | 0 | generator default (`convert_crossview.py --out-videos`); consumed by `bench/gen_clip_summaries.py` |
+| `cvbench_full_runnable_subset.json` | eval subset | 0 | 0 | live; the full 1000-question CVBench pool, tracked output of `convert_cvbench.py` and byte-identical to the `cvbench-final` era's file of the same name (the archived full-1000 legs are keyed on that stem); no CVBench clips are on disk, so it runs blind-only until `CVBench.zip` is extracted under a `VIDEO_ROOT` |
+| `cvbench_full_runnable_subset_o2.json` | eval subset | 0 | 0 | live; the same 1000 questions with every option list reversed and the gold letter remapped (`convert_cvbench.py --order O2`), the O2 order of the team's two-order text-only protocol; joins its O1 twin by id |
+| `cvbench_preflight30_subset.json` | eval subset | 0 | 0 | live; 30-record stratified preflight pool drawn from `cvbench_full_runnable_subset.json`: task types sorted, one shared `random.Random(0)`, `rng.sample(records_of_type, 2)` per type, records re-sorted by CVBench id; preflight results (jobs 144724-144741) are staged in `scratchpad/cvbench_q38_preflight_2026-10-29/` and are never registered |
 | `demo_meva4cam_subset.json` | eval subset | 8 | 0 | live; 5-record four-camera MEVA demo subset (ids 860, 749, 251, 1, 130) behind `render_demo.py`; result stem `bench_demo_meva4cam_subset_*`; not registered; the demo legs ran as one-off kimq jobs 99072-99075 |
 | `dod_question_bank.json` | curated bank | 0 | 0 | tracked output of `make_question_bank.py` |
 | `mvueval_dev_fetch.json` | fetch manifest | 0 | 0 | generator default (`convert_mvueval.py --out-fetch`) |
@@ -193,7 +199,7 @@ Generated on disk here, untracked, regenerated by the named script:
   `label_evidence_class.py`, `single_view_oracle.py`, `clip_scorer_gate.py` /
   `.sbatch`, `clip_selection_diagnostic.py`, `split_ladder_by_query.py`,
   `make_ladder_figs.py`, `make_quad_figs.py`, `selection_event_coverage.py`,
-  `letter_floors.py` under `--json`)
+  `letter_floors.py` and `cvbench_text_answerability.py` under `--json`)
 - `logs/` — Slurm `--output`/`--error` targets (`run_bench.sbatch`,
   `gen_clip_summaries.sbatch`, `clip_scorer_gate.sbatch`)
 - `figs_deck/` — `make_slide_figs.py` (also `make_frame_sweep_fig.py`,

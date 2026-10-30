@@ -48,7 +48,7 @@ import time
 import numpy as np
 from decord import VideoReader, cpu
 
-from .base import Method, Result, result_fields, require_video_record
+from .base import Method, Result, result_fields, think_of, require_video_record
 # ALL-branch prompt must be byte-identical to temporal_weighted:
 # PREFIX/MARKER/SPLIT_DESC are imported verbatim, and the budget split over
 # the selected clips reuses allocate_frames.
@@ -575,7 +575,7 @@ class SummarySelectMethod(Method):
                     {"type": "video", "video": abspath, "nframes": SUMMARY_NFRAMES},
                     {"type": "text", "text": SUMMARY_PROMPT}]}],
                 max_new_tokens=SUMMARY_MAX_NEW_TOKENS, seed=None, temperature=0.0)
-            return g.text.strip(), "live", g
+            return g.answer_span.strip(), "live", g
         except Exception as e:
             return f"(no summary available: {type(e).__name__})", "error", None
 
@@ -624,7 +624,7 @@ class SummarySelectMethod(Method):
             g_sel = self.backend.generate(
                 [{"role": "user", "content": [{"type": "text", "text": sel_prompt}]}],
                 max_new_tokens=self.sel_max_new_tokens, seed=None, temperature=0.0)
-            sel_idx, fallback = parse_selection(g_sel.text, K, self.mode)
+            sel_idx, fallback = parse_selection(g_sel.answer_span, K, self.mode)
             sel_meta.update(
                 selector_output=g_sel.text[-1200:],
                 selector_latency_s=round(g_sel.latency_s, 3),
@@ -668,7 +668,7 @@ class SummarySelectMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
+            pred = parse_choice(g.answer_span, yn, letters=letters, options=rec.get('options'))
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,
@@ -677,7 +677,7 @@ class SummarySelectMethod(Method):
                 seed=seed, temperature=self.temperature, latency_s=g.latency_s,
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
-                response_text=g.text, think=extract_think(g.text),
+                response_text=g.text, think=think_of(g), parsed_from=g.parsed_from,
                 frame_alloc=alloc_meta,
             )
         except Exception as e:  # keep the sweep alive; record the failure

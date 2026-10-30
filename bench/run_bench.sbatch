@@ -109,6 +109,7 @@ PERCEPTION_MAX_NEW_TOKENS=${PERCEPTION_MAX_NEW_TOKENS:-1024}  # per_stream per-v
 CELL_PX=${CELL_PX:-448}                # montage cell size (raise so centralized isn't token-starved vs native)
 INTERNVL_MAX_TILES=${INTERNVL_MAX_TILES:-1}
 REASONING=${REASONING:-1}              # 0 = direct-answer prompt, no <think> trace requested
+                                       # (qwen38 thinks natively regardless: also set QWEN_ENABLE_THINKING=0)
 # v2 answer-hygiene prompt (enumerate all letters + no-refusal sentence). It
 # changes generation, so never flip it mid-campaign; rows record it either way.
 export STRICT_ANSWER_PROMPT=${STRICT_ANSWER_PROMPT:-0}
@@ -118,11 +119,22 @@ export STRICT_ANSWER_PROMPT=${STRICT_ANSWER_PROMPT:-0}
 # media_remap / qwen_timing_unsafe and the registry flags such legs
 export CVBENCH_ALLOW_AVI=${CVBENCH_ALLOW_AVI:-0}
 export SEGMENT_SELECT_QWEN_UNSAFE=${SEGMENT_SELECT_QWEN_UNSAFE:-0}
+# Qwen chat-template knobs (Qwen3.8-27B only; run_bench refuses them on a
+# checkpoint whose template has no such knobs). Empty = the template default
+# (thinking on, effort xhigh); rows stamp the resolved values as `decode` and
+# run_bench refuses a resume that differs.
+export QWEN_ENABLE_THINKING=${QWEN_ENABLE_THINKING:-}
+export QWEN_REASONING_EFFORT=${QWEN_REASONING_EFFORT:-}
+BATCH_PASSES=${BATCH_PASSES:-0}        # 1 = a question's pending passes in one batched call
+                                       # (blind on Qwen); rows stamp batch_n
+BATCH_QUESTIONS=${BATCH_QUESTIONS:-1}  # >1 (with BATCH_PASSES=1): that many questions' passes
+                                       # per call, left-padded, text-only (blind on Qwen)
+BATCH_ARG=""; [ "$BATCH_PASSES" = "1" ] && BATCH_ARG="--batch-passes --batch-questions $BATCH_QUESTIONS"
 VIDEO_ROOT=${VIDEO_ROOT:-}   # override for non-MEVA sets (e.g. roots under data/)
 CHUNK=${CHUNK:-0}
 # shard index: Slurm array task id if present, else OFFSET (default 0)
 OFFSET=${SLURM_ARRAY_TASK_ID:-${OFFSET:-0}}
-# reasoning is imposed BY the prompt, not a model switch, so this swaps templates
+# reasoning is imposed BY the prompt (no model switch, except qwen38's template knobs), so this swaps templates
 NOREASON_ARG=""; [ "$REASONING" = "0" ] && NOREASON_ARG="--no-reasoning"
 
 TAG=${TAG:-}   # optional suffix to separate runs that share subset+env (e.g. _dur/_even/_stitch)
@@ -169,6 +181,7 @@ echo "     passes=$PASSES seeds=$SEEDS temp=$TEMPERATURE budget=${BUDGET:-auto} 
 echo "     sel_tau=$SEL_TAU sel_tau_q=$SEL_TAU_Q n_queries=$N_QUERIES query_max_new_tokens=$QUERY_MAX_NEW_TOKENS viclip_dir=$VICLIP_DIR"
 echo "     segments_per_video=$SEGMENTS_PER_VIDEO segments_keep=$SEGMENTS_KEEP seg_pool=$SEG_POOL clip_model=${CLIP_MODEL:-<default>} frames_per_segment=$FRAMES_PER_SEGMENT dedup_tau=$DEDUP_TAU seg_reduce=$SEG_REDUCE seg_select=$SEG_SELECT seg_floor=$SEG_FLOOR segment_seconds=$SEGMENT_SECONDS"
 echo "     nframes=$NFRAMES total_frames=$TOTAL_FRAMES montage_frames=$MONTAGE_FRAMES cell_px=$CELL_PX internvl_max_tiles=$INTERNVL_MAX_TILES montage_kind=$MONTAGE_KIND stream_kind=$STREAM_KIND reasoning=$REASONING strict_prompt=$STRICT_ANSWER_PROMPT allow_avi=$CVBENCH_ALLOW_AVI qwen_unsafe=$SEGMENT_SELECT_QWEN_UNSAFE"
+echo "     qwen_enable_thinking=${QWEN_ENABLE_THINKING:-<template default>} qwen_reasoning_effort=${QWEN_REASONING_EFFORT:-<template default>} batch_passes=$BATCH_PASSES batch_questions=$BATCH_QUESTIONS"
 python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$BACKENDS" \
     --nframes "$NFRAMES" --passes "$PASSES" --seeds "$SEEDS" --temperature "$TEMPERATURE" \
     --montage-frames "$MONTAGE_FRAMES" --montage-kind "$MONTAGE_KIND" --stream-kind "$STREAM_KIND" \
@@ -182,5 +195,5 @@ python -m bench.run_bench --subset "$SUBSET" --methods "$METHODS" --backends "$B
     --seg-reduce "$SEG_REDUCE" "${SEGSEL_ARG[@]}" \
     --max-new-tokens "$MAX_NEW_TOKENS" \
     --perception-max-new-tokens "$PERCEPTION_MAX_NEW_TOKENS" --cell-px "$CELL_PX" \
-    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $NOREASON_ARG $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"
+    --internvl-max-tiles "$INTERNVL_MAX_TILES" --out "$OUT" $NOREASON_ARG $BATCH_ARG $SHARD_ARG $LIMIT_ARG $VR_ARG "${SUM_ARG[@]}"
 echo "DONE @ $(date '+%F %T')"

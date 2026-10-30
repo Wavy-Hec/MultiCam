@@ -7,7 +7,7 @@ existing harness (``build_messages(..., no_video=True)``) so only the visual
 presentation differs from the blind/per-stream paths. The montages for a question
 are built once and cached, so the 4 sampling passes reuse identical pixels.
 """
-from .base import Method, Result, result_fields
+from .base import Method, Result, result_fields, think_of
 from .stitch import build_image_montage, build_montages
 from ..reuse import (build_messages, extract_think, gt_choice, image_paths,
                      letters_of, num_images, parse_choice, video_paths)
@@ -158,7 +158,7 @@ class CentralizedMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
+            pred = parse_choice(g.answer_span, yn, letters=letters, options=rec.get('options'))
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,
@@ -168,7 +168,7 @@ class CentralizedMethod(Method):
                 latency_s=g.latency_s,
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
-                response_text=g.text, think=extract_think(g.text),
+                response_text=g.text, think=think_of(g), parsed_from=g.parsed_from,
                 frame_alloc=alloc,
             )
         except Exception as e:  # keep the sweep alive; record the failure

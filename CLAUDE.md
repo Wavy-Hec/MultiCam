@@ -63,9 +63,15 @@ scales with the number of views; the montage saturates. Compare `input_tokens` a
 `video_tokens` across arms within a fixed camera count before reading any
 centralized-vs-sequential difference as an architecture effect.
 
-**Reasoning is imposed by the prompt, not by a model switch.** Neither backend has a
-thinking toggle. `REASONING=0` swaps in a direct-answer template; the `<answer>` tags
-stay so one parser serves both modes.
+**Reasoning is imposed by the prompt, not by a model switch — except on Qwen3.8.**
+InternVL3 and the Qwen-VL checkpoints have no thinking toggle: `REASONING=0` swaps in a
+direct-answer template; the `<answer>` tags stay so one parser serves both modes.
+Qwen3.8-27B (`BACKENDS=qwen38`) thinks natively whatever the prompt says: its template
+pre-opens `<think>`, so `REASONING=0` alone still thinks, and a no-thinking control
+needs `QWEN_ENABLE_THINKING=0` too (`QWEN_REASONING_EFFORT` sets the effort). Its
+reasoning quotes the prompt's `<answer> and </answer>`, so its answer is parsed from
+the reply after `</think>` (rows stamp `parsed_from`; `rescore_answers.py` honours it)
+and every row stamps the resolved settings as `decode`.
 
 **`CHUNK` is the shard count, not the shard size.** Sharding is strided
 (`data[offset::chunk]`), so `CHUNK` must equal the array width. Passing a record count

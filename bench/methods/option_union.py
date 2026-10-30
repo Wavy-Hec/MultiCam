@@ -447,7 +447,7 @@ class QuerySearchMethod(FrameSelectMethod):
         g = self.backend.generate(
             [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
             max_new_tokens=self.query_max_new_tokens, seed=None, temperature=0.0)
-        text = re.sub(r"<think>.*?(?:</think>|\Z)", " ", g.text, flags=re.DOTALL)
+        text = re.sub(r"<think>.*?(?:</think>|\Z)", " ", g.answer_span, flags=re.DOTALL)
         queries, seen = [], set()
         for line in text.splitlines():
             q = _QLINE_STRIP.sub("", line).strip().strip('"').strip()

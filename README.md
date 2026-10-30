@@ -34,6 +34,10 @@ runs keep the models' reasoning traces so failures stay interpretable.
   synchronized multi-camera driving and cross-angle sports subsets.
 - **CrossView / MEVA** — multi-camera surveillance video QA over synchronized
   MEVA views.
+- **CVBench** — cross-video QA over two to four independent clips per question
+  (fifteen task types). Its clips are not on disk, so it currently runs text-only
+  (the blind arm), in both option orders, to measure which questions the question
+  and option text alone answer.
 
 ## Quick start
 
@@ -41,7 +45,7 @@ Two conda envs are used (`cvbench` for Qwen legs and analysis; `internvl` for
 InternVL3, which needs an older transformers). Benchmark data lives under
 `data/` (untracked); question subsets are JSONs under `analysis/`, produced by
 the converter scripts there (`convert_allangles.py`, `convert_mvueval.py`,
-`convert_crossview.py`). See `analysis/README.md` for which JSON is which and
+`convert_crossview.py`, `convert_cvbench.py`). See `analysis/README.md` for which JSON is which and
 what every script there does.
 
 All-Angles-Bench downloads from its HF release; its Ego-Exo4D scenes additionally
@@ -94,6 +98,9 @@ indexes the rest.
   [paper](https://arxiv.org/abs/2511.07250),
   [data](https://huggingface.co/datasets/MVU-Eval-Team/MVU-Eval-Data) (Apache-2.0).
 - **CrossView release**: UT Austin multi-camera dataset; **MEVA** videos are CC-BY-4.0.
+- **CVBench**: [paper](https://arxiv.org/abs/2508.19542),
+  [data](https://huggingface.co/datasets/Dongyh35/CVBench) (CC-BY-4.0; the question
+  file is redistributed under `analysis/`, the clips are not).
 - Vendored tree: [tulerfeng/Video-R1](https://github.com/tulerfeng/Video-R1), whose
   authors we thank. Everything under `bench/` and `analysis/` is this project's own work.
 

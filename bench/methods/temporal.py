@@ -23,7 +23,7 @@ import math
 
 from decord import VideoReader, cpu
 
-from .base import Method, Result, result_fields, require_video_record
+from .base import Method, Result, result_fields, think_of, require_video_record
 from ..reuse import (build_messages, parse_choice, gt_choice, letters_of, video_paths,
                      extract_think)
 
@@ -216,7 +216,7 @@ class TemporalWeightedMethod(Method):
         try:
             g = self.backend.generate(messages, max_new_tokens=self.max_new_tokens,
                                       seed=seed, temperature=self.temperature)
-            pred = parse_choice(g.text, yn, letters=letters, options=rec.get('options'))
+            pred = parse_choice(g.answer_span, yn, letters=letters, options=rec.get('options'))
             return Result(
                 **f, method=self.name, backend=self.backend.name,
                 prediction=pred, gold=gold,
@@ -225,7 +225,7 @@ class TemporalWeightedMethod(Method):
                 seed=seed, temperature=self.temperature, latency_s=g.latency_s,
                 input_tokens=g.input_tokens, video_tokens=g.video_tokens,
                 output_tokens=g.output_tokens, num_model_calls=1,
-                response_text=g.text, think=extract_think(g.text),
+                response_text=g.text, think=think_of(g), parsed_from=g.parsed_from,
                 frame_alloc=alloc_meta,
             )
         except Exception as e:  # keep the sweep alive; record the failure
