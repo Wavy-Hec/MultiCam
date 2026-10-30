@@ -358,6 +358,28 @@ LEGS = [
          subset="crossview_nuscenes1497_subset.json",
          glob="bench_crossview_nuscenes1497_subset_internvl_nsbd_shard*.jsonl",
          budget="no images"),
+    # CVBench text-only protocol (2026-10-29/30, as run at a477d80): the blind arm
+    # on Qwen3.8-27B, 4 passes (seeds 1-4) at T=0.6, batched (24 sequences per
+    # call). _q38bm = native thinking at QWEN_REASONING_EFFORT=medium with the
+    # reasoning prompt; _q38nt = the no-thinking control, QWEN_ENABLE_THINKING=0 with
+    # REASONING=0 (the direct-answer prompt). _o2 = the same pool with the options
+    # reversed (convert_cvbench.py --order O2). The two TAGs share
+    # dataset/backend/method, so the budget labels keep the registry keys apart.
+    # Batched before call_seed existed: every call ran under pass 1's seed, so
+    # passes are coupled across questions and option orders (CLAUDE.md); the
+    # decode stamp carries no `rng`, and latency_s is the call's wall clock.
+    dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset.json",
+         glob="bench_cvbench_full_runnable_subset_cvbench_q38bm_shard*.jsonl",
+         budget="no images, native thinking (effort medium)"),
+    dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset.json",
+         glob="bench_cvbench_full_runnable_subset_cvbench_q38nt_shard*.jsonl",
+         budget="no images, thinking off, direct-answer prompt"),
+    dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset_o2.json",
+         glob="bench_cvbench_full_runnable_subset_o2_cvbench_q38bm_shard*.jsonl",
+         budget="no images, native thinking (effort medium), options reversed"),
+    dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset_o2.json",
+         glob="bench_cvbench_full_runnable_subset_o2_cvbench_q38nt_shard*.jsonl",
+         budget="no images, thinking off, direct-answer prompt, options reversed"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]

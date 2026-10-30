@@ -23,7 +23,9 @@ What goes in, and what does not:
 
 `--out` is the ROOT the tree is written under: <out>/multicam_results/ and
 <out>/data/subsets/ (only subsets missing there; existing files are never
-overwritten, a differing one is reported).
+overwritten, a differing one is reported). `--exclude <leg>` (repeatable)
+holds a registered leg back from this bundle: its rows are not written and
+it is not listed, so a later export without the flag ships it.
 """
 import argparse
 import csv
@@ -72,6 +74,8 @@ def main():
                     help="also write slim/*.jsonl without response_text, think, frame_alloc")
     ap.add_argument("--allow-mismatch", action="store_true",
                     help="warn instead of stop when merged rows != registry rows")
+    ap.add_argument("--exclude", action="append", default=[], metavar="LEG",
+                    help="leg tag to hold back from this bundle (repeatable): not written, not listed")
     args = ap.parse_args()
 
     reg = json.load(open(REGISTRY))["legs"]
@@ -80,6 +84,14 @@ def main():
     groups = OrderedDict()
     for leg in reg:
         groups.setdefault(leg["glob"], []).append(leg)
+    shippable = {leg_tag(g) for g, legs in groups.items() if all(l["media_ok"] for l in legs)}
+    unknown = set(args.exclude) - shippable
+    if unknown:
+        sys.exit(f"STOP --exclude names no shippable leg (unregistered, or media_ok=false and never "
+                 f"shipped): {sorted(unknown)}")
+    for g in [g for g in groups if leg_tag(g) in args.exclude]:
+        print(f"held back (--exclude): {leg_tag(g)}")
+        del groups[g]
 
     out_root = os.path.abspath(args.out)
     out = os.path.join(out_root, FOLDER)
@@ -89,7 +101,7 @@ def main():
     if args.slim:
         os.makedirs(slim_dir, exist_ok=True)
 
-    kept, excluded, summary_rows, sizes = [], [], [], {}
+    kept, excluded, summary_rows, sizes, batched_old = [], [], [], {}, []
     for g, legs in groups.items():
         tag = leg_tag(g)
         if not all(l["media_ok"] for l in legs):
@@ -109,7 +121,7 @@ def main():
 
         name = f"{tag}.jsonl" + (".gz" if args.gzip else "")
         opener = (lambda p: gzip.open(p, "wt")) if args.gzip else (lambda p: open(p, "w"))
-        n = 0
+        n, old_seeding = 0, False
         fslim = open(os.path.join(slim_dir, f"{tag}.jsonl"), "w") if args.slim else None
         with opener(os.path.join(legs_dir, name)) as fo:
             for path in files:
@@ -120,6 +132,8 @@ def main():
                         r = json.loads(line)
                         if r.get("backend") not in backends:
                             continue
+                        # batched before call_seed existed: one seed for the whole call
+                        old_seeding |= bool(r.get("batch_n")) and "call_seed" not in r
                         r.setdefault("dataset", dataset)
                         r["leg"] = tag
                         r["source_commit"] = commit
@@ -137,6 +151,8 @@ def main():
                 sys.exit("STOP " + msg + " (use --allow-mismatch to continue)")
             print("!! " + msg, file=sys.stderr)
         sizes[name] = os.path.getsize(os.path.join(legs_dir, name))
+        if old_seeding:
+            batched_old.append(tag)
         for l in legs:
             e = dict(l)
             e["file"] = f"legs/{name}"
@@ -184,7 +200,7 @@ def main():
         w.writeheader()
         w.writerows(summary_rows)
 
-    write_readme(out, commit, kept, excluded, summary_rows, sub_report, args)
+    write_readme(out, commit, kept, excluded, summary_rows, sub_report, batched_old, args)
 
     total = sum(sizes.values())
     big = max(sizes.items(), key=lambda kv: kv[1])
@@ -199,7 +215,7 @@ def main():
 
 
 SCHEMA = [
-    ("id", "question index within its subset; unique only with `dataset`"),
+    ("id", "question index within its subset (CVBench: the string `cvb-<n>`, the same question in both option orders); unique only with `dataset`"),
     ("dataset", "subset stem the row was run against (matches data/subsets/<dataset>.json)"),
     ("leg", "which merged file / campaign the row came from"),
     ("task_type, source, orig_num_cameras, num_videos", "copied from the question record"),
@@ -207,18 +223,22 @@ SCHEMA = [
     ("method", "arm: cvbench_native (sequential), centralized (montage), per_stream, blind, single_viewN, segment_select*"),
     ("backend", "model name"),
     ("prediction, gold, correct, abstained", "parsed letter, gold letter, 0/1, no letter parsed (scored incorrect)"),
-    ("pass_idx, seed, temperature", "sampling pass; passes are independent decodes with frames fixed"),
-    ("latency_s, perception_latency_*_s, aggregate_latency_s", "wall-clock; the per_stream arm splits perception and aggregation"),
-    ("input_tokens, video_tokens, output_tokens, num_model_calls", "budget actually consumed — compare across arms before reading any accuracy gap"),
+    ("pass_idx, seed, temperature", "sampling pass, with frames fixed; on a batched leg `seed` is a pass label (see Protocol for how its noise was drawn)"),
+    ("latency_s, perception_latency_*_s, aggregate_latency_s", "wall-clock; the per_stream arm splits perception and aggregation; on a batched row `latency_s` is the whole call's (divide by `batch_n`)"),
+    ("input_tokens, video_tokens, output_tokens, num_model_calls", "budget actually consumed — compare across arms before reading any accuracy gap; a batched row counts its shared call once"),
     ("response_text, think", "full model output and the <think> block (absent in slim/)"),
     ("frame_alloc", "frames per view the arm chose; on segment_select legs also the per-segment scores (absent in slim/)"),
     ("media_remap", "'avi->mp4' on MEVA rows decoded through the remux; the reason older MEVA legs are excluded"),
     ("error", "non-null when the call failed; such rows are counted in `errors`"),
-    ("source_commit", "Wavy-Hec/MultiCam commit this bundle was exported from"),
+    ("decode", "decoding settings the row ran under (Qwen3.8: top_p, top_k, answer_after_think, enable_thinking, reasoning_effort); a knob at its template default is null"),
+    ("parsed_from", "`after_think` when the answer was parsed from the reply after the last `</think>` (Qwen3.8 native thinking); null = the whole text"),
+    ("batch_n, call_seed, batch_slot", "batched sampling: sequences in the row's generate call (null for a one-sequence call); `call_seed` and `batch_slot` only on rows written from MultiCam 6c377c0 on"),
+    ("reasoning, max_new_tokens", "prompt mode and output-token cap, stamped on rows written from MultiCam 6c377c0 on"),
+    ("source_commit", "Wavy-Hec/MultiCam commit the row was exported from; a leg file unchanged since an earlier bundle keeps that bundle's commit"),
 ]
 
 
-def write_readme(out, commit, kept, excluded, summary_rows, sub_report, args):
+def write_readme(out, commit, kept, excluded, summary_rows, sub_report, batched_old, args):
     L = []
     L.append("# MultiCam benchmark results\n")
     L.append("Per-question result rows from the `Wavy-Hec/MultiCam` harness, one merged JSONL per leg "
@@ -244,10 +264,30 @@ def write_readme(out, commit, kept, excluded, summary_rows, sub_report, args):
     L.append("## Protocol\n")
     L.append("- passes: 4 per question (seeds 1-4, temperature 0.7) unless summary.csv says otherwise; "
              "reasoning is imposed by the prompt scaffold, `reasoning` in summary.csv says which template.")
+    L.append("- seeding: an unbatched leg runs pass p of every question under seed p, so each pass shares one "
+             "noise stream across the leg's questions (and option orders): per-question accuracy is valid, but "
+             "pass-to-pass spread and per-pass answer shares are not those of independent draws.")
     L.append("- scoring: the letter parsed from `<answer>` (or the bare reply); no letter parsed = abstained = incorrect. "
-             "Rows were re-scored with the current parser (`shards_source` in registry.json).")
+             "Legs whose `shards_source` in registry.json is `rescored` were re-scored with the current parser; "
+             "`raw` legs are scored as run.")
     L.append("- montage arm (`centralized`): every view resized into a fixed square cell; its token count saturates "
              "while the sequential arm's grows with views — compare `video_tokens` before reading an arm gap.")
+    if any(l["backend"].startswith("Qwen3.8") for l in kept):
+        L.append("- Qwen3.8-27B: the model thinks natively. `decode.enable_thinking` null = thinking on (effort in "
+                 "`decode.reasoning_effort`), false = off. With thinking on, the answer is parsed from the reply "
+                 "after the last `</think>` (`parsed_from` = `after_think`); with it off, from the whole reply "
+                 "(`parsed_from` null). The prompt template is a separate setting: the CVBench thinking legs used "
+                 "the reasoning template and the no-thinking control the direct-answer one, so the two differ in "
+                 "prompt as well as in thinking.")
+    if any(l["subset"].endswith("_o2.json") for l in kept):
+        L.append("- a subset ending `_o2` holds the same questions as its stem with the options reversed and the "
+                 "gold letter moved with them (in CVBench all but `cvb-996`, whose options are one packed string).")
+    if batched_old:
+        L.append("- batched before per-call seeding: " + ", ".join(f"`{t}`" for t in batched_old) + ". Each "
+                 "call (`batch_n` sequences) ran under its first pending pass's seed, so each batch slot, rather than "
+                 "each pass, replayed one noise stream across the calls of the same size, whatever the question and "
+                 "in both option orders; the seeding caveat above applies to their slots. Rows that stamp "
+                 "`call_seed` were seeded per call.")
     L.append("- MEVA rows decode the remuxed `.mp4` siblings of the release `.avi` (`media_remap`); "
              "see the exclusion note below.\n")
     L.append("## Row schema\n")
@@ -282,7 +322,8 @@ def write_readme(out, commit, kept, excluded, summary_rows, sub_report, args):
     L.append("## Regenerating\n")
     L.append("```\n# in Wavy-Hec/MultiCam\npython3 analysis/export_question_records.py\n"
              "python3 analysis/export_shared_results.py --out <multicam-harness checkout>"
-             + (" --gzip" if args.gzip else "") + (" --slim" if args.slim else "") + "\n```\n")
+             + (" --gzip" if args.gzip else "") + (" --slim" if args.slim else "")
+             + "".join(f" --exclude {t}" for t in args.exclude) + "\n```\n")
     open(os.path.join(out, "README.md"), "w").write("\n".join(L))
 
 
