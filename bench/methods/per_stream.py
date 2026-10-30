@@ -6,8 +6,8 @@ per-stream calls, as actually run here) and ``perception_latency_par_s``
 (``max`` over them, the estimate under a truly parallel distributed system).
 """
 from .base import Method, Result, result_fields, think_of
-from ..reuse import (build_messages, extract_think, gt_choice, image_paths,
-                     letters_of, num_images, parse_choice, video_paths)
+from ..reuse import (build_messages, gt_choice, image_paths, letters_of,
+                     num_images, parse_choice, video_paths)
 
 PERCEPTION_PROMPT = (
     "You are looking at ONE {unit} only. Describe what is visible that is relevant to the "

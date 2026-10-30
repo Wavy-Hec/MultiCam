@@ -28,8 +28,9 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -57,6 +58,23 @@ def load_subset(dataset, cache):
     return cache[dataset]
 
 
+def file_label(path):
+    """bench_<stem>.jsonl -> <stem>; a plain replace('bench_', '') also ate the
+    'bench_' inside 'cvbench_'."""
+    return re.sub(r"^bench_|\.jsonl$", "", os.path.basename(path))
+
+
+def leg_key(path, r):
+    """The per-leg total a row pools into: dataset, method, backend, the run
+    (the file's ENV+TAG, shard suffix dropped) and the decode stamp, so two
+    TAGs or two decode settings of one dataset/method/backend never pool."""
+    run = re.sub(r"_shard\d+$", "", file_label(path))
+    ds = r.get("dataset")
+    if ds and run.startswith(ds + "_"):
+        run = run[len(ds) + 1:]
+    return (ds, r.get("method"), r.get("backend"), run, json.dumps(r.get("decode"), sort_keys=True))
+
+
 def rescore_row(r, qrec):
     """Returns (prediction, correct, abstained) under the fixed parser.
 
@@ -79,13 +97,13 @@ def rescore_row(r, qrec):
     return pred, bool(pred) and pred == gold, pred == ""
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", nargs="+", default=["*.jsonl"],
                     help="globs under bench/results (default: every .jsonl)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the before/after table, write nothing")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     files = sorted({p for g in args.results for p in glob.glob(os.path.join(RES, g))})
     files = [p for p in files if os.path.dirname(p) != RESCORED.rstrip("/")]
@@ -96,7 +114,9 @@ def main():
     cache, rows_by_leg = {}, defaultdict(lambda: [0, 0, 0, 0])
     missing_subsets, total_changed = set(), 0
 
-    print(f"{'file':52s} {'rows':>7s} {'was':>7s} {'now':>7s} {'delta':>7s} {'recov':>6s}")
+    names = {p: file_label(p) for p in files}
+    w = max([52] + [len(v) for v in names.values()])      # never cut 'shard13' to 'shard1'
+    print(f"{'file':{w}s} {'rows':>7s} {'was':>7s} {'now':>7s} {'delta':>7s} {'recov':>6s}")
     for path in files:
         rows, changed, unresolved, was = [], 0, 0, 0
         with open(path) as fh:
@@ -105,7 +125,7 @@ def main():
                     continue
                 r = json.loads(line)
                 was += bool(r.get("correct"))
-                key = (r.get("dataset"), r.get("method"), r.get("backend"))
+                key = leg_key(path, r)
                 rows_by_leg[key][2] += bool(r.get("correct"))
                 sub = load_subset(r.get("dataset", ""), cache)
                 qrec = None if sub is None else sub.get(r.get("id"))
@@ -129,8 +149,7 @@ def main():
         now = sum(1 for r in rows if r.get("correct"))
         n = len(rows)
         total_changed += changed
-        name = os.path.basename(path).replace("bench_", "").replace(".jsonl", "")
-        print(f"{name[:52]:52s} {n:7d} {100*was/n:6.2f}% {100*now/n:6.2f}% "
+        print(f"{names[path]:{w}s} {n:7d} {100*was/n:6.2f}% {100*now/n:6.2f}% "
               f"{100*(now-was)/n:+6.2f}% {changed:6d}"
               + ("  UNRESOLVED=%d" % unresolved if unresolved else ""))
 
@@ -144,13 +163,17 @@ def main():
             with open(out.replace(".jsonl", "_summary.json"), "w") as f:
                 json.dump(summ, f, indent=1)
 
-    print(f"\n{'dataset / method / backend':58s} {'rows':>7s} {'was':>7s} {'now':>7s} {'delta':>7s} {'abst':>6s}")
-    for key in sorted(rows_by_leg, key=lambda k: tuple(str(x) for x in k)):
+    keys = [k for k in sorted(rows_by_leg, key=lambda k: tuple(str(x) for x in k)) if rows_by_leg[k][0]]
+    # the decode stamp is printed only where it is what tells two legs apart
+    clash = Counter(k[:4] for k in keys)
+    labels = {k: " / ".join(str(x) for x in k[:4]) + (f" / decode {k[4]}" if clash[k[:4]] > 1 else "")
+              for k in keys}
+    w = max([58] + [len(v) for v in labels.values()])
+    print(f"\n{'dataset / method / backend / run':{w}s} "
+          f"{'rows':>7s} {'was':>7s} {'now':>7s} {'delta':>7s} {'abst':>6s}")
+    for key in keys:
         n, now, was, ab = rows_by_leg[key]
-        if not n:
-            continue
-        label = f"{key[0]} / {key[1]} / {key[2]}"
-        print(f"{label[:58]:58s} {n:7d} {100*was/n:6.2f}% {100*now/n:6.2f}% "
+        print(f"{labels[key]:{w}s} {n:7d} {100*was/n:6.2f}% {100*now/n:6.2f}% "
               f"{100*(now-was)/n:+6.2f}% {100*ab/n:5.1f}%")
 
     print(f"\n{total_changed:,} predictions changed across {len(files)} files")

@@ -5,26 +5,39 @@ schema so bench/run_bench.py can evaluate it.
 Source: data/test-00000-of-00001.parquet of the Dongyh35/CVBench HF dataset at
 the pinned revision below (1,000 questions over 1,315 clips, 15 task types, 2-4
 videos per question; Yes/No or lettered MCQ). The clips ship separately in the
-same repo's CVBench.zip (~38 GB) and are NOT fetched here: the blind (text-only)
+same repo's CVBench.zip (40.4 GB) and are NOT fetched here: the blind (text-only)
 arm never opens media, and a sighted leg needs the zip extracted under a
 VIDEO_ROOT first (records name clips relative to the zip root, e.g.
 "0/0Hd95ulYOT8.mp4").
 
-The record shape is the cvbench-final era's, unchanged (ids "cvb-<n>", the
-release's raw option strings, source "cvbench"), and so is the output filename,
-which result files are keyed on. New legs join the archived full-1000 InternVL3
-legs by id (those rows predate the `dataset` stamp, and they live only in
-~/cvbench_archive_2026-07-27.tgz under bench/results/). Every question is written — the old
-builder dropped questions whose clips were missing on disk, which never fired
-on the full set either (0 blocked at the tag).
+The record shape is the one the archived full-1000 InternVL3 legs ran on,
+unchanged (ids "cvb-<n>", the release's raw option strings, source "cvbench"),
+and so is the output filename, which result files are keyed on: the O1 file is
+byte-identical to theirs (git blob beae9447f7fb91d9529e6064a8a07f39da106d54).
+New legs join those legs by id (their rows predate the `dataset` stamp and are
+archived outside git). Every question is written — the old builder dropped
+questions whose clips were missing on disk, which never fired on the full set
+either (0 blocked).
 
 --order O2 writes the same pool with every question's options in REVERSED
-order and the gold letter remapped, the team's O1/O2 control for a gold-position
+order and the gold letter remapped, the O1/O2 control for a gold-position
 skew (CVBench's key has D as gold on 140 of 860 four-option questions). Ids are
 unchanged, so an O2 leg joins its O1 twin by id. Yes/No questions swap
 "Yes."/"No." (the gold stays the answer word). The one row whose four options
 are packed into a single string (cvb-996) cannot be reversed and is kept as is;
 cvb-431's duplicated "B." prefixes are re-lettered A-D in the reversed order.
+
+The reversal moves options, not what they say, so on 48 questions whose
+options point at other positions O2 is not a pure position control: cvb-89's
+"D. Both A and C." becomes "A. Both A and C." (still gold, now naming itself
+and a wrong option), and 47 "All of the above" / "None of the above" / "None
+of above" options (17 of them gold) move from D to A, where nothing is above
+them. The tracked O2 file keeps them reversed, as its rows were run. A new
+control should pin such options in place under a new subset name (--out):
+regenerating this file in place keeps its name, so anything keyed on the
+name would still accept its rows and score them against a different key
+(cvbench_text_answerability.py refuses rows whose stored `correct`
+disagrees with the key).
 
 Outputs (under analysis/):
   cvbench_full_runnable_subset.json     - the full 1000-question pool (O1)
@@ -64,6 +77,9 @@ def reverse_options(rec, stats):
         stats["o2_yesno_swapped"] += 1
         return out
     bodies = [_PREFIX.sub("", o, count=1) for o in opts]
+    if len(ans) != 1 or ans.upper() not in LETTERS[:len(opts)]:
+        # a negative index would wrap: gold D on two options would become L
+        raise ValueError(f"{rec.get('id')}: gold {ans!r} is not one of the {len(opts)} option letters")
     gold = LETTERS.index(ans.upper())
     out["options"] = [f"{LETTERS[i]}. {b}" for i, b in enumerate(bodies[::-1])]
     out["answer"] = LETTERS[len(opts) - 1 - gold]
@@ -133,9 +149,11 @@ def main():
     out, stats = convert(rows)
     if args.order == "O2":
         out = [reverse_options(r, stats) for r in out]
-    # compact, as the cvbench-final builder wrote it, so the file stays
-    # byte-identical to the one the archived legs ran on
-    json.dump(out, open(args.out, "w"), ensure_ascii=False)
+    # compact, as the original builder wrote it, so the file stays
+    # byte-identical to the one the archived legs ran on; UTF-8 whatever the
+    # locale (the pool holds non-ASCII characters)
+    with open(args.out, "w", encoding="utf-8") as fh:
+        json.dump(out, fh, ensure_ascii=False)
 
     print(f"read {len(rows)} release rows -> wrote {len(out)} records -> {args.out}")
     if stats:

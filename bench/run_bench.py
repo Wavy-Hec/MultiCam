@@ -32,7 +32,8 @@ from .methods.clip_select import (SummarySelectMethod, ClipScoreSelectMethod,
 from .methods.option_union import (OptionUnionFrameSelect, OptionUnionClipSelect,
                                    QuerySearchMethod)
 from .methods.segment_select import SegmentSelectMethod
-from .backends.qwen import QwenBackend, QWEN_ALIASES, decode_identity
+from .backends.qwen import (QwenBackend, QWEN_ALIASES, CALL_SEED_SCHEME, canonical_decode,
+                            decode_identity)
 from . import metrics
 
 METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
@@ -41,7 +42,7 @@ METHODS = {"centralized": CentralizedMethod, "per_stream": PerStreamMethod,
            "blind": BlindMethod,
            # (adaptive_content / adaptive_query — the within-clip frame-selection
            # ablation — were retired 2026-07-02 after losing/tying uniform; archived
-           # result: git show 6ef38ac^:analysis/adaptive_frames_experiment.md §B.)
+           # result: git show c507875^:analysis/adaptive_frames_experiment.md §B.)
            # D3 clip selection: spend the budget on the clips a question needs.
            # summary_select_* = cached per-clip summaries -> one text-only
            # selector call (route may answer ALL; top1 forces one clip);
@@ -136,6 +137,41 @@ def backend_decode(alias):
     if "/" in alias:
         return decode_identity(alias)
     return None
+
+
+def leg_decode(decode, batch_passes):
+    """The `decode` stamp a row of this leg carries: the backend's own
+    (backend_decode), plus, on a --batch-passes leg, the seeding scheme of its
+    batched calls as `rng`. Batched rows drawn under another scheme, or under
+    none (every call reseeded with the first pass's seed, as before), then
+    never pool with these; an unbatched leg stamps exactly what it always did."""
+    if decode is None or not batch_passes:
+        return decode
+    return dict(decode, rng=CALL_SEED_SCHEME)
+
+
+# Generation settings that also live only in the submit-time env and that the
+# resume key (id, method, backend, pass_idx) does not see: the sampling
+# temperature, the prompt mode (--no-reasoning swaps the template) and the
+# token cap. Every row stamps them (temperature through its Result) and a
+# resume under other values is refused like a decode change.
+RUN_SETTINGS = ("temperature", "reasoning", "max_new_tokens")
+
+
+def run_settings(args):
+    """This leg's RUN_SETTINGS, as its rows stamp them."""
+    return {"temperature": args.temperature, "reasoning": not args.no_reasoning,
+            "max_new_tokens": args.max_new_tokens}
+
+
+def ends_mid_line(path):
+    """True when ``path`` is non-empty and does not end with a newline: a
+    SIGKILL mid-write (Slurm timeout) left a torn last row."""
+    if not os.path.exists(path) or not os.path.getsize(path):
+        return False
+    with open(path, "rb") as fh:
+        fh.seek(-1, os.SEEK_END)
+        return fh.read(1) != b"\n"
 
 
 def make_method(mname, backend, args):
@@ -305,10 +341,12 @@ def make_method(mname, backend, args):
 
 
 def load_done(path):
-    """Completed (id, method, backend, pass_idx) keys for resume."""
+    """Completed (id, method, backend, pass_idx) keys for resume. A torn row
+    is skipped, even one cut inside a multi-byte character: rows keep
+    non-ASCII text as raw UTF-8, so the file is decoded with errors="replace"."""
     done = set()
     if os.path.exists(path):
-        with open(path) as fh:
+        with open(path, errors="replace") as fh:
             for line in fh:
                 try:
                     r = json.loads(line)
@@ -463,8 +501,8 @@ def check_global_regimes(methods, data, args):
 
 
 def existing_identity(path):
-    """(backends, datasets, media_remaps, seg_modes, decodes) already present in
-    an output file we would append to. media_remaps holds the sighted rows'
+    """(backends, datasets, media_remaps, seg_modes, decodes, settings) already
+    present in an output file we would append to. media_remaps holds the sighted rows'
     `media_remap` stamps, with "unstamped" for rows written before the stamp
     existed (i.e. before the MEVA remux — those decoded the wrong frames).
     seg_modes holds (seg_select, seg_floor) for segment_select rows — plus the
@@ -482,13 +520,20 @@ def existing_identity(path):
     all) still reports its own leg's mode.
 
     decodes holds the rows' `decode` stamps (the Qwen sampling / chat-template
-    settings, JSON-serialized). Rows written before the stamp existed carry
-    none and add nothing: they ran top_p 0.9 at the template default, which is
-    what a knob-free run on those checkpoints stamps today.
+    settings, JSON-serialized), each in canonical_decode form: older rows
+    stamp an explicit template default as spelled, and it renders the prompt
+    an unset knob does. Rows written before the stamp existed carry none and
+    add nothing: they ran top_p 0.9 at the template default, which is what a
+    knob-free run on those checkpoints stamps today.
+
+    settings maps each RUN_SETTINGS key to the values the rows stamp; a row
+    that lacks a key (written before it was stamped) adds nothing to it, as
+    with decode. A torn row is skipped, as in load_done.
     """
     backends, datasets, remaps, seg_modes, decodes = set(), set(), set(), set(), set()
+    settings = {k: set() for k in RUN_SETTINGS}
     if os.path.exists(path):
-        with open(path) as fh:
+        with open(path, errors="replace") as fh:
             for line in fh:
                 try:
                     r = json.loads(line)
@@ -508,8 +553,11 @@ def existing_identity(path):
                         ident += (float(r["segment_seconds"]),)
                     seg_modes.add(ident)
                 if "decode" in r:
-                    decodes.add(json.dumps(r["decode"], sort_keys=True))
-    return backends, datasets, remaps, seg_modes, decodes
+                    decodes.add(json.dumps(canonical_decode(r["decode"]), sort_keys=True))
+                for k in RUN_SETTINGS:
+                    if r.get(k) is not None:
+                        settings[k].add(r[k])
+    return backends, datasets, remaps, seg_modes, decodes, settings
 
 
 def run_identity(subset):
@@ -547,13 +595,23 @@ def main():
     ap.add_argument("--batch-passes", action="store_true",
                     help="sample a question's pending passes in ONE batched call "
                          "(methods with answer_n on backends with generate_n: blind on "
-                         "Qwen). Same decode settings; the passes share one RNG stream "
-                         "seeded with the first pending pass's seed, and rows stamp "
-                         "batch_n (latency_s is the batched call's wall clock)")
+                         "Qwen). Same decode settings; each call of two or more "
+                         "sequences draws from one RNG stream seeded with a hash of its "
+                         "prompts and pass seeds, and rows stamp it as call_seed with "
+                         "their batch_slot and batch_n (`seed` is then a pass label; "
+                         "latency_s is the call's wall clock). Every other call (without "
+                         "this flag, on an arm or backend with no batched path, or of "
+                         "one sequence: a single pending pass, or an out-of-memory split "
+                         "down to one) is seeded with its pass seed, so pass p of every "
+                         "such question shares one noise stream. The decode stamp "
+                         "records that seeding scheme as `rng`, so a batched leg resumes "
+                         "only a file of the same scheme. A call that runs out of GPU "
+                         "memory is retried split in halves")
     ap.add_argument("--batch-questions", type=int, default=1,
-                    help="with --batch-passes: up to N questions' pending passes in ONE "
-                         "call (answer_many/generate_many: blind on Qwen, text-only, "
-                         "left-padded). batch_n then counts every sequence in the call")
+                    help="with --batch-passes (refused without it): up to N questions' "
+                         "pending passes in ONE call (answer_many/generate_many: blind on "
+                         "Qwen, text-only, left-padded). batch_n then counts every "
+                         "sequence in the call")
     ap.add_argument("--budget", type=int, default=None,
                     help="selection arms: TOTAL frames per question, split across clips. "
                          "Omitted: the legacy selection arms keep their historic 64 and "
@@ -693,13 +751,15 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--allow-mixed", action="store_true",
                     help="permit appending to a file that already holds a different "
-                         "backend, dataset, media_remap stamp or segment-selection "
+                         "backend, dataset, media_remap stamp, segment-selection "
                          "identity (seg_select/seg_floor, and the --segment-seconds "
-                         "partition: 8-equal-parts and 8-second rows would pool) — it "
-                         "waives ALL FOUR file-identity "
-                         "refusals, not just the backend one (default: refuse — "
-                         "filenames key on the conda env, not the model, so two "
-                         "backends sharing an env would silently land in one file)")
+                         "partition: 8-equal-parts and 8-second rows would pool), decode "
+                         "stamp (QWEN_* knobs, sampling preset, batched seeding scheme), "
+                         "temperature, prompt mode (--no-reasoning) or --max-new-tokens — "
+                         "it waives EVERY file-identity refusal, not just the backend "
+                         "one (default: refuse — filenames key on the conda env, not the "
+                         "model, so two backends sharing an env would silently land in "
+                         "one file)")
     args = ap.parse_args()
 
     data = json.load(open(args.subset))
@@ -856,6 +916,15 @@ def main():
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()][: args.passes]
     if len(seeds) < args.passes:
         raise SystemExit(f"need >= {args.passes} seeds, got {seeds}")
+    # --batch-questions only groups the calls --batch-passes makes: alone it
+    # would run the leg one call per pass, many times slower than its log reads
+    if args.batch_questions < 1:
+        raise SystemExit(f"--batch-questions {args.batch_questions}: it counts the questions "
+                         "per batched call, so it is >= 1 (1 = one question per call)")
+    if args.batch_questions > 1 and not args.batch_passes:
+        raise SystemExit(f"--batch-questions {args.batch_questions} without --batch-passes "
+                         "would silently run one call per pass; add --batch-passes "
+                         "(BATCH_PASSES=1) or drop it")
 
     out = args.out or os.path.join(
         os.path.dirname(__file__), "results",
@@ -869,7 +938,8 @@ def main():
     # 'cvbench' — would append into ONE file and silently pollute every
     # glob-based leg in export_handoff.py. Rows stay distinguishable via
     # `backend`, but the file does not. Refuse rather than mix.
-    prior_backends, prior_datasets, prior_remaps, prior_seg, prior_dec = existing_identity(out)
+    (prior_backends, prior_datasets, prior_remaps, prior_seg, prior_dec,
+     prior_settings) = existing_identity(out)
     # backend.name is the HF id basename, so resolve aliases the same way
     want_backends = {
         (QWEN_ALIASES.get(b) or INTERNVL_ALIASES.get(b) or b).rstrip("/").split("/")[-1]
@@ -909,16 +979,30 @@ def main():
     # decoding provenance: QWEN_ENABLE_THINKING / QWEN_REASONING_EFFORT live
     # only in the submit-time env, and a thinking-off resume of a thinking-on
     # file would key as already-done/compatible on (id, method, backend, pass)
-    this_dec = {json.dumps(backend_decode(b), sort_keys=True) for b in backends}
+    decodes = {b: leg_decode(backend_decode(b), args.batch_passes) for b in backends}
+    this_dec = {json.dumps(d, sort_keys=True) for d in decodes.values()}
     stray_dec = prior_dec - this_dec
     if stray_dec and not args.allow_mixed:
         raise SystemExit(
             f"refusing to append to {out}\n"
             f"  it holds rows decoded with {sorted(stray_dec)}; this run decodes "
             f"with {sorted(this_dec)}\n"
-            "  (QWEN_ENABLE_THINKING / QWEN_REASONING_EFFORT or a sampling preset "
-            "changed). Use a NEW TAG.\n"
+            "  (QWEN_ENABLE_THINKING / QWEN_REASONING_EFFORT, a sampling preset or "
+            "the batched calls' seeding scheme `rng` changed). Use a NEW TAG.\n"
             "  Pass --allow-mixed only if you genuinely intend one mixed file.")
+    # the same for TEMPERATURE, REASONING and MAX_NEW_TOKENS (RUN_SETTINGS);
+    # a file whose rows predate a stamp is not compared on that key
+    this_settings = run_settings(args)
+    stray_settings = {k: v - {this_settings[k]} for k, v in prior_settings.items()
+                      if v - {this_settings[k]}}
+    if stray_settings and not args.allow_mixed:
+        raise SystemExit(
+            f"refusing to append to {out}\n"
+            + "".join(f"  it holds rows with {k} {sorted(v)}; this run has "
+                      f"{this_settings[k]}\n" for k, v in sorted(stray_settings.items()))
+            + "  (TEMPERATURE / REASONING / MAX_NEW_TOKENS differ from the leg's). Rerun "
+              "with the leg's settings, or use a NEW TAG.\n"
+              "  Pass --allow-mixed only if you genuinely intend one mixed file.")
 
     # The selection mode is a FLAG, not part of the method name, so both modes
     # write e.g. 'segment_select_viclip_opt' and resume keys on
@@ -952,11 +1036,12 @@ def main():
                 if any(SEGMENT_SELECT_RE.match(m) for m in methods) else "")
     print(f"subset={args.subset} n={len(data)} methods={methods} backends={backends} "
           f"passes={args.passes} seeds={seeds} temp={args.temperature} "
+          f"reasoning={int(this_settings['reasoning'])} max_new_tokens={args.max_new_tokens} "
           f"strict_prompt={int(STRICT_ANSWER_PROMPT)} allow_avi={int(ALLOW_AVI)}"
           f"{seg_echo}")
     print(f"dataset={dataset} run_id={run_id} node={node}")
-    print("decode=" + "; ".join(f"{b}: {json.dumps(backend_decode(b), sort_keys=True)}"
-                                for b in backends))
+    print("decode=" + "; ".join(f"{b}: {json.dumps(d, sort_keys=True)}"
+                                for b, d in decodes.items()))
     print(f"video_root={args.video_root}\nout={out} (already done: {len(done)})", flush=True)
 
     # resolve every record's media BEFORE the model loads: a missing .mp4
@@ -975,7 +1060,16 @@ def main():
                 f"{missing[:3]}")
 
     from tqdm import tqdm
+    # a SIGKILL mid-write (Slurm timeout) can leave a torn last row with no
+    # newline, which load_done, existing_identity and the summary skip, even
+    # when the cut falls inside a multi-byte character (they read with
+    # errors="replace"); appended straight onto it, the first new row would
+    # fuse with it into one unparseable line and stay missing until a further
+    # resume, so end the fragment first
+    torn = ends_mid_line(out)
     with open(out, "a") as fh:
+        if torn:
+            fh.write("\n")
         for b in backends:
             backend = make_backend(b, nframes=args.nframes,
                                    internvl_max_tiles=args.internvl_max_tiles)  # loads the model once
@@ -1008,6 +1102,9 @@ def main():
                 # starts a group of its own
                 many = (batched and args.batch_questions > 1 and hasattr(method, "answer_many")
                         and hasattr(backend, "generate_many"))
+                if batched and args.batch_questions > 1 and not many:
+                    print(f"NOTE --batch-questions: {method.name} on {backend.name} has no "
+                          "multi-question path; one batched call per question", flush=True)
                 groups = []
                 for u in units.values():
                     if (many and groups and len(groups[-1]) < args.batch_questions
@@ -1035,9 +1132,14 @@ def main():
                             # the strict prompt is a generation change visible only in
                             # the submit-time env; stamp rows so v1/v2 never pool silently
                             row["strict_prompt"] = STRICT_ANSWER_PROMPT
-                            # sampling / chat-template settings, which also live only
-                            # in the submit-time env; existing_identity reads it back
-                            row["decode"] = getattr(backend, "decode", None)
+                            # sampling / chat-template settings (+ the batched seeding
+                            # scheme), the prompt mode and the token cap, which also
+                            # live only in the submit-time env; existing_identity reads
+                            # them back (temperature is already a Result field)
+                            row["decode"] = leg_decode(getattr(backend, "decode", None),
+                                                       args.batch_passes)
+                            row["reasoning"] = this_settings["reasoning"]
+                            row["max_new_tokens"] = this_settings["max_new_tokens"]
                             # .avi records decode from their remuxed .mp4 sibling
                             # (eval_thinking.resolve_media); stamp it so rows from
                             # before the remux (wrapped frames) never pool with these
@@ -1051,11 +1153,13 @@ def main():
                             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
                             fh.flush()
 
-    # a SIGKILL mid-write (Slurm timeout) can leave one torn trailing line;
-    # load_done skips it on resume, so the summary must skip it too or the
-    # resumed job dies AFTER all its compute with no _summary.json
+    # a SIGKILL mid-write (Slurm timeout) can leave one torn line, mid-file
+    # once a resume has ended it; load_done skips it on resume, so the summary
+    # must skip it too, a cut inside a multi-byte character included
+    # (errors="replace"), or the resumed job dies AFTER all its compute with
+    # no _summary.json
     rows = []
-    with open(out) as fh:
+    with open(out, errors="replace") as fh:
         for line in fh:
             if not line.strip():
                 continue

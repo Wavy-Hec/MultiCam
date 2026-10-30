@@ -14,8 +14,8 @@ already does the picking); build that subset with
 ``analysis/build_singleview_subset.py``.
 """
 from .base import Method, Result, result_fields, think_of
-from ..reuse import (build_messages, extract_think, gt_choice, letters_of,
-                     num_images, num_videos, parse_choice)
+from ..reuse import (build_messages, gt_choice, letters_of, num_images, num_videos,
+                     parse_choice)
 
 
 class SingleViewMethod(Method):

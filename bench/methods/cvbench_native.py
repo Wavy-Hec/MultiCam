@@ -10,7 +10,7 @@ Method with per-question timing + seed/temperature plumbing.
 """
 from .base import Method, Result, result_fields, think_of
 from .temporal import allocate_frames
-from ..reuse import build_messages, extract_think, gt_choice, letters_of, parse_choice
+from ..reuse import build_messages, gt_choice, letters_of, parse_choice
 
 
 class CVBenchNativeMethod(Method):

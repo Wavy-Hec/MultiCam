@@ -24,8 +24,7 @@ import math
 from decord import VideoReader, cpu
 
 from .base import Method, Result, result_fields, think_of, require_video_record
-from ..reuse import (build_messages, parse_choice, gt_choice, letters_of, video_paths,
-                     extract_think)
+from ..reuse import build_messages, parse_choice, gt_choice, letters_of, video_paths
 
 PREFIX = (
     "The following {K} video clips are INDEPENDENT (different, unrelated scenes) "

@@ -28,14 +28,28 @@ def _by(rows, key):
     return {str(k): _acc(v) for k, v in sorted(g.items(), key=lambda kv: str(kv[0]))}
 
 
+def _per_row(r, key):
+    """r[key] as this row's own share. A row sampled inside a batched call
+    (batch_n set, run_bench --batch-passes) carries the whole call's wall clock
+    as latency_s and counts that call once in num_model_calls, so both are
+    split evenly over the call's batch_n sequences; other rows are returned
+    as they are."""
+    v = r.get(key)
+    if v is None or not r.get("batch_n"):
+        return v
+    return v / r["batch_n"]
+
+
 def summarize(rows):
-    """rows: list of Result dicts (a single method x backend, or pooled)."""
-    lat = [r.get("latency_s") for r in rows if r.get("latency_s") is not None]
+    """rows: list of Result dicts (a single method x backend, or pooled).
+    Latency and calls are per row (``_per_row``), so a batched leg reads on
+    the same scale as an unbatched one and says how many rows were batched."""
+    lat = [v for v in (_per_row(r, "latency_s") for r in rows) if v is not None]
     intok = [r.get("input_tokens") for r in rows if r.get("input_tokens") is not None]
     outtok = [r.get("output_tokens") for r in rows if r.get("output_tokens") is not None]
-    calls = [r.get("num_model_calls") for r in rows if r.get("num_model_calls") is not None]
+    calls = [v for v in (_per_row(r, "num_model_calls") for r in rows) if v is not None]
     n = len(rows)
-    return {
+    out = {
         "n": n,
         "overall": _acc(rows),                       # M1
         "by_task_type": _by(rows, "task_type"),
@@ -54,6 +68,12 @@ def summarize(rows):
         "abstain_rate": (sum(1 for r in rows if r.get("abstained")) / n if n else None),  # M4
         "errors": sum(1 for r in rows if r.get("error")),
     }
+    # batched = a call of two or more sequences (an error row of a one-sequence
+    # call could once stamp batch_n 1)
+    batched = sum(1 for r in rows if (r.get("batch_n") or 0) > 1)
+    if batched:   # absent on unbatched legs, whose summary is unchanged
+        out["batched_rows"] = batched
+    return out
 
 
 def summarize_by_method_backend(rows):
@@ -150,9 +170,13 @@ def format_summary(rows):
                    if ov["total"] else "  (no rows)")
         if lat["p50"] is not None:
             out.append(f'  latency_s: p50={lat["p50"]:.1f} p95={lat["p95"]:.1f} mean={lat["mean"]:.1f}')
+        if s.get("batched_rows"):
+            out.append(f'  batched: {s["batched_rows"]}/{s["n"]} rows; their latency_s and '
+                       "calls are the call's / batch_n")
         if s["tokens"]["input_mean"] is not None:
+            calls = s["tokens"]["calls_mean"]
             out.append(f'  tokens: in~{s["tokens"]["input_mean"]:.0f} out~{s["tokens"]["output_mean"]:.0f} '
-                       f'calls~{s["tokens"]["calls_mean"]:.1f}')
+                       + (f'calls~{calls:.3f}' if s.get("batched_rows") else f'calls~{calls:.1f}'))
         out.append("  by task_type: " + ", ".join(
             f'{k} {v["correct"]}/{v["total"]}' for k, v in s["by_task_type"].items()))
     return "\n".join(out)

@@ -162,7 +162,9 @@ def main():
                         {"type": "video", "video": vp, "nframes": args.nframes},
                         {"type": "text", "text": SUMMARY_PROMPT}]}],
                     max_new_tokens=args.max_new_tokens, seed=None, temperature=0.0)
-                row.update(summary=g.text.strip(), latency_s=round(g.latency_s, 3),
+                # the reply, not a native thinking trace before it: the same
+                # span SummarySelectMethod's live fallback stores
+                row.update(summary=g.answer_span.strip(), latency_s=round(g.latency_s, 3),
                            input_tokens=g.input_tokens, output_tokens=g.output_tokens)
             except Exception as e:   # record + move on; --retry-errors re-attempts
                 row["error"] = f"{type(e).__name__}: {e}"

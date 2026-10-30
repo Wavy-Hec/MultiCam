@@ -54,7 +54,7 @@ from .base import Method, Result, result_fields, think_of, require_video_record
 # the selected clips reuses allocate_frames.
 from .temporal import allocate_frames, PREFIX, MARKER, SPLIT_DESC
 from ..reuse import (build_messages, parse_choice, gt_choice, letters_of, video_paths,
-                     extract_think, MAX_SLOTS)
+                     MAX_SLOTS)
 
 
 def clip_scores(clip_bundle, text, pil_frames, batch=32, return_image_embs=False):
@@ -63,7 +63,7 @@ def clip_scores(clip_bundle, text, pil_frames, batch=32, return_image_embs=False
     logit, so it ranks identically for both families. (Relocated from the
     retired frame-level adaptive ablation, whose result — motion −6.4 pts,
     CLIP-frames tie vs uniform — is archived in git history:
-    ``git show 6ef38ac^:analysis/adaptive_frames_experiment.md`` §B.)
+    ``git show c507875^:analysis/adaptive_frames_experiment.md`` §B.)
 
     ``return_image_embs``: also return the L2-normalized per-frame image
     embeddings ``[n_frames, dim]`` (as ``(sims, embs)``) — segment_select

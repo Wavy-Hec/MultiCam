@@ -3,11 +3,11 @@
 A ``Method`` is an *architecture* (how the camera streams are fed to a model);
 a ``Backend`` is the underlying VLM. ``Method.answer(rec, video_root)`` returns
 a ``Result`` carrying the prediction plus the latency / token / calibration
-metrics (M1-M4; the spec doc left the repo — ``git show 6ef38ac^:bench/bench_spec.md``).
+metrics (M1-M4; the spec doc left the repo — ``git show c507875^:bench/bench_spec.md``).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from typing import Optional
 
 from ..reuse import extract_think, num_images, num_videos
@@ -33,6 +33,11 @@ class GenOut:
     # sequences (passes, or passes of several prompts); latency_s is then that
     # call's wall clock
     batch_n: Optional[int] = None
+    # batched calls only: the one seed the call ran under (a hash of its
+    # prompts and pass labels, backends/qwen.call_seed) and this sequence's
+    # row among its batch_n; None = a call of its own, seeded with its seed
+    call_seed: Optional[int] = None
+    batch_slot: Optional[int] = None
 
     @property
     def answer_span(self):
@@ -83,16 +88,22 @@ class Result:
     video_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     num_model_calls: int = 1
-    # >1: this pass was sampled inside one batched call with batch_n - 1 sibling
-    # passes of the same prompt (GenOut.batch_n); latency_s is that call's wall
-    # clock, so its GPU time per row is latency_s / batch_n. None = its own call
+    # >1: this pass was sampled inside one batched call of batch_n sequences
+    # (GenOut.batch_n): its other passes and, under --batch-questions, other
+    # prompts' passes. latency_s is that call's wall clock, so its GPU time per
+    # row is latency_s / batch_n. None = its own call
     batch_n: Optional[int] = None
+    # batched rows: the seed the whole call ran under and this row's slot in it
+    # (GenOut.call_seed / batch_slot); `seed` is then only the pass label.
+    # None = its own call, seeded with `seed`
+    call_seed: Optional[int] = None
+    batch_slot: Optional[int] = None
     # 'after_think' when the prediction was parsed from the reply after the
     # native thinking block (GenOut.parsed_from); None = whole response_text
     parsed_from: Optional[str] = None
     # reasoning/audit (set by every method on success; None on legacy rows/errors)
     response_text: Optional[str] = None    # raw g.text (full <think>...<answer> trace)
-    think: Optional[str] = None            # extract_think(g.text)
+    think: Optional[str] = None            # think_of(g): the reasoning trace
     frame_alloc: Optional[dict] = None     # frame-audit methods: per-clip durations +
                                            # allocated frame counts; per_stream: the
                                            # per-view perception_texts
@@ -143,6 +154,14 @@ class Backend:
 
     ``generate`` accepts a ``seed`` and ``temperature`` so the 4-pass protocol
     can vary the decoding sampling while holding the (deterministic) frames fixed.
+
+    Optional, and found by hasattr in run_bench: ``generate_n(messages,
+    max_new_tokens, *, seeds, temperature)`` samples len(seeds) passes of one
+    prompt in one call, and ``generate_many(messages_list, ...)`` those passes
+    for several prompts, one list of GenOut per prompt (--batch-passes /
+    --batch-questions). ``decode``, a JSON-able dict of the sampling and
+    chat-template settings (or None), is stamped on every row and compared on
+    resume; a backend without it stamps None.
     """
     name = "backend"
 

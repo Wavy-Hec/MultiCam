@@ -9,8 +9,8 @@ are built once and cached, so the 4 sampling passes reuse identical pixels.
 """
 from .base import Method, Result, result_fields, think_of
 from .stitch import build_image_montage, build_montages
-from ..reuse import (build_messages, extract_think, gt_choice, image_paths,
-                     letters_of, num_images, parse_choice, video_paths)
+from ..reuse import (build_messages, gt_choice, image_paths, letters_of,
+                     num_images, parse_choice, video_paths)
 
 # "camera" — MEVA-style synchronized multi-view (default, unchanged).
 MONTAGE_PREFIX_CAMERA = (

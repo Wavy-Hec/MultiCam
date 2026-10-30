@@ -12,10 +12,12 @@ third is "answerable through text alone", so besides raw accuracy this reports:
   * chance: mean 1/n_options over the harness's own letter set (letters_for);
   * key floors per stratum of (task type, answer space) — Yes/No questions
     answer "Yes"/"No", lettered ones a letter from their own set (A-B or
-    A-D), so two strata never share an answer space: the in-sample modal-gold rate (an upper bound on any
-    task-conditioned letter guesser) and its leave-one-out version with ties
-    split evenly (a stratum with no other question scores chance), plus the
-    "pick the longest option" rule on lettered questions (ties split);
+    A-D), so two strata never share an answer space: the in-sample
+    modal-gold rate (an upper bound on any task-conditioned letter guesser)
+    and its leave-one-out version. In both a tie for the modal answer is
+    split evenly (1/m when the gold is one of m tied answers), and on the
+    leave-one-out side a question alone in its stratum scores chance. Plus
+    the "pick the longest option" rule on lettered questions (ties split);
   * the leg's BIAS NULL: within each stratum the questions' whole pass-sets of
     predictions are permuted. That keeps the model's answer distribution AND
     its within-question consistency, and breaks only the link between a
@@ -27,7 +29,10 @@ third is "answerable through text alone", so besides raw accuracy this reports:
         not              0 passes right,
         error            every pass errored,
     with the count of text-answerable questions expected under (a) pure
-    guessing at chance and (b) the bias null, so the count is luck-subtracted.
+    guessing at chance and (b) the bias null, as baselines for the count.
+    Every question needs 4 usable (non-error) rows: on fewer, k/n >= 0.75
+    relaxes the rule (2 of 2 would pass), so such a leg is refused unless
+    --allow-partial asks to label those questions on the rows they have.
     Each text-answerable question is split by whether its majority answer is
     its stratum's modal prediction computed WITHOUT it (a default the model
     gives anyway) or a departure from it (the most direct evidence of a
@@ -36,39 +41,76 @@ third is "answerable through text alone", so besides raw accuracy this reports:
     convert_cvbench.py --order O2): the same tables for O2, and a BOTH-ORDERS
     label — text-answerable in O1 and in O2 — with its own chance and
     bias-null expectations. A letter-position preference cannot pass both
-    orders, so this is the strict text-answerable set on lettered questions;
+    orders (except on cvb-996, whose packed options O2 keeps as is), so this
+    is the strict text-answerable set on lettered questions;
     a Yes/No answer is a word, so a Yes/No habit passes both, and the label
-    is also split by format. The both-orders bias null comes two ways:
-    independent (each order's pass-sets permuted separately) and paired (one
-    permutation moves a question's O1 and O2 pass-sets together, which keeps
-    habits that hold across orders: the conservative baseline);
+    is also split by format (convert_cvbench.py describes the 48 questions
+    whose reversed options point at other positions). The both-orders bias
+    null comes two ways: independent (each order's pass-sets permuted
+    separately) and paired (one permutation moves a question's O1 and O2
+    pass-sets together, which keeps habits that hold across orders: the
+    conservative baseline);
   * trace hygiene: rows whose answer was parsed from the whole text although
     the leg thinks natively (parsed_from != after_think: the trace never closed
     its thinking block, usually the token cap), and how many sit at the leg's
     longest output.
 
+Every null is --permutations draws (default 100,000) from
+numpy.random.default_rng(--seed), in blocks of draws; its 95% range is the
+2.5th / 97.5th percentile of the sorted draws and p = (1 + draws >= observed)
+/ (B + 1), so 1 / (B + 1) is the floor. p is stored to 5 decimals (from
+200,000 draws on, the floor rounds to 0.0); draws_ge_observed_* is the exact
+count. Percentages computed from counts are exact fractions rounded half-up,
+where round() on a binary float sends some ties down; per-pass and sighted
+accuracies keep their counts beside them.
+
+The JSON opens with a provenance block: argv, the row and subset files with
+their sha256, seed, draws, generator and this script's git blob id. A path
+inside the checkout is stored relative to it, any other path as its file
+name alone (its sha256 still identifies it); argv's path values, the part
+after LABEL= / NAME= and the --json path included, follow the same rule.
+
+A leg is checked before its rows are deduplicated on (id, method, backend,
+pass_idx), which a second TAG of the same questions shares: its rows must
+come from one run TAG (file name without the shard suffix), one decode stamp
+and one backend, and their `dataset` stamp must name the subset they are
+scored against (O1 rows against --subset, O2 rows against --subset-o2).
+Each row's stored `correct` must also agree with its prediction against that
+subset's gold, compared as the blind arm compares them, so a subset
+regenerated under its old name with another key is refused, not mixed in.
+Every input is read, the --json path checked and its directory created
+before the first table.
+
 --sighted LABEL=GLOB crosses each sighted (method, backend) leg's per-question
-passes-correct with the blind label. --slice NAME=IDS.json repeats the headline
-on a list of question ids (strings 'cvb-<n>', ints, or records with an 'id').
+passes-correct with the blind label (one run TAG per glob). --slice
+NAME=IDS.json repeats the headline on a list of question ids (strings
+'cvb-<n>', ints, or records with an 'id'): the O1 summary, and with
+--blind-o2 the O2 one under the slice's "O2" key.
 
-Writes only the --json path; stdout otherwise, and --help writes nothing.
+Writes only the --json path (and its directory); stdout otherwise, and --help
+writes nothing.
 
-Run (no GPU, no videos needed):
+Run (no GPU, no videos needed), once per leg: TAG _q38bm (thinking) and _q38nt
+(the no-thinking control):
   python3 analysis/cvbench_text_answerability.py \\
-      --blind 'bench/results/bench_cvbench_full_runnable_subset_cvbench_q38bd_shard*.jsonl' \\
-      --blind-o2 'bench/results/bench_cvbench_full_runnable_subset_o2_cvbench_q38bd_shard*.jsonl' \\
-      --json analysis/records/cvbench_text_answerability_q38bd.json
+      --blind 'bench/results/bench_cvbench_full_runnable_subset_cvbench_q38bm_shard*.jsonl' \\
+      --blind-o2 'bench/results/bench_cvbench_full_runnable_subset_o2_cvbench_q38bm_shard*.jsonl' \\
+      --json analysis/records/cvbench_text_answerability_q38bm.json
 """
 import argparse
 import glob
+import hashlib
 import json
 import math
 import os
-import random
 import re
 import sys
 from collections import Counter, defaultdict
+from decimal import ROUND_HALF_UP, Decimal, localcontext
+from fractions import Fraction
 from statistics import mean, pstdev
+
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -84,6 +126,9 @@ _CLIP = re.compile(r"videos?(?:\s*id)?\s*\d+", re.IGNORECASE)
 _REF_WORDS = re.compile(r"\b(?:both|neither|none|all|only|of|the|them|above|and|nor|or)\b",
                         re.IGNORECASE)
 MIN_STRATUM = 5
+PASSES = 4                       # the pass count the >= 3-of-4 label is defined on
+CHUNK = 10_000                   # null draws per block: memory ~ CHUNK x questions
+GENERATOR = "numpy.random.default_rng/" + type(np.random.default_rng(0).bit_generator).__name__
 
 
 def ref_body(body):
@@ -109,9 +154,18 @@ def video_ref_options(rec):
     return len(bodies) > 1 and all(ref_body(b) for b in bodies)
 
 
-def load_rows(patterns):
+def run_stem(path):
+    """The run a result file belongs to: its name without the shard suffix
+    (bench_<subset>_<ENV><TAG>, as run_bench.sbatch names it), shared by every
+    shard of one TAG and by no two TAGs."""
+    return re.sub(r"(?:_shard\d+)?\.jsonl$", "", os.path.basename(path))
+
+
+def read_rows(patterns):
+    """(files, [(file, row)], torn lines) for every row the globs match, in
+    file order and before any deduplication."""
     files = sorted({f for p in patterns for f in glob.glob(p) if not f.endswith("_summary.json")})
-    rows, torn, dups, seen = [], 0, 0, set()
+    rows, torn = [], 0
     for f in files:
         with open(f) as fh:
             for line in fh:
@@ -122,13 +176,27 @@ def load_rows(patterns):
                 except json.JSONDecodeError:
                     torn += 1
                     continue
-                key = (r.get("id"), r.get("method"), r.get("backend"), r.get("pass_idx"))
-                if key in seen:
-                    dups += 1
-                    continue
-                seen.add(key)
-                rows.append(r)
-    return files, rows, torn, dups
+                rows.append((f, r))
+    return files, rows, torn
+
+
+def dedup(rows):
+    """The first row per (id, method, backend, pass_idx), and how many were dropped."""
+    out, seen = [], set()
+    for r in rows:
+        key = (r.get("id"), r.get("method"), r.get("backend"), r.get("pass_idx"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    return out, len(rows) - len(out)
+
+
+def blind_correct(r, gold):
+    """`correct` as the blind arm sets it (bench/methods/blind.py): the
+    prediction against the gold, both stripped and upper-cased; False on an
+    error row."""
+    return not r.get("error") and (r.get("prediction") or "").strip().upper() == gold.strip().upper()
 
 
 def question_meta(rec):
@@ -146,38 +214,40 @@ def stratum(m):
 
 
 def longest_option_hit(rec, meta):
-    """Expected hit of 'pick the longest option' (ties split), None on Yes/No
-    and on malformed rows whose options do not map one-to-one onto letters."""
+    """Expected hit of 'pick the longest option' (ties split) as an exact
+    fraction, None on Yes/No and on malformed rows whose options do not map
+    one-to-one onto letters."""
     if meta["yn"] or len(rec["options"]) != len(meta["letters"]):
         return None
     lens = [len(_PREFIX.sub("", o, count=1).strip()) for o in rec["options"]]
     top = max(lens)
     tied = [meta["letters"][i] for i, n in enumerate(lens) if n == top]
-    return (1.0 / len(tied)) if meta["gold"] in tied else 0.0
+    return Fraction(1, len(tied)) if meta["gold"] in tied else Fraction(0)
 
 
 def key_floors(metas, ids):
     """(in-sample, leave-one-out) modal-gold hit rates per (task, format)
-    stratum learned over the WHOLE pool and scored on `ids`; ties split, and a
-    question alone in its stratum scores chance on the leave-one-out side."""
+    stratum learned over the WHOLE pool and scored on `ids`, as exact
+    fractions; ties split, and a question alone in its stratum scores chance
+    on the leave-one-out side."""
     by = defaultdict(Counter)
     for m in metas.values():
         by[stratum(m)][m["gold"].upper()] += 1
-    ins = loo = 0.0
+    ins = loo = Fraction(0)
     for q in ids:
         m = metas[q]
         c, g = by[stratum(m)], m["gold"].upper()
         top = max(c.values())
         modal = [k for k, v in c.items() if v == top]
-        ins += (1.0 / len(modal)) if g in modal else 0.0
+        ins += Fraction(1, len(modal)) if g in modal else 0
         c2 = c.copy()
         c2[g] -= 1
         if sum(c2.values()) == 0:
-            loo += m["chance"]
+            loo += Fraction(1, len(m["space"]))
             continue
         top2 = max(c2.values())
         modal2 = [k for k, v in c2.items() if v == top2]
-        loo += (1.0 / len(modal2)) if g in modal2 else 0.0
+        loo += Fraction(1, len(modal2)) if g in modal2 else 0
     return ins / len(ids), loo / len(ids)
 
 
@@ -190,37 +260,84 @@ def need(n):
     return math.ceil(0.75 * n) if n else 0
 
 
+def half_up(x, places=2):
+    """An exact number (int or Fraction) rounded half-up to `places` decimals.
+    round() on a binary float sends some ties down: round(2.675, 2) is 2.67
+    (2.675 is no float) and round(0.125, 2) is 0.12 (half to even)."""
+    if isinstance(x, float):
+        raise TypeError("half_up() takes an exact number (int or Fraction), not a float")
+    x = Fraction(x)
+    with localcontext() as ctx:
+        ctx.prec = 60                       # no quotient of counts this size can cross a tie
+        d = Decimal(x.numerator) / Decimal(x.denominator)
+    return float(d.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP))
+
+
 def pct(x):
-    return None if x is None else round(100.0 * x, 2)
+    """An exact ratio (int or Fraction) as a percentage, 2 dp, half-up."""
+    return None if x is None else half_up(100 * x)
 
 
 class Leg:
-    """One blind leg over one subset: rows per question (error rows kept apart)."""
+    """One blind leg over one subset: rows per question (error rows kept apart).
 
-    def __init__(self, subset, patterns, name):
+    Refused before its rows are deduplicated (a second TAG or decode of the
+    same questions shares every dedup key, so its rows would silently vanish):
+    rows from more than one run TAG, decode stamp or backend, and rows whose
+    `dataset` stamp names another subset (O1 rows scored against O2's gold, or
+    the reverse). Also refused: rows whose stored `correct` disagrees with
+    blind_correct against the subset's gold (a key regenerated under the same
+    name) and, unless allow_partial, a question with fewer than PASSES usable
+    (non-error) rows."""
+
+    def __init__(self, subset, patterns, name, allow_partial=False):
         self.name = name
-        self.recs = {r["id"]: r for r in json.load(open(subset))}
+        with open(subset, encoding="utf-8") as fh:
+            self.recs = {r["id"]: r for r in json.load(fh)}
         self.metas = {q: question_meta(r) for q, r in self.recs.items()}
-        self.files, rows, self.torn, self.dups = load_rows(patterns)
-        rows = [r for r in rows if r.get("method") == "blind"]
-        if not rows:
+        self.files, raw, self.torn = read_rows(patterns)
+        raw = [(f, r) for f, r in raw if r.get("method") == "blind"]
+        if not raw:
             raise SystemExit(f"{name}: no blind rows in {patterns}")
-        self.backends = sorted({r.get("backend") for r in rows})
-        self.decodes = sorted({json.dumps(r.get("decode"), sort_keys=True) for r in rows})
+        stems = sorted({run_stem(f) for f, _ in raw})
+        self.backends = sorted({r.get("backend") for _, r in raw})
+        self.decodes = sorted({json.dumps(r.get("decode"), sort_keys=True) for _, r in raw})
+        if len(stems) > 1:
+            raise SystemExit(f"{name}: blind rows come from {len(stems)} runs {stems}; "
+                             "pass one leg (one TAG) at a time")
         if len(self.backends) > 1:
             raise SystemExit(f"{name}: blind rows mix backends {self.backends}; pass one leg at a time")
         if len(self.decodes) > 1:
             raise SystemExit(f"{name}: blind rows mix decode settings {self.decodes}; "
                              "pass one leg (one TAG) at a time")
+        want = os.path.splitext(os.path.basename(subset))[0]
+        other = sorted({str(r["dataset"]) for _, r in raw if r.get("dataset") not in (None, want)})
+        if other:
+            raise SystemExit(f"{name}: rows stamp dataset {other} but are scored against {subset}; "
+                             "O1 and O2 swapped?")
+        rows, self.dups = dedup([r for _, r in raw])
         stray = sorted({r["id"] for r in rows} - set(self.recs))
         if stray:
             raise SystemExit(f"{name}: {len(stray)} row id(s) not in {subset}, e.g. {stray[:3]}")
+        # rows keep their own `correct`, the nulls and floors use the subset's
+        # gold: a key changed under the same name would mix the two
+        rekeyed = sorted({r["id"] for _, r in raw
+                          if (r.get("correct") is True) != blind_correct(r, self.metas[r["id"]]["gold"])})
+        if rekeyed:
+            raise SystemExit(f"{name}: {len(rekeyed)} question(s) have rows whose stored `correct` disagrees "
+                             f"with their prediction against the gold in {subset}, e.g. {rekeyed[:3]}; "
+                             "was the subset regenerated with another key under the same name?")
         self.rows = {q: {} for q in self.recs}          # every row, for accuracy
         for r in rows:
             self.rows[r["id"]][r.get("pass_idx")] = r
         self.ids = [q for q in self.recs if self.rows[q]]
         self.ok = {q: {pi: r for pi, r in self.rows[q].items() if not r.get("error")}
                    for q in self.ids}                   # non-error rows, for k-of-n
+        self.short = [q for q in self.recs if len(self.ok.get(q, ())) < PASSES]
+        if self.short and not allow_partial:
+            raise SystemExit(f"{name}: {len(self.short)} question(s) have fewer than {PASSES} usable "
+                             f"(non-error) rows, e.g. {self.short[:3]}, and k/n >= 0.75 on fewer passes "
+                             "relaxes the label; pass --allow-partial to label them on the rows they have")
         self.thinking = json.loads(self.decodes[0] or "null") or {}
         self.thinking = self.thinking.get("enable_thinking") is not False and \
             self.thinking.get("answer_after_think", False)
@@ -237,23 +354,95 @@ class Leg:
             return "text-answerable"
         return "not" if k == 0 else "unstable"
 
-    def pass_accs(self, ids):
-        """Per-pass accuracy over `ids`, error rows counted wrong (bench/metrics.py)."""
-        by_pass = defaultdict(list)
+    def pass_counts(self, ids):
+        """{pass: (correct, rows)} over `ids`, error rows counted wrong (bench/metrics.py)."""
+        cnt = defaultdict(lambda: [0, 0])
         for q in ids:
             for pi, r in self.rows[q].items():
-                by_pass[pi].append(1.0 if r.get("correct") is True else 0.0)
-        return {pi: mean(v) for pi, v in sorted(by_pass.items()) if v}
+                cnt[pi][0] += r.get("correct") is True
+                cnt[pi][1] += 1
+        return {pi: tuple(cnt[pi]) for pi in sorted(cnt)}
+
+    def pass_accs(self, ids):
+        """Per-pass accuracy over `ids` as exact fractions."""
+        return {pi: Fraction(c, n) for pi, (c, n) in self.pass_counts(ids).items()}
 
     def predsets(self, ids):
         return {q: [r.get("prediction", "") for _, r in sorted(self.ok[q].items())] for q in ids}
 
 
 def mstd(accs):
+    """Mean and population SD over passes of per-pass accuracies given as
+    exact fractions: the mean exact and rounded half-up, the SD a float."""
     v = list(accs.values())
     if not v:
         return {"mean": None, "std": None, "n_passes": 0}
-    return {"mean": pct(mean(v)), "std": pct(pstdev(v)) if len(v) > 1 else 0.0, "n_passes": len(v)}
+    sd = round(100.0 * pstdev([float(a) for a in v]), 2) if len(v) > 1 else 0.0
+    return {"mean": pct(sum(v) / len(v)), "std": sd, "n_passes": len(v)}
+
+
+def null_draws(legs, ids, B, seed, paired=False):
+    """The observed (correct passes of leg 0, questions text-answerable in
+    every leg) and B null draws of each as numpy arrays; see permutation_null.
+
+    Per stratum, donor j's outcome for receiver i (its passes matching i's
+    gold; whether they clear need()) is tabled once, and each block of draws
+    permutes donors within strata with numpy.random.default_rng(seed)."""
+    rng = np.random.default_rng(seed)
+    sets = [leg.predsets(ids) for leg in legs]
+    golds = [{q: leg.metas[q]["gold"].strip().upper() for q in ids} for leg in legs]
+    votes = [{q: Counter(p.strip().upper() for p in s[q]) for q in ids} for s in sets]
+
+    def hits(li, q, src):                   # donor src's passes on q's gold, leg li
+        return votes[li][src][golds[li][q]]
+
+    def passes(li, q, src):                 # ... and whether they label q text-answerable
+        n = len(sets[li][src])
+        return n > 0 and hits(li, q, src) >= need(n)
+
+    # permutation groups, independent of one another: (the legs that share
+    # the group's permutation, its strata)
+    if paired:
+        st = defaultdict(list)
+        for q in ids:
+            if all(s[q] for s in sets):
+                st[tuple(stratum(leg.metas[q]) for leg in legs)].append(q)
+        groups = [(range(len(legs)), list(st.values()))]
+    else:
+        groups = []
+        for li, leg in enumerate(legs):
+            st = defaultdict(list)
+            for q in ids:
+                if sets[li][q]:
+                    st[stratum(leg.metas[q])].append(q)
+            groups.append(([li], list(st.values())))
+    col = {q: i for i, q in enumerate(ids)}
+    tables = []
+    for shared, strata in groups:
+        tables.append([(np.array([col[q] for q in g]),
+                        np.array([[hits(0, q, s) for s in g] for q in g], np.int64) if 0 in shared else None,
+                        np.array([[all(passes(li, q, s) for li in shared) for s in g] for q in g], bool))
+                       for g in strata])
+
+    obs_tot = sum(hits(0, q, q) for q in ids if sets[0][q])
+    obs_ta = sum(all(passes(li, q, q) for li in range(len(legs))) for q in ids)
+    null_tot, null_ta = np.empty(B, np.int64), np.empty(B, np.int64)
+    for lo in range(0, B, CHUNK):
+        c = min(CHUNK, B - lo)
+        tot = np.zeros(c, np.int64)
+        ta = np.ones((c, len(ids)), bool)           # text-answerable in every leg so far
+        for tabs in tables:
+            got = np.zeros((c, len(ids)), bool)
+            for cols, h, t in tabs:
+                ar = np.arange(len(cols))
+                donor = rng.permuted(np.broadcast_to(ar, (c, len(ar))), axis=1)
+                if h is not None:
+                    tot += h[ar, donor].sum(axis=1)
+                got[:, cols] = t[ar, donor]
+            ta &= got
+        null_tot[lo:lo + c] = tot
+        null_ta[lo:lo + c] = ta.sum(axis=1)
+    return obs_tot, obs_ta, null_tot, null_ta
 
 
 def permutation_null(legs, ids, B, seed, paired=False):
@@ -264,65 +453,31 @@ def permutation_null(legs, ids, B, seed, paired=False):
     Observed and null totals of correct passes (leg 0) and of text-answerable
     questions — in every leg at once when several legs are given (the
     both-orders label) — with 2.5/97.5 percentiles and one-sided p values."""
-    rng = random.Random(seed)
-    sets = [leg.predsets(ids) for leg in legs]
-    golds = [{q: leg.metas[q]["gold"].strip().upper() for q in ids} for leg in legs]
-    strata = [defaultdict(list) for _ in legs]
-    if paired:
-        for q in ids:
-            if all(s[q] for s in sets):
-                strata[0][tuple(stratum(leg.metas[q]) for leg in legs)].append(q)
-        strata = strata[:1]
-    else:
-        for li, leg in enumerate(legs):
-            for q in ids:
-                if sets[li][q]:
-                    strata[li][stratum(leg.metas[q])].append(q)
+    obs_tot, obs_ta, null_tot, null_ta = null_draws(legs, ids, B, seed, paired)
 
-    def score(assigns):
-        tot, ta = 0, 0
-        for q in ids:
-            all_ta = True
-            for li in range(len(legs)):
-                src = assigns[li].get(q)
-                ps = sets[li][src] if src is not None else []
-                k = sum(1 for p in ps if p.strip().upper() == golds[li][q])
-                if li == 0:
-                    tot += k
-                all_ta &= bool(ps) and k >= need(len(ps))
-            ta += all_ta
-        return tot, ta
+    def tail(obs, null):
+        srt = np.sort(null)
+        at = lambda f: int(srt[min(B - 1, int(f * B))])
+        ge = int((null >= obs).sum())
+        return (half_up(Fraction(int(null.sum()), B)), [at(0.025), at(0.975)],
+                round((1 + ge) / (B + 1), 5), ge)
 
-    ident = [{q: q for q in ids if sets[li][q]} for li in range(len(legs))]
-    obs_tot, obs_ta = score(ident)
-    null_tot, null_ta = [], []
-    for _ in range(B):
-        assigns = []
-        for st in strata:
-            a = {}
-            for g in st.values():
-                perm = g[:]
-                rng.shuffle(perm)
-                a.update(zip(g, perm))
-            assigns.append(a)
-        if paired:
-            assigns = assigns * len(legs)
-        t, n_ta = score(assigns)
-        null_tot.append(t)
-        null_ta.append(n_ta)
-    null_tot.sort()
-    null_ta.sort()
-    q = lambda xs, f: xs[min(len(xs) - 1, int(f * len(xs)))]
+    m_c, r_c, p_c, ge_c = tail(obs_tot, null_tot)
+    m_t, r_t, p_t, ge_t = tail(obs_ta, null_ta)
     return {
         "observed_correct": obs_tot,
-        "null_mean_correct": round(mean(null_tot), 2),
-        "null_95_correct": [q(null_tot, 0.025), q(null_tot, 0.975)],
-        "p_correct": round((1 + sum(1 for t in null_tot if t >= obs_tot)) / (B + 1), 5),
+        "null_mean_correct": m_c,
+        "null_95_correct": r_c,
+        "p_correct": p_c,
         "observed_text_answerable": obs_ta,
-        "null_mean_text_answerable": round(mean(null_ta), 2),
-        "null_95_text_answerable": [q(null_ta, 0.025), q(null_ta, 0.975)],
-        "p_text_answerable": round((1 + sum(1 for t in null_ta if t >= obs_ta)) / (B + 1), 5),
+        "null_mean_text_answerable": m_t,
+        "null_95_text_answerable": r_t,
+        "p_text_answerable": p_t,
         "B": B,
+        "draws_ge_observed_correct": ge_c,
+        "draws_ge_observed_text_answerable": ge_t,
+        "seed": seed,
+        "generator": GENERATOR,
     }
 
 
@@ -334,16 +489,18 @@ def summarize(leg, ids, args, with_null=True):
         exp_chance += p_at_least(need(n), n, leg.metas[q]["chance"]) if n else 0.0
     lof = [x for x in (longest_option_hit(leg.recs[q], leg.metas[q]) for q in ids) if x is not None]
     ins, loo = key_floors(leg.metas, ids) if ids else (None, None)
+    counts = leg.pass_counts(ids)
     out = {
         "n_questions": len(ids),
         "n_rows": sum(len(leg.rows[q]) for q in ids),
         "n_correct": sum(1 for q in ids for r in leg.rows[q].values() if r.get("correct") is True),
         "accuracy": mstd(leg.pass_accs(ids)),
-        "per_pass": {str(k): pct(v) for k, v in leg.pass_accs(ids).items()},
-        "chance": pct(mean(leg.metas[q]["chance"] for q in ids)) if ids else None,
+        "per_pass": {str(k): pct(Fraction(c, n)) for k, (c, n) in counts.items()},
+        "per_pass_counts": {str(k): [c, n] for k, (c, n) in counts.items()},
+        "chance": pct(sum(Fraction(1, len(leg.metas[q]["space"])) for q in ids) / len(ids)) if ids else None,
         "key_floor_insample": pct(ins),
         "key_floor_loo": pct(loo),
-        "longest_option": {"acc": pct(mean(lof)) if lof else None, "n": len(lof)},
+        "longest_option": {"acc": pct(sum(lof) / len(lof)) if lof else None, "n": len(lof)},
         "abstained_rows": sum(1 for q in ids for r in leg.rows[q].values()
                               if r.get("abstained") and not r.get("error")),
         "error_rows": sum(1 for q in ids for r in leg.rows[q].values() if r.get("error")),
@@ -438,6 +595,9 @@ def report_leg(leg, args):
     if max(passes) < 4:
         print(f"  WARNING: at most {max(passes)} pass(es) per question - the k-of-4 labels and the "
               "text-answerable counts below are not meaningful yet")
+    if leg.short:
+        print(f"  WARNING: --allow-partial: {len(leg.short)} question(s) have fewer than {PASSES} usable "
+              "rows; those with rows are labelled ceil(0.75 n) of the n they have")
     overall = summarize(leg, leg.ids, args)
     print("== overall")
     print(json.dumps(overall, indent=1))
@@ -469,8 +629,9 @@ def report_leg(leg, args):
     hyg, rep = hygiene(leg), reparse(leg)
     print(f"== hygiene: {hyg}")
     print(f"== post-</think> re-parse: {rep}")
-    return dict(files=leg.files, backend=leg.backends[0], decode=leg.decodes,
+    return dict(files=[path_ref(f) for f in leg.files], backend=leg.backends[0], decode=leg.decodes,
                 passes_per_question=dict(passes), torn_lines=leg.torn, duplicate_keys=leg.dups,
+                partial_questions=len(leg.short),
                 overall=overall, per_task=per_task, text_answerable_split=dict(split),
                 video_ref_options=vref_s, hygiene=hyg, reparse=rep, questions=questions)
 
@@ -497,36 +658,160 @@ def both_orders_split(o1, o2, qs, args):
     return out
 
 
-def main():
+def sha256_of(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def git_blob(path):
+    """The blob id `git hash-object` prints for a file checked out with LF line ends."""
+    with open(path, "rb") as fh:
+        data = fh.read()
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+def path_ref(path):
+    """A path (or glob) as the JSON stores it, in the provenance block and in
+    each order's `files`: relative to the repo when inside the checkout, else
+    its file name alone, so no user's home or scratch directory reaches the
+    JSON."""
+    p = os.path.abspath(path)
+    rel = os.path.relpath(p, REPO)
+    return os.path.basename(p) if rel == os.pardir or rel.startswith(os.pardir + os.sep) else rel
+
+
+def file_ref(path):
+    """{path (path_ref), sha256}: the hash still identifies a file outside the checkout."""
+    return {"path": path_ref(path), "sha256": sha256_of(path)}
+
+
+# the options whose values are paths or globs: True for a LABEL=<path> spec
+PATH_OPTS = {"--subset": False, "--blind": False, "--subset-o2": False, "--blind-o2": False,
+             "--sighted": True, "--slice": True, "--json": False}
+
+
+def argv_ref(argv):
+    """argv with every path-valued token through path_ref: the script, and a
+    path option's value given as '--opt value' or '--opt=value' (the option
+    abbreviated or not; after LABEL= in a spec). Run on an argv argparse has
+    accepted, so an abbreviation names one option."""
+    def opt(tok):
+        if tok in PATH_OPTS:
+            return tok
+        hits = [o for o in PATH_OPTS if tok.startswith("--") and o.startswith(tok)]
+        return hits[0] if len(hits) == 1 else None
+
+    def ref(o, val):
+        label, eq, p = val.partition("=")
+        return f"{label}={path_ref(p)}" if PATH_OPTS[o] and eq else path_ref(val)
+
+    out, want = [path_ref(argv[0])], None
+    for tok in argv[1:]:
+        if want:
+            out.append(ref(want, tok))
+            want = None
+            continue
+        name, eq, val = tok.partition("=")
+        o = opt(name)
+        out.append(f"{name}={ref(o, val)}" if o and eq else tok)
+        want = o if not eq else None
+    return out
+
+
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--subset", default=SUBSET)
     ap.add_argument("--blind", action="append", required=True,
-                    help="glob of the blind leg's JSONL shards (repeatable)")
+                    help="glob of the blind leg's JSONL shards (repeatable; one TAG)")
     ap.add_argument("--subset-o2", default=SUBSET_O2)
     ap.add_argument("--blind-o2", action="append", default=[],
                     help="glob of the reversed-option (O2) twin leg's shards (repeatable)")
     ap.add_argument("--sighted", action="append", default=[], metavar="LABEL=GLOB",
-                    help="a sighted leg on the same questions (repeatable)")
+                    help="a sighted leg on the same questions (repeatable; one TAG per glob)")
     ap.add_argument("--slice", action="append", default=[], metavar="NAME=IDS.json",
-                    help="repeat the headline on these question ids (repeatable)")
-    ap.add_argument("--permutations", type=int, default=5000)
+                    help="repeat the headline on these question ids, per order (repeatable)")
+    ap.add_argument("--permutations", type=int, default=100_000, help="draws per null")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--allow-partial", action="store_true",
+                    help=f"label a question with fewer than {PASSES} usable rows on the n it has "
+                         "(ceil(0.75 n) of n) instead of refusing the leg")
     ap.add_argument("--json", default=None, help="write every table + per-question labels here")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    o1 = Leg(args.subset, args.blind, "O1")
-    out = {"O1": report_leg(o1, args)}
-    legs = [o1]
+    # every input is read before the first table, so a bad flag fails before any null runs
+    if args.permutations < 1:
+        raise SystemExit("--permutations must be at least 1")
+    if args.seed < 0:
+        raise SystemExit("--seed must be at least 0")
+    if args.json:
+        if os.path.basename(args.json) in ("", os.curdir, os.pardir) or os.path.isdir(args.json):
+            raise SystemExit(f"--json: {args.json} names a directory; give the file to write")
+        if os.path.exists(args.json) and not os.access(args.json, os.W_OK):
+            raise SystemExit(f"--json: {args.json} exists and is not writable")
+        d = os.path.dirname(os.path.abspath(args.json))
+        try:
+            os.makedirs(d, exist_ok=True)
+        except OSError as e:
+            raise SystemExit(f"--json: cannot create {d}: {e}") from e
+        if not os.access(d, os.W_OK):
+            raise SystemExit(f"--json: {d} is not writable")
+    o1 = Leg(args.subset, args.blind, "O1", args.allow_partial)
+    o2 = None
     if args.blind_o2:
-        o2 = Leg(args.subset_o2, args.blind_o2, "O2")
+        o2 = Leg(args.subset_o2, args.blind_o2, "O2", args.allow_partial)
         if set(o2.recs) != set(o1.recs):
             raise SystemExit("--subset-o2 does not hold the same question ids as --subset")
         if o2.backends != o1.backends or o2.decodes != o1.decodes:
             raise SystemExit(f"O1/O2 legs differ in backend or decode: {o1.backends} {o1.decodes} "
                              f"vs {o2.backends} {o2.decodes}")
+    sighted = []
+    for spec in args.sighted:
+        label, _, pat = spec.partition("=")
+        sf, raw, storn = read_rows([pat])
+        if not raw:
+            raise SystemExit(f"--sighted {spec}: no rows match")
+        stems = sorted({run_stem(f) for f, _ in raw})
+        if len(stems) > 1:
+            raise SystemExit(f"--sighted {label}: rows come from {len(stems)} runs {stems}; "
+                             "pass one leg (one TAG) per --sighted")
+        srows, sdups = dedup([r for _, r in raw])
+        if not any(r.get("id") in o1.recs for r in srows):
+            raise SystemExit(f"--sighted {label}: no row is on a question of {args.subset}")
+        sighted.append((label, sf, srows, storn, sdups))
+    slices = []
+    for spec in args.slice:
+        name, _, path = spec.partition("=")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                raw = json.load(fh)
+        except (OSError, ValueError) as e:                 # ValueError: not UTF-8 JSON
+            raise SystemExit(f"--slice {spec}: {e}") from e
+        want = set()
+        for x in raw:
+            x = x["id"] if isinstance(x, dict) else x
+            want.add(x if str(x).startswith("cvb-") else f"cvb-{x}")
+        missing = sorted(want - set(o1.recs))
+        if missing:
+            raise SystemExit(f"slice {name}: {len(missing)} id(s) not in the pool, e.g. {missing[:3]}")
+        slices.append((name, path, want))
+
+    prov = {"argv": argv_ref(sys.argv if argv is None else [sys.argv[0], *argv]),
+            "script": file_ref(__file__), "script_git_blob": git_blob(__file__),
+            "seed": args.seed, "permutations": args.permutations, "generator": GENERATOR,
+            "numpy": np.__version__, "draws_per_block": CHUNK, "allow_partial": args.allow_partial,
+            "subsets": {"O1": file_ref(args.subset)}, "rows": {"O1": [file_ref(f) for f in o1.files]},
+            "sighted": {label: [file_ref(f) for f in sf] for label, sf, *_ in sighted},
+            "slices": {name: file_ref(path) for name, path, _ in slices}}
+    if o2:
+        prov["subsets"]["O2"] = file_ref(args.subset_o2)
+        prov["rows"]["O2"] = [file_ref(f) for f in o2.files]
+    out = {"provenance": prov, "O1": report_leg(o1, args)}
+    if o2:
         out["O2"] = report_leg(o2, args)
-        legs.append(o2)
         both = [q for q in o1.ids if q in set(o2.ids)]
         lab = Counter()
         exp_chance = 0.0
@@ -556,9 +841,7 @@ def main():
         print(f"\n######## BOTH ORDERS: {json.dumps(out['both_orders'], indent=1)}")
 
     out["sighted"] = {}
-    for spec in args.sighted:
-        label, _, pat = spec.partition("=")
-        sf, srows, storn, sdups = load_rows([pat])
+    for label, sf, srows, storn, sdups in sighted:
         legs_s = defaultdict(lambda: defaultdict(dict))
         for r in srows:
             if r.get("id") in o1.recs and not r.get("error"):
@@ -571,42 +854,46 @@ def main():
             cross = {}
             for lab_ in ("text-answerable", "unstable", "not"):
                 qs = [q for q in o1.ids if o1.label(q) == lab_ and sq.get(q)]
-                vals = [mean(1.0 if r.get("correct") is True else 0.0 for r in sq[q].values()) for q in qs]
-                cross[lab_] = {"n": len(qs), "sighted_acc": pct(mean(vals)) if vals else None}
+                hit = [sum(r.get("correct") is True for r in sq[q].values()) for q in qs]
+                n_r = [len(sq[q]) for q in qs]
+                vals = [Fraction(h, n) for h, n in zip(hit, n_r, strict=True)]
+                cross[lab_] = {"n": len(qs), "sighted_acc": pct(sum(vals) / len(vals)) if vals else None,
+                               "sighted_correct": sum(hit), "sighted_rows": sum(n_r)}
             rescue = sum(1 for q in o1.ids if o1.label(q) == "not" and sq.get(q)
                          and sum(r.get("correct") is True for r in sq[q].values()) / len(sq[q]) >= 0.75)
             lost = sum(1 for q in o1.ids if o1.label(q) == "text-answerable" and sq.get(q)
                        and not any(r.get("correct") is True for r in sq[q].values()))
-            by_pass = defaultdict(list)
+            by_pass = defaultdict(lambda: [0, 0])
             for q in o1.ids:
                 for pi, r in sq.get(q, {}).items():
-                    by_pass[pi].append(1.0 if r.get("correct") is True else 0.0)
-            sacc = mstd({pi: mean(v) for pi, v in by_pass.items() if v})
+                    by_pass[pi][0] += r.get("correct") is True
+                    by_pass[pi][1] += 1
+            sacc = mstd({pi: Fraction(c, n) for pi, (c, n) in by_pass.items()})
             out["sighted"][name] = {"files": len(sf), "rows": len(srows), "torn": storn, "dups": sdups,
-                                    "accuracy_on_blind_questions": sacc, "by_blind_label": cross,
+                                    "accuracy_on_blind_questions": sacc,
+                                    "correct_on_blind_questions": sum(c for c, _ in by_pass.values()),
+                                    "rows_on_blind_questions": sum(n for _, n in by_pass.values()),
+                                    "by_blind_label": cross,
                                     "blind_not_but_sighted_ge_0.75": rescue,
                                     "blind_text_answerable_but_sighted_never": lost}
             print(f"== sighted {name}: acc {sacc['mean']}+/-{sacc['std']} over {sacc['n_passes']} passes; "
                   f"by blind (O1) label {cross}; pixels rescue {rescue}; blind-only {lost}")
 
     out["slices"] = {}
-    for spec in args.slice:
-        name, _, path = spec.partition("=")
-        raw = json.load(open(path))
-        want = set()
-        for x in raw:
-            x = x["id"] if isinstance(x, dict) else x
-            want.add(x if str(x).startswith("cvb-") else f"cvb-{x}")
-        missing = sorted(want - set(o1.recs))
-        if missing:
-            raise SystemExit(f"slice {name}: {len(missing)} id(s) not in the pool, e.g. {missing[:3]}")
+    for name, _path, want in slices:
         qs = [q for q in o1.ids if q in want]
         out["slices"][name] = summarize(o1, qs, args)
         print(f"== slice {name}: {len(qs)}/{len(want)} ids with rows: "
               f"acc {out['slices'][name]['accuracy']}, labels {out['slices'][name]['labels']}")
+        if o2:
+            qs = [q for q in o2.ids if q in want]
+            s2 = out["slices"][name]["O2"] = summarize(o2, qs, args)
+            print(f"== slice {name} (O2): {len(qs)}/{len(want)} ids with rows: "
+                  f"acc {s2['accuracy']}, labels {s2['labels']}")
 
     if args.json:
-        json.dump(out, open(args.json, "w"), indent=1)
+        with open(args.json, "w") as fh:
+            json.dump(out, fh, indent=1)
         print(f"\nwrote {args.json}")
 
 

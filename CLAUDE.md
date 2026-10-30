@@ -47,9 +47,12 @@ Slurm had already recorded `WorkDir`, `Command` and `StdOut` under the old absol
 path, and the pending tasks resolved all three through a compat symlink at
 `~/CVBench`, removed on 2026-09-03. The three `.sbatch` files say `$HOME/MultiCam`,
 so anything submitted since the rename was independent of the symlink. The conda
-env is still `cvbench` and the sequential arm is still `cvbench_native` — both are
-keys baked into 241 result filenames (`bench_<subset>_${ENV}<tag>_shard*.jsonl`),
-`registry.json` and `records.jsonl`; renaming either orphans every historical leg.
+env is still `cvbench` and the sequential arm is still `cvbench_native`. The env is in
+every result filename `run_bench.sbatch` builds
+(`bench_<subset>_${ENV}<tag>[_shard<i>].jsonl` and its `_summary.json`), and so in how
+`registry.json` and `records.jsonl` name each leg; the arm is in no filename, but is a
+key (`method`) in the rows, `registry.json` and `records.jsonl`. Renaming either
+orphans every historical leg.
 
 **`bench/reuse.py` imports `eval_thinking` by path.** It does a `sys.path.insert` on
 `Video-R1/src/` so the harness scores identically to the eval entry point. Moving or
@@ -69,9 +72,39 @@ direct-answer template; the `<answer>` tags stay so one parser serves both modes
 Qwen3.8-27B (`BACKENDS=qwen38`) thinks natively whatever the prompt says: its template
 pre-opens `<think>`, so `REASONING=0` alone still thinks, and a no-thinking control
 needs `QWEN_ENABLE_THINKING=0` too (`QWEN_REASONING_EFFORT` sets the effort). Its
-reasoning quotes the prompt's `<answer> and </answer>`, so its answer is parsed from
-the reply after `</think>` (rows stamp `parsed_from`; `rescore_answers.py` honours it)
-and every row stamps the resolved settings as `decode`.
+reasoning quotes the prompt's `<answer> and </answer>`, so when the generation ended on
+an end-of-turn token its answer is parsed from the reply after the last `</think>`
+(rows stamp `parsed_from: after_think`; `rescore_answers.py` honours it). A trace cut
+at `MAX_NEW_TOKENS`, or a reply with no `</think>` — the no-thinking control's template
+closes the block in the prompt — is parsed whole and stamps `parsed_from` null. Every
+row stamps the sampling preset and the two knobs as `decode` (a knob at its template
+default stamps null), and the resume guard reads a file's stamps back in that form
+(`canonical_decode`), so a file whose rows spelled a default explicitly still resumes.
+
+**Batched legs: `seed` is a pass label and `latency_s` is the call's.** With
+`BATCH_PASSES=1` (the blind arm on Qwen) one generate call samples a question's pending
+passes (with `BATCH_QUESTIONS`, several questions' at once); its rows stamp `batch_n`
+(sequences in the call), `call_seed` (the seed the call ran under, a hash of its
+rendered prompts and pass labels) and `batch_slot`, and a stamped `seed` cannot replay
+its pass. `latency_s` is the whole call's wall clock: `bench/metrics.py` divides it by
+`batch_n`; `bench/plots.py` and the record exporter do not. Batched rows from before
+`call_seed` existed — the CVBench `_q38bm`/`_q38nt` legs — ran every call under its
+first pending pass's seed, pass 1's in every call, so each batch slot replayed one noise
+stream across the leg: the no-thinking control's answers are coupled across questions
+and across the two option orders. A batched leg now adds its seeding scheme to `decode`
+as `rng`, so it never resumes those files. The resume guard compares `decode`,
+temperature, reasoning mode and `max_new_tokens` (a row that predates a stamp is not
+compared on it) besides backend, dataset, media and segment identity; `--allow-mixed`
+waives all of it.
+
+**Unbatched passes are coupled across questions too.** Pass p of every question, in
+both option orders, runs under the p-th of `SEEDS` in each of these cases:
+`BATCH_PASSES=0`; every arm but blind on Qwen; InternVL; and a one-sequence call inside
+a batched leg (one pending pass on its own, or an out-of-memory split down to one),
+whose row stamps `batch_n` null. Each pass then replays one noise stream across the
+leg, as each batch slot did in the pre-`call_seed` legs. Only a call of two or more
+sequences draws its own stream (`call_seed`), so a decoupled rerun of the no-thinking
+control needs `BATCH_PASSES=1` with every pass pending.
 
 **`CHUNK` is the shard count, not the shard size.** Sharding is strided
 (`data[offset::chunk]`), so `CHUNK` must equal the array width. Passing a record count

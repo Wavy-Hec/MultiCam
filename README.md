@@ -3,8 +3,8 @@
 Given a question about a scene observed by several cameras, is it better to fuse
 the views into a single model input, or to run the model once per view and reason
 over the text descriptions? This repo benchmarks that question with open
-vision-language models (Qwen3-VL-8B Thinking, Qwen3-VL-8B Instruct,
-Qwen2.5-VL-7B Instruct, InternVL3-8B) across these presentation harnesses:
+vision-language models (Qwen3-VL-8B Thinking, Qwen3-VL-8B Instruct, Qwen2.5-VL-7B
+Instruct, Qwen3.8-27B, InternVL3-8B) across these presentation harnesses:
 
 - **Native** — each view or clip fed sequentially to one model, unmodified.
 - **Centralized (stitch)** — the views are tiled into labeled grid-montage images
@@ -36,8 +36,8 @@ runs keep the models' reasoning traces so failures stay interpretable.
   MEVA views.
 - **CVBench** — cross-video QA over two to four independent clips per question
   (fifteen task types). Its clips are not on disk, so it currently runs text-only
-  (the blind arm), in both option orders, to measure which questions the question
-  and option text alone answer.
+  (the blind arm, Qwen3.8-27B with thinking on and off), in both option orders, to
+  measure which questions the question and option text alone answer.
 
 ## Quick start
 
@@ -45,8 +45,8 @@ Two conda envs are used (`cvbench` for Qwen legs and analysis; `internvl` for
 InternVL3, which needs an older transformers). Benchmark data lives under
 `data/` (untracked); question subsets are JSONs under `analysis/`, produced by
 the converter scripts there (`convert_allangles.py`, `convert_mvueval.py`,
-`convert_crossview.py`, `convert_cvbench.py`). See `analysis/README.md` for which JSON is which and
-what every script there does.
+`convert_crossview.py`, `convert_cvbench.py`). See `analysis/README.md` for which
+JSON is which and what every script there does.
 
 All-Angles-Bench downloads from its HF release; its Ego-Exo4D scenes additionally
 require accepting the Ego-Exo4D license. MVU-Eval downloads from its HF release.
@@ -105,7 +105,7 @@ indexes the rest.
   authors we thank. Everything under `bench/` and `analysis/` is this project's own work.
 
 This repo began as an evaluation harness for the CVBench dataset; that early
-work is archived at tag `cvbench-final`.
+work is archived at commit `27c96b1`.
 
 The shared team harness lives at
 [adihebbalae/multicam-harness](https://github.com/adihebbalae/multicam-harness).
