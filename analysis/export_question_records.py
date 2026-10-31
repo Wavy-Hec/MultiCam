@@ -368,18 +368,29 @@ LEGS = [
     # Batched before call_seed existed: every call ran under pass 1's seed, so
     # passes are coupled across questions and option orders (CLAUDE.md); the
     # decode stamp carries no `rng`, and latency_s is the call's wall clock.
+    # _q38nt2 = the no-thinking control rerun at f4ba98d with 6c377c0's per-call
+    # seeds (a fresh TAG, so every call held all 4 passes of its questions): rows
+    # stamp call_seed and batch_slot, and decode carries `rng`. It supersedes the
+    # as-run _q38nt, which stays registered here so the registry still says it ran,
+    # and is held back from the shared bundle with --exclude. _q38bm was not rerun.
     dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset.json",
          glob="bench_cvbench_full_runnable_subset_cvbench_q38bm_shard*.jsonl",
          budget="no images, native thinking (effort medium)"),
     dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset.json",
          glob="bench_cvbench_full_runnable_subset_cvbench_q38nt_shard*.jsonl",
          budget="no images, thinking off, direct-answer prompt"),
+    dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset.json",
+         glob="bench_cvbench_full_runnable_subset_cvbench_q38nt2_shard*.jsonl",
+         budget="no images, thinking off, direct-answer prompt, per-call seeds"),
     dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset_o2.json",
          glob="bench_cvbench_full_runnable_subset_o2_cvbench_q38bm_shard*.jsonl",
          budget="no images, native thinking (effort medium), options reversed"),
     dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset_o2.json",
          glob="bench_cvbench_full_runnable_subset_o2_cvbench_q38nt_shard*.jsonl",
          budget="no images, thinking off, direct-answer prompt, options reversed"),
+    dict(dataset="CVBench", backend="Qwen3.8-27B", subset="cvbench_full_runnable_subset_o2.json",
+         glob="bench_cvbench_full_runnable_subset_o2_cvbench_q38nt2_shard*.jsonl",
+         budget="no images, thinking off, direct-answer prompt, per-call seeds, options reversed"),
 ]
 
 MEDIA_KEYS = [f"video_{i}" for i in range(1, 14)] + [f"image_{i}" for i in range(1, 14)]

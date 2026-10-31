@@ -230,7 +230,7 @@ SCHEMA = [
     ("frame_alloc", "frames per view the arm chose; on segment_select legs also the per-segment scores (absent in slim/)"),
     ("media_remap", "'avi->mp4' on MEVA rows decoded through the remux; the reason older MEVA legs are excluded"),
     ("error", "non-null when the call failed; such rows are counted in `errors`"),
-    ("decode", "decoding settings the row ran under (Qwen3.8: top_p, top_k, answer_after_think, enable_thinking, reasoning_effort); a knob at its template default is null"),
+    ("decode", "decoding settings the row ran under (Qwen3.8: top_p, top_k, answer_after_think, enable_thinking, reasoning_effort; a batched leg from MultiCam 6c377c0 on adds its seeding scheme as rng); a knob at its template default is null"),
     ("parsed_from", "`after_think` when the answer was parsed from the reply after the last `</think>` (Qwen3.8 native thinking); null = the whole text"),
     ("batch_n, call_seed, batch_slot", "batched sampling: sequences in the row's generate call (null for a one-sequence call); `call_seed` and `batch_slot` only on rows written from MultiCam 6c377c0 on"),
     ("reasoning, max_new_tokens", "prompt mode and output-token cap, stamped on rows written from MultiCam 6c377c0 on"),

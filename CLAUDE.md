@@ -91,7 +91,8 @@ its pass. `latency_s` is the whole call's wall clock: `bench/metrics.py` divides
 `call_seed` existed — the CVBench `_q38bm`/`_q38nt` legs — ran every call under its
 first pending pass's seed, pass 1's in every call, so each batch slot replayed one noise
 stream across the leg: the no-thinking control's answers are coupled across questions
-and across the two option orders. A batched leg now adds its seeding scheme to `decode`
+and across the two option orders. `_q38nt2` is that control rerun with per-call seeds;
+it supersedes `_q38nt` in the shared export. A batched leg now adds its seeding scheme to `decode`
 as `rng`, so it never resumes those files. The resume guard compares `decode`,
 temperature, reasoning mode and `max_new_tokens` (a row that predates a stamp is not
 compared on it) besides backend, dataset, media and segment identity; `--allow-mixed`
